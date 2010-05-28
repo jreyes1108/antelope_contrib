@@ -1,4 +1,3 @@
-from twisted.python import log 
 import sys
 import os
 import re
@@ -6,6 +5,8 @@ from time import gmtime, strftime
 
 from string import Template
 from twisted.web import resource
+from twisted.python import log 
+from twisted.internet import reactor 
 
 import antelope.stock as stock
 from antelope.datascope import *
@@ -28,8 +29,6 @@ if(float(sys.version_info[0])+float(sys.version_info[1])/10 >= 2.6):
 else:
 
     import simplejson as json
-
-
 
 def isNumber(test):
 #{{{
@@ -89,19 +88,66 @@ class QueryParser(resource.Resource):
         return jquery_includes
         # }}}
 
+    def _parse_url(self,args):
+        # {{{
+
+        url_params = defaultdict()
+
+        if config.debug:
+            log.msg("Original query list: %s" % str(args) ) 
+
+        if len(args) > 0:
+            if args[0] == 'data':
+                args.remove('data')
+
+        if len(args) == 2:
+            url_params['sta'] = args[1].split('+')
+
+        elif len(args) == 3:
+            url_params['sta'] = args[1].split('+')
+            if isNumber( args[2] ):
+                url_params['time_start'] = args[2]
+            else:
+                url_params['chans'] = args[2].split('+')
+
+        elif len(args) == 4:
+            url_params['sta'] = args[1].split('+')
+            if isNumber( args[2] ):
+                url_params['time_start'] = args[2]
+                url_params['time_end'] = args[3]
+            else:
+                url_params['chan'] = args[2].split('+')
+                url_params['time_start'] = args[3]
+
+        elif len(args) == 5:
+            url_params['sta'] = args[1].split('+')
+            url_params['chan'] = args[2].split('+')
+            url_params['time_start'] = args[3]
+            url_params['time_end'] = args[4]
+
+        elif len(args) == 6:
+            url_params['sta'] = args[1].split('+')
+            url_params['chan'] = args[2].split('+')
+            url_params['time_start'] = args[3]
+            url_params['time_end'] = args[4]
+            url_params['filter'] = args[5]
+
+        if config.verbose:
+            log.msg("Converted query: %s" % str(url_params) ) 
+
+        return url_params
+        # }}}
+
     def getChild(self, name, request):
 #{{{
         return self
 #}}}
 
     def render(self, request):
-
 #{{{ Setup template, init variables
         template = config.html_template
 
-        url_params = {}
-
-        response_data = {}
+        response_data = defaultdict()
 
         tvals = defaultdict(dict)
 
@@ -109,8 +155,8 @@ class QueryParser(resource.Resource):
             "dir":               '&mdash;',
             "key":               '&mdash;',
             "error":             'false',
-            "wf_data":           'false',
-            "cv_data":           'false',
+            "meta_query":        'false',
+            "coverage":          'false',
             "event_list":        'false',
             "event_data":        'false',
             "event_selc":        'false',
@@ -148,7 +194,7 @@ class QueryParser(resource.Resource):
 
             tvals['dir'] = args[0]
 
-            log.msg("ARGS: %s " % args)
+            log.msg("\tQUERY: %s " % args)
 
             if args[0] == 'data':
                 #{{{
@@ -158,106 +204,34 @@ class QueryParser(resource.Resource):
                 request.setHeader("content-type", "application/json")
 
                 if 'wf' in args:
-
+#{{{
                     """
-                    TEST:
-
-                        http://localhost:8008/data/wf/USP/645
-                        http://localhost:8008/data/wf/AAK+BBC/BHZ/645
-                        http://localhost:8008/data/wf/USP/706139610/706139810
-                        http://localhost:8008/data/wf/USP+AAK/BHZ/706139710/706139810
-                        http://localhost:8008/data/wf/USP+AAK/BHZ/706139710/706139810/0.3-1_BP
-
+                    Return JSON object of data. For client ajax calls.
                     """
-                    if len(args) == 2:
-                        return json.dumps(self.eventdata.get_segment(url_params, self.stations, self.events))
 
-                    elif len(args) == 4:
-                        url_params['sta'] = args[2].split('+')
-                        url_params['orid'] = args[3]
-                        return json.dumps(self.eventdata.get_segment(url_params, self.stations, self.events))
+                    return json.dumps(self.eventdata.get_segment(self._parse_url(args), self.stations, self.events))
 
-                    elif len(args) == 5:
-                        url_params['sta'] = args[2].split('+')
-                        if isNumber( args[3] ):
-                            url_params['time_start'] = args[3]
-                            url_params['time_end'] = args[4]
-                        else:
-                            url_params['chans'] = args[3].split('+')
-                            url_params['orid'] = args[4]
-
-                        return json.dumps(self.eventdata.get_segment(url_params, self.stations, self.events))
-
-                    elif len(args) == 6:
-                        url_params['sta'] = args[2].split('+')
-                        url_params['chans'] = args[3].split('+')
-                        url_params['time_start'] = args[4]
-                        url_params['time_end'] = args[5]
-                        return json.dumps(self.eventdata.get_segment(url_params, self.stations, self.events))
-
-                    elif len(args) == 7:
-                        url_params['sta'] = args[2].split('+')
-                        url_params['chans'] = args[3].split('+')
-                        url_params['time_start'] = args[4]
-                        url_params['time_end'] = args[5]
-                        url_params['filter'] = args[6]
-                        return json.dumps(self.eventdata.get_segment(url_params, self.stations, self.events))
+#}}}
 
                 elif 'coverage' in args:
+#{{{
                     """
-                    You can test this with:
-                        http://localhost:8008/data/coverage/
-                        http://localhost:8008/data/coverage/AAK+USP
-                        http://localhost:8008/data/coverage/AAK+USP/BHZ+BHN
-                        http://localhost:8008/data/coverage/AAK+USP/706139700
-                        http://localhost:8008/data/coverage/AAK+USP/BHZ/706139700
-                        http://localhost:8008/data/coverage/AAK+USP/BHZ/706139700/706139820
-
+                    Return coverage tuples as JSON objects. For client ajax calls.
                     """
 
-                    if len(args) == 3:
-                        url_params['sta'] = args[2].split('+')
-
-                    elif len(args) == 4:
-                        url_params['sta'] = args[2].split('+')
-                        if isNumber( args[3] ):
-                            url_params['time_start'] = args[3]
-                        else:
-                            url_params['chans'] = args[3].split('+')
-
-                    elif len(args) == 5:
-                        url_params['sta'] = args[2].split('+')
-                        if isNumber( args[3] ):
-                            url_params['time_start'] = args[3]
-                            url_params['time_end'] = args[4]
-                        else:
-                            url_params['chans'] = args[3].split('+')
-                            url_params['time_start'] = args[4]
-
-                    elif len(args) == 6:
-                        url_params['sta'] = args[2].split('+')
-                        url_params['chans'] = args[3].split('+')
-                        url_params['time_start'] = args[4]
-                        url_params['time_end'] = args[5]
-
-                    if config.verbose:
-                        log.msg("Query coverage. %s" % str(args) ) 
-
-                    response_data.update(self.eventdata.coverage(url_params))
+                    response_data.update(self.eventdata.coverage(self._parse_url(args)))
 
                     return json.dumps(response_data)
+#}}}
 
                 elif 'events' in args:
+#{{{
                     """
-                    You can test this with:
-
-                        http://localhost:8008/data/events - list of events
-                        http://localhost:8008/data/events/66484 - list of stations that recorded event 66484
-                        http://localhost:8008/data/events/645+655
+                    Return events dictionary as JSON objects. For client ajax calls.
+                    Called with or without argument
                     """
-
                     if len(args) == 3:
-                        args[2] = args[2].split('+')
+                        args = self._parse_url(args)
 
                         for event in args[2]:
                             log.msg("\n\n\tcalling self.events(%s)\n\n" % event)
@@ -266,18 +240,16 @@ class QueryParser(resource.Resource):
 
                     else:
                         return json.dumps(self.events.table())
+#}}}
 
                 elif 'stations' in args:
+#{{{
                     """
-                    You can test this with:
-
-                        http://localhost:8008/data/stations
-                        http://localhost:8008/data/stations/Y12C
-                        http://localhost:8008/data/stations/LZH+OBN+USP
+                    Return station dictionary as JSON objects. For client ajax calls.
+                    Called with or without argument
                     """
-
                     if len(args) == 3:
-                        args[2] = args[2].split('+')
+                        args = self._parse_url(args)
 
                         for sta in args[2]:
                             log.msg("\n\n\tcalling self.stations(%s)\n\n" % sta)
@@ -286,40 +258,31 @@ class QueryParser(resource.Resource):
 
                     else:
                         return json.dumps(self.stations.list())
+#}}}
 
                 elif 'filters' in args:
-
+#{{{
                     """
-                    You can test this with:
-
-                        http://localhost:8008/data?type=filters
-                        OR
-                        http://localhost:8008/data/filters
+                    Return list of filters as JSON objects. For client ajax calls.
                     """
-
                     return json.dumps(config.filters, sort_keys=True)
+#}}}
 
                 else:
+#{{{ ERROR: Unknown query type.
                     request.setHeader("content-type", "text/html")
                     request.setHeader("response-code", 500)
                     dbwfserver.eventdata._error("Unknown type of query: %s" % args)
                     tvals['error'] =  json.dumps( "Unknown query type:(%s)" % args )
+#}}}
 
                 #}}}
 
             elif args[0] == 'events':
-                if len(args) > 1:#{{{
+#{{{
+                if len(args) > 1:
 
                     tvals['key'] = args[1]
-                    tvals['event_data'] = {}
-
-                    log.msg("\n\n\tcalling self.events(%s)\n\n" % args[1])
-                    tvals['event_data'] = self.events(args[1])
-
-                    if not tvals['event_data']:
-                        request.setResponseCode(404)
-                        return "No origin %s in database (404 error)" % (args[1])
-
                     tvals['event_selc'] = args[1]
                     tvals['station_list'] = self.stations.list()
 
@@ -330,123 +293,61 @@ class QueryParser(resource.Resource):
 #}}}
 
             elif args[0] == 'stations':
-                if len(args) > 1:#{{{
+#{{{
+                if len(args) > 1:
 
                     tvals['key'] = args[1]
-                    args[1] = args[1].split('+')
+                    args = self._parse_url(args)
                     tvals['station_data'] = {}
 
-                    for sta in args[1]:
-                        log.msg("\n\n\tcalling self.stations(%s)\n\n" % sta)
+                    for sta in args['sta']:
+                        if config.debug: log.msg("\n\n\tcalling self.stations(%s)\n\n" % sta)
                         tvals['station_data'][sta] = json.dumps( self.stations(sta) )
 
                     if not tvals['station_data']:
-                        request.setResponseCode(404)
-                        return "No station %s in database (404 error)" % (args[1])
+                        dbwfserver.eventdata._error("No matching station in db: %s" % args)
+                        tvals['error'] =  json.dumps( "No matching station in db: %s" % args )
 
-                    tvals['station_selc'] = json.dumps( args[1] )
+                    tvals['station_selc'] = json.dumps( args['sta'] )
                     tvals['event_list'] = json.dumps(self.events.table())
 
                 else:
 
                     tvals['station_list'] = json.dumps( self.stations.list() )
 
-                #}}}
+#}}}
 
             elif args[0] == 'wf':
 #{{{
                 """
-                TEST:
-
-                    http://localhost:8008/wf/USP/645
-                    http://localhost:8008/wf/AAK+BBC/BHZ/645
-                    http://localhost:8008/wf/USP/706139610/706139810
-                    http://localhost:8008/wf/USP+AAK/BHZ/706139710/706139810
-
+                Parse query for data request. Return html with meta-query data for further ajax requests.
                 """
-                if len(args) == 3:
-                    url_params['sta'] = args[1].split('+')
-                    url_params['orid'] = args[2]
-                    tvals['wf_data'] = json.dumps(self.eventdata.get_segment(url_params, self.stations, self.events))
-                    tvals['key'] = args[1] + ' / ' + args[2]
+                log.msg('args: %s (%s)' % (len(args),str(args)))
+                if len(args) > 2:
 
-                elif len(args) == 4:
-                    url_params['sta'] = args[1].split('+')
-                    if isNumber( args[2] ):
-                        url_params['time_start'] = args[2]
-                        url_params['time_end'] = args[3]
-                    else:
-                        url_params['chans'] = args[2].split('+')
-                        url_params['orid'] = args[3]
-                    tvals['key'] = args[1] + ' / ' + args[2] + ' / ' + args[3]
-                    tvals['wf_data'] = json.dumps(self.eventdata.get_segment(url_params, self.stations, self.events))
+                    tvals['meta_query'] = json.dumps(self.eventdata.parse_query(self._parse_url(args), self.stations, self.events))
 
-                elif len(args) == 5:
-                    url_params['sta'] = args[1].split('+')
-                    url_params['chans'] = args[2].split('+')
-                    url_params['time_start'] = args[3]
-                    url_params['time_end'] = args[4]
-                    tvals['key'] = args[1] + ' / ' + args[2] + ' / ' + args[3] + ' / ' + args[4]
-                    tvals['wf_data'] = json.dumps(self.eventdata.get_segment(url_params, self.stations, self.events))
-
-                elif len(args) == 6:
-                    url_params['sta'] = args[1].split('+')
-                    url_params['chans'] = args[2].split('+')
-                    url_params['time_start'] = args[3]
-                    url_params['time_end'] = args[4]
-                    url_params['filter'] = args[5]
-                    tvals['key'] = args[1] + ' / ' + args[2] + ' / ' + args[3] + ' / ' + args[4] + ' / ' + args[5]
-                    tvals['wf_data'] = json.dumps(self.eventdata.get_segment(url_params, self.stations, self.events))
+                    args.remove('wf')
+                    tvals['key']  = " / ".join(str(x) for x in args)
 
                 else:
-                    request.setResponseCode(404)
-                    return "If you request the waveforms resource (/wfs) you must provide a station code and epoch time (404 error)"
+                    request.setHeader("response-code", 500)
+                    dbwfserver.eventdata._error("You must provide a station code and epoch time or origin: %s" % args)
+                    tvals['error'] =  json.dumps( "You must provide a station code and epoch time or origin: %s" % args )
 
 #}}}
 
             elif args[0] == 'coverage':
 #{{{
                 """
-                You can test this with:
-                    http://localhost:8008/coverage/
-                    http://localhost:8008/coverage/AAK+USP
-                    http://localhost:8008/coverage/AAK+USP/BHZ+BHN
-                    http://localhost:8008/coverage/AAK+USP/706139700
-                    http://localhost:8008/coverage/AAK+USP/BHZ/706139700
-                    http://localhost:8008/coverage/AAK+USP/BHZ/706139700/706139820
-
+                Parse query for coverage and return data inside html code.
                 """
 
-                if len(args) == 2:
-                    url_params['sta'] = args[1].split('+')
+                tvals['coverage'] = json.dumps(self.eventdata.parse_query(self._parse_url(args), None, None, True))
 
-                elif len(args) == 3:
-                    url_params['sta'] = args[1].split('+')
-                    if isNumber( args[2] ):
-                        url_params['time_start'] = args[2]
-                    else:
-                        url_params['chans'] = args[2].split('+')
+                args.remove('coverage')
+                tvals['key']  = " / ".join(str(x) for x in args)
 
-                elif len(args) == 4:
-                    url_params['sta'] = args[1].split('+')
-                    if isNumber( args[2] ):
-                        url_params['time_start'] = args[2]
-                        url_params['time_end'] = args[3]
-                    else:
-                        url_params['chans'] = args[2].split('+')
-                        url_params['time_start'] = args[3]
-
-                elif len(args) == 5:
-                    url_params['sta'] = args[1].split('+')
-                    url_params['chans'] = args[2].split('+')
-                    url_params['time_start'] = args[3]
-                    url_params['time_end'] = args[4]
-
-                if config.verbose:
-                    log.msg("Query coverage. %s" % str(args) ) 
-
-
-                tvals['cv_data'] =  json.dumps(self.eventdata.coverage(url_params))
 #}}}
 
             elif args[0] != '':

@@ -79,7 +79,7 @@
                 <form id="conftype" name="conftype">
                 <select id="type" name="type">
                     <option value="wf">Waveforms</option>
-                    <!-- <option value="coverage">Data coverage bars</option> -->
+                    <option value="coverage">Data coverage bars</option>
                 </select>
                 </form>
             </div>
@@ -152,8 +152,8 @@
 <script type="text/javascript">
     $$(function(){
 
-        var wf_data      =  $wf_data ;
-        var cv_data      =  $cv_data ;
+        var coverage     =  $coverage ;
+        var meta_query   =  $meta_query ;
         var event_list   =  $event_list ;
         var event_selc   =  $event_selc ;
         var event_data   =  $event_data ;
@@ -174,8 +174,12 @@
              PlotSelect.setEventData(event_data);
         }
 
-        if (wf_data) {
-             PlotSelect.setData(wf_data);
+        if (coverage) {
+             PlotSelect.setCoverage(coverage);
+        }
+
+        if (meta_query) {
+             PlotSelect.ajaxSetData(meta_query);
         }
 
     });

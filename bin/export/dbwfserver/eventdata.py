@@ -172,16 +172,19 @@ class Stations():
 
         db = Dbptr(self.db)
         db.process([
-            'dbopen sitechan',
-            'dbjoin sensor',
-            'dbjoin instrument'
+            'dbopen sensor',
+            'dbjoin instrument',
+            'dbsort -u sta chan'
             ])
 
         for i in range(db.query(dbRECORD_COUNT)):
 
             db.record = i
 
-            sta, chan, insname, srate, ncalib, rsptype = db.getv('sta', 'chan', 'insname', 'samprate', 'ncalib','rsptype')
+            sta, chan, insname, srate, ncalib, rsptype, time, endtime = db.getv('sta', 'chan', 'insname', 'samprate', 'ncalib','rsptype','time','endtime')
+
+            if _isNumber(endtime) == nulls('endtime'):
+                endtime = '-'
 
             if _isNumber(ncalib) == nulls('ncalib'):
                 ncalib = '-'
@@ -196,13 +199,14 @@ class Stations():
                 insname = '-'
 
             if config.debug:
-                log.msg("\tStation(%s): %s %s %s %s %s" % (sta,chan,insname,srate,ncalib,rsptype))
+                log.msg("\tStation(%s): %s %s %s %s %s %s %s" % (sta,chan,time,endtime,insname,srate,ncalib,rsptype))
 
             self.stachan_cache[sta][chan] = defaultdict(dict)
-            self.stachan_cache[sta][chan]['insname'] = insname
-            self.stachan_cache[sta][chan]['samprate'] = srate
-            self.stachan_cache[sta][chan]['ncalib'] = ncalib
-            self.stachan_cache[sta][chan]['rsptype'] = rsptype
+            self.stachan_cache[sta][chan][time]['insname'] = insname
+            self.stachan_cache[sta][chan][time]['samprate'] = srate
+            self.stachan_cache[sta][chan][time]['ncalib'] = ncalib
+            self.stachan_cache[sta][chan][time]['rsptype'] = rsptype
+            self.stachan_cache[sta][chan][time]['endtime'] = endtime
 
         if config.verbose:
             log.msg("\tClass Stations(): Updating cache of stations. (%s) stations." % len(self.list()) )
@@ -279,7 +283,7 @@ class Events():
         If no widow time is provided the default is 5 secods.
         """
 
-        results = defaultdict()
+        results = {}
         
         start = float(orid_time)-float(window)
         end   = float(orid_time)+float(window)
@@ -307,7 +311,7 @@ class Events():
             return results
 
         else:
-            return False
+            return {}
              
     def _get_event_cache(self):
 
@@ -485,48 +489,32 @@ class EventData():
         self.dbname = dbname
         self.db = dbopen(self.dbname)
 
-    def get_segment(self, url_data, stations, events):
+    def parse_query(self, url_data, stations=None, events=None, coverage=False):
 
         """
-        Get a segment of waveform data.
-    
-        Return a list of (time, value) or (time, min, max) tuples,
-        e.g: [(t1, v1), (t2, v2), ...]
-        or
-             [(t1, v1min, v1max), (t2, v2min, v2max), ...]
-
-        TEST:
-            http://localhost:8008/data?type=wf&sta=113A&orid_time=1234512345
-    
-        Client-side plotting library, Flot, plots the following 
-        [time,max,min] - hence need to rearrange
-        from [time,min,max] to [time,max,min]
-        Javascript takes milliseconds, so multiply utc time
-        by 1000
-
-        Also return event metadata
+        Prepare metadata for future ajax extraction
         """
+        if config.debug:
+            log.msg("Starting functions eventdata.parse_query(): %s" % url_data)
 
         res_data = defaultdict(dict)
-
-        if config.debug:
-            log.msg("\nStarting functions eventdata.get_segment(): %s" % url_data)
+        res_data.update( {'type':'meta-query'} )
 
         """
-        Setting the metadata for the event.
+        This is very simple if we just want coverge
         """
-        if 'orid' in url_data:
-            orid = _isNumber(url_data['orid'])
-            if not orid in events.list() :
-                url_data['time_start'] = orid
-                url_data['time_end'] = orid + config.default_time_window
+        if coverage:
+            res_data['coverage'] = 'true'
+            if 'time_start' in url_data:
+                res_data['time_start'] = _isNumber(url_data['time_start'])
+            if 'time_end' in url_data:
+                res_data['time_end'] = _isNumber(url_data['time_end'])
+            if 'sta' in url_data:
+                res_data['sta'] = url_data['sta']
+            if 'chans' in url_data:
+                res_data['chan'] = url_data['chans']
 
-            else:
-                res_data.update( {'metadata':events(orid)} )
-                res_data.update( {'orid':orid} )
-
-        else:
-            if config.verbose: log.msg( 'No orid passed - ignore metadata' )
+            return res_data
 
         """
         Setting time window of waveform.
@@ -536,33 +524,18 @@ class EventData():
 
         if 'time_start' in url_data:
             mintime = _isNumber(url_data['time_start'])
-        elif 'time' in res_data['metadata']:
-            mintime =  _isNumber( res_data['metadata']['time'])
 
         if 'time_end' in url_data:
             maxtime = _isNumber(url_data['time_end'])
-        elif 'time' in res_data['metadata']:
-            maxtime =  _isNumber( res_data['metadata']['time'] + config.default_time_window)
+        elif 'time_start' in url_data:
+            maxtime = _isNumber( float(url_data['time_start']) + float(config.default_time_window) )
 
         if (not maxtime or maxtime == -1) or (mintime == -1 or not mintime):
             _error("Error in maxtime:%s or mintime:%s" % (maxtime,mintime),res_data)
             return  
 
-        """
-        Setting the filter
-        """
-        if 'filter' in url_data:
-            if url_data['filter'] == 'None':
-                filter = None
-            else:
-                filter = url_data['filter'].replace('_',' ')
-        else:
-            filter = None
-
-        res_data.update( {'type':'waveform'} )
         res_data.update( {'time_start':mintime} )
         res_data.update( {'time_end':maxtime} )
-        res_data.update( {'filter':filter} )
 
         # Handle wildcards on station value
         sta_str  = "|".join(str(x) for x in url_data['sta'])
@@ -618,8 +591,6 @@ class EventData():
 
                 db.process([ 'dbjoin sensor', 'dbjoin instrument', 'dbsort -u chan' ])
 
-                #db.process([ 'dbsort -u chan' ])
-
                 for i in range(db.query(dbRECORD_COUNT)):
                     db.record = i
                     temp_chan[db.getv('chan')[0]] = 1
@@ -648,10 +619,108 @@ class EventData():
 
 
                 if not channel in  temp_dic:
-                    _error("%s not valid channel for station %s" % (channel,station),res_data)
+                    _error("%s not valid channel for station %s" % (channel,station),res_data,True)
                     continue
 
-                if config.verbose: log.msg("Log times: %s %s" % (mintime,maxtime))
+                res_data[station][channel] = defaultdict(dict)
+
+                res_data[station][channel].update({'start':mintime})
+                res_data[station][channel].update({'end':maxtime})
+                res_data[station][channel].update({'metadata':temp_dic[channel]})
+
+                if config.debug: log.msg("New meta-query (%s %s %s %s)" % (mintime,maxtime,station,channel))
+
+        if not res_data:
+            _error("No possible meta-queries out of URL elements...",res_data)
+
+        return res_data
+
+    def get_segment(self, url_data, stations, events):
+
+        """
+        Get a segment of waveform data.
+    
+        Return a list of (time, value) or (time, min, max) tuples,
+        e.g: [(t1, v1), (t2, v2), ...]
+        or
+             [(t1, v1min, v1max), (t2, v2min, v2max), ...]
+
+        TEST:
+            http://localhost:8008/data?type=wf&sta=113A&orid_time=1234512345
+    
+        Client-side plotting library, Flot, plots the following 
+        [time,max,min] - hence need to rearrange
+        from [time,min,max] to [time,max,min]
+        Javascript takes milliseconds, so multiply utc time
+        by 1000
+
+        Also return event metadata
+        """
+
+        res_data = defaultdict(dict)
+
+        if config.debug:
+            log.msg("\nStarting functions eventdata.get_segment(): %s" % url_data)
+
+        """
+        Setting vars
+        """
+        res_data.update( {'type':'waveform'} )
+
+        if 'sta' in url_data:
+            res_data.update( {'sta':url_data['sta']} )
+        else:
+            _error("Error in sta:%s" % (url_data['sta']),res_data)
+            return  
+        if 'chan' in url_data:
+            res_data.update( {'chan':url_data['chan']} )
+        else:
+            _error("Error in chan:%s" % (url_data['chan']),res_data)
+            return  
+
+        if 'time_start' in url_data:
+            mintime = _isNumber(url_data['time_start'])
+            res_data.update( {'time_start':mintime} )
+        else:
+            _error("Error in time_start:%s" % (url_data['time_start']),res_data)
+            return  
+
+        if 'time_end' in url_data:
+            maxtime = _isNumber(url_data['time_end'])
+            res_data.update( {'time_end':maxtime} )
+        else:
+            _error("Error in time_end:%s" % (url_data['time_end']),res_data)
+            return  
+
+        """
+        Setting the filter
+        """
+        if 'filter' in url_data:
+            if url_data['filter'] == 'None':
+                filter = None
+            else:
+                filter = url_data['filter'].replace('_',' ')
+        else:
+            filter = None
+
+        res_data.update( {'filter':filter} )
+
+
+        for station in res_data['sta']:
+
+            temp_dic = stations(str(station))
+
+            if not temp_dic:
+                _error('%s not a valid station' % (station),res_data)
+                continue
+
+            for channel in res_data['chan']:
+                if config.debug: log.msg("Now: %s %s" % (station,channel))
+
+
+                if not channel in  temp_dic:
+                    _error("%s not valid channel for station %s" % (channel,station),res_data)
+                    continue
 
                 res_data[station][channel] = defaultdict(dict)
 
@@ -661,7 +730,8 @@ class EventData():
 
                 if config.debug: log.msg("Get data for (%s %s %s %s)" % (mintime,maxtime,station,channel))
 
-                points = int( (maxtime-mintime)*res_data[station][channel]['metadata']['samprate'])
+                # Loop over all samplerates and get max
+                points = int( (maxtime-mintime)* max([ temp_dic[channel][x]['samprate'] for x in temp_dic[channel]]) )
 
                 if config.debug: log.msg("Total points:%s Canvas Size:%s Binning threshold:%s" % (points,config.canvas_size_default,config.binning_threshold))
 
