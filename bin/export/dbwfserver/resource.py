@@ -1,17 +1,15 @@
 import sys
-import os
 import re
 from time import gmtime, strftime
 
 from string import Template
 from twisted.web import resource
 from twisted.python import log 
-from twisted.internet import reactor 
 
 import antelope.stock as stock
 from antelope.datascope import *
 
-import dbwfserver.eventdata 
+import dbwfserver.eventdata as evdata 
 import dbwfserver.config as config
 
 from collections import defaultdict 
@@ -56,10 +54,10 @@ class QueryParser(resource.Resource):
         self.dbname = config.dbname
         self.db = dbopen(self.dbname)
 
-        self.stations = dbwfserver.eventdata.Stations(self.dbname)
-        self.events = dbwfserver.eventdata.Events(self.dbname)
+        self.stations = evdata.Stations(self.dbname)
+        self.events = evdata.Events(self.dbname)
 
-        self.eventdata = dbwfserver.eventdata.EventData(self.dbname)
+        self.eventdata = evdata.EventData(self.dbname)
 #}}}
 
     def _jquery_includes(self):
@@ -108,7 +106,7 @@ class QueryParser(resource.Resource):
             if isNumber( args[2] ):
                 url_params['time_start'] = args[2]
             else:
-                url_params['chans'] = args[2].split('+')
+                url_params['chan'] = args[2].split('+')
 
         elif len(args) == 4:
             url_params['sta'] = args[1].split('+')
@@ -343,7 +341,7 @@ class QueryParser(resource.Resource):
                 Parse query for coverage and return data inside html code.
                 """
 
-                tvals['coverage'] = json.dumps(self.eventdata.parse_query(self._parse_url(args), None, None, True))
+                tvals['coverage'] = json.dumps(self._parse_url(args))
 
                 args.remove('coverage')
                 tvals['key']  = " / ".join(str(x) for x in args)
@@ -357,5 +355,6 @@ class QueryParser(resource.Resource):
 
         html_stations = Template(open(template).read()).substitute(tvals)
 
-        request.write( html_stations )
-        request.finish()
+        #request.write( html_stations )
+        #request.finish()
+        return html_stations

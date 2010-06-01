@@ -13,6 +13,7 @@ from antelope.stock import *
 import dbwfserver.config as config
     
 def _error(text,dictionary=None,quiet=False):
+#{{{
     """
     Test if the 'error' is defined in the dictionary and append text.
     Return updated dictionary.
@@ -27,9 +28,10 @@ def _error(text,dictionary=None,quiet=False):
             dictionary['error'] = '\n' + text
 
         return dictionary
-
+#}}}
 
 def _isNumber(test):
+#{{{
     """
     Test if the string is a valid number 
     and return the converted number. 
@@ -49,20 +51,23 @@ def _isNumber(test):
                 return None
     except:
         return None
-
+#}}}
 
 class db_nulls():
+#{{{
     """
     db_nulls tools.
     """
 
     def __init__(self):
-
+#{{{
         self.dbname = config.dbname
         self.db = dbopen(self.dbname)
         self._get_nulls()
-        
+#}}}
+
     def __str__(self):
+#{{{
         """
         end-user/application display of content using print() or log.msg()
         """
@@ -72,8 +77,10 @@ class db_nulls():
             text += "\t%s: %s" % (value,self.null_vals[value])
 
         return text
+#}}}
 
     def __call__(self, element):
+#{{{
         """
         method to intercepts data requests.
         """
@@ -85,8 +92,10 @@ class db_nulls():
         else:
             _error("Class db_nulls(): No value for (%s)" % element)
             return ''
+#}}}
 
     def _get_nulls(self):
+#{{{
         """
         Go through the tables on the database and return
         dictionary with NULL values for each field.
@@ -100,42 +109,49 @@ class db_nulls():
                 self.db.lookup( '',table,field,'dbNULL')
                 self.null_vals[field] = _isNumber(self.db.get(''))
                 if config.debug: log.msg("Class Db_Nulls: set(%s):%s" % (field,self.null_vals[field]))
+#}}}
 
-
+#}}}
 #
-# Initiate db_nulls here to be access by Stations and Events classes simultaneously
+# Initiate db_nulls here to be accessible to Stations and Events classes simultaneously
 # This will turn 'nulls' into a global object inside eventdata.py
 # We can do this on resources.py but that will prevent direct access from Stations or Events classes
 #   and from other servers using this library. This will change in the next version of the server. 
-#
 nulls = db_nulls()
 
 
 
 class Stations():
+#{{{
     """
     Data structure and functions to query for stations
     """
 
     def __init__(self, dbname):
-
+#{{{
         self.dbname = dbname
         self.db = dbopen(self.dbname)
         self.stachan_cache = defaultdict(dict)
         self.index = []
         self._get_stachan_cache()
+#}}}
 
     def __iter__(self):
+#{{{
         self.index = self.stachan_cache.keys()
         return self
+#}}}
 
     def next(self):
+#{{{
         if len(self.index) == 0:
             raise StopIteration
         else:
             return self.index.pop()
+#}}}
 
     def __repr__(self):
+#{{{
         """
         low-level display for programmers o use during development.
         call: repr(var)
@@ -146,16 +162,20 @@ class Stations():
             log.msg("\t\t%s:" % st )
             for ch in self.stachan_cache[st].keys():
                 log.msg("\t\t\t%s: %s" % (ch,self.stachan_cache[st][ch]) )
+#}}}
 
     def __str__(self):
+#{{{
         """
         end-user/application display of content using print() or log.msg()
         """
         for st in self.stachan_cache.keys():
             chans = self.stachan_cache[st].keys()
             log.msg("\t%s: %s" % (st,chans) )
+#}}}
 
     def __call__(self, station):
+#{{{
         """
         method to intercepts data requests.
         """
@@ -165,9 +185,10 @@ class Stations():
         else:
             log.msg("Class Stations(): No value for (%s)" % station)
             return False
+#}}}
 
     def _get_stachan_cache(self):
-
+#{{{
         self.stachan_cache = defaultdict(dict)
 
         db = Dbptr(self.db)
@@ -215,34 +236,43 @@ class Stations():
 
 
         self.call = reactor.callLater(60, self._get_stachan_cache)
+#}}}
 
     def list(self):
             return self.stachan_cache.keys()
+#}}}
 
 class Events():
+#{{{
     """
     Data structure and functions to query for events
     """
 
     def __init__(self, dbname):
-
+#{{{
         self.dbname = dbname
         self.db = dbopen(self.dbname)
         self.event_cache = defaultdict(list)
         self.index = []
         self._get_event_cache()
+#}}}
 
     def __iter__(self):
+#{{{
         self.index = self.event_cache.keys()
         return self
+#}}}
 
     def next(self):
+#{{{
         if len(self.index) == 0:
             raise StopIteration
         else:
             return self.index.pop()
+#}}}
 
     def __repr__(self):
+#{{{
         """
         low-level display for programmers o use during development.
         call: repr(var)
@@ -251,14 +281,18 @@ class Events():
         log.msg("\t\t%s", (self.event_cache.keys()) )
         for event in self.event_cache.keys():
             log.msg("\t\t%s: %s" % (event,self.event_cache[event]) )
+#}}}
 
     def __str__(self):
+#{{{
         """
         end-user/application display of content using print() or log.msg()
         """
         log.msg("\t\tEvents: %s" % (self.event_cache.keys()) )
+#}}}
 
     def __call__(self, value):
+#{{{
         """
         method to intercepts data requests.
         """
@@ -270,6 +304,7 @@ class Events():
         else:
             log.msg("Class Events(): No value (%s)" % value)
             return False
+#}}}
 
     def list(self):
         return self.event_cache.keys()
@@ -278,6 +313,7 @@ class Events():
         return self.event_cache
 
     def time(self,orid_time,window=5):
+#{{{
         """
         Look for event id close to a value of epoch time + or - window time in seconds. 
         If no widow time is provided the default is 5 secods.
@@ -312,9 +348,10 @@ class Events():
 
         else:
             return {}
-             
-    def _get_event_cache(self):
+#}}}
 
+    def _get_event_cache(self):
+#{{{
         self.event_cache = defaultdict(list)
 
         db = Dbptr(self.db)
@@ -403,8 +440,10 @@ class Events():
             self.__str__()
 
         self.call = reactor.callLater(60, self._get_event_cache)
+#}}}
 
     def phases(self, sta, mintime, maxtime):
+#{{{
         """
         Go through station channels to retrieve all
         arrival phases
@@ -476,134 +515,150 @@ class Events():
                 _error("No arrivals in this time segment for the stations (%s): t1=%s t2=%s" % (sta_str,mintime,maxtime),phases)
 
             return phases
-
+#}}}
+#}}}
 
 class EventData():
-
+#{{{
     """
     Provide interaction with Datascope database
     """
 
     def __init__(self, dbname):
-
+#{{{
         self.dbname = dbname
         self.db = dbopen(self.dbname)
+#}}}
 
-    def parse_query(self, url_data, stations=None, events=None, coverage=False):
+    def _station_wildcard(self, sta=None):
+#{{{
+        stations = []
 
+        if not sta:
+            sta = '.*'
+
+        # Handle wildcards on station value
+        sta_str  = "|".join(str(x) for x in sta)
+
+        if sta_str.find('.') != -1 or sta_str.find('*') != -1  :
+            if config.debug: log.msg("Wildcard for statioin sta =~/%s/ " % sta_str)
+
+            db = Dbptr(self.db)
+            db.lookup(table="sitechan")
+            db.subset("sta =~/%s/" % sta_str)
+            db.process([ 'dbsort -u sta' ])
+
+            if db.query(dbRECORD_COUNT) == 0:
+                _error('%s not a valid station regex' % sta_str)
+
+            for i in range(db.query(dbRECORD_COUNT)):
+                db.record = i
+                stations.append(db.getv('sta')[0])
+        else:
+            stations = sta
+
+        return stations
+#}}}
+
+    def _channels_wildcard(self, chans=None):
+#{{{
+        channels = []
+
+        # If no chan in url_data then...
+        # try to get channels from PF or just everything in the DB
+        if not chans:
+            if config.debug: log.msg("Query for channels(from pf): %s" % config.default_chans)
+            chans = config.default_chans
+
+        # Handle wildcards on channel value
+        chan_str  = "|".join(str(x) for x in chans)
+        if chan_str.find('.') != -1 or chan_str.find('*') != -1 :
+
+            if config.debug: log.msg("Wildcard for chan =~/%s/ " % chan_str)
+            temp_chan = defaultdict()
+
+            db = Dbptr(self.db)
+
+            db.lookup(table="sitechan")
+            db.subset("chan =~ /%s/" % chan_str)
+            #db.process([ 'dbjoin sensor', 'dbjoin instrument', 'dbsort -u chan' ])
+            db.process([ 'dbsort -u chan' ])
+
+            for i in range(db.query(dbRECORD_COUNT)):
+                db.record = i
+                channels.append(db.getv('chan')[0])
+
+        else:
+            channels = chans
+
+        return channels
+#}}}
+
+    def _extract_values(self, url):
+#{{{
+        data = defaultdict(dict)
+
+        """
+        Setting time window of waveform.
+        """
+        if 'time_start' in url:
+            data['time_start'] = _isNumber(url['time_start'])
+
+        if 'time_end' in url:
+            data['time_end'] = _isNumber(url['time_end'])
+        elif 'time_start' in url:
+            data['time_end'] = _isNumber( float(url['time_start']) + float(config.default_time_window) )
+
+        """
+        Setting stations
+        """
+        # Handle wildcards on station values
+        if 'sta' in url:
+            data['sta'] = self._station_wildcard(url['sta'])
+        else:
+            data['sta'] = self._station_wildcard()
+
+        """
+        Setting channels
+        """
+        # Handle wildcards on channel values
+        if 'chan' in url:
+            data['chan'] = self._channels_wildcard(url['chan'])
+        else:
+            data['chan'] = self._channels_wildcard()
+
+        return data
+#}}}
+
+    def parse_query(self, url_data, stations=None, events=None):
+#{{{
         """
         Prepare metadata for future ajax extraction
         """
         if config.debug:
             log.msg("Starting functions eventdata.parse_query(): %s" % url_data)
 
-        res_data = defaultdict(dict)
-        res_data.update( {'type':'meta-query'} )
+        res_data = self._extract_values(url_data)
+
+        res_data['type'] = 'meta-query'
 
         """
-        This is very simple if we just want coverge
+        Verify data extracted.
         """
-        if coverage:
-            res_data['coverage'] = 'true'
-            if 'time_start' in url_data:
-                res_data['time_start'] = _isNumber(url_data['time_start'])
-            if 'time_end' in url_data:
-                res_data['time_end'] = _isNumber(url_data['time_end'])
-            if 'sta' in url_data:
-                res_data['sta'] = url_data['sta']
-            if 'chans' in url_data:
-                res_data['chan'] = url_data['chans']
-
-            return res_data
-
-        """
-        Setting time window of waveform.
-        """
-        maxtime = -1
-        mintime = -1
-
-        if 'time_start' in url_data:
-            mintime = _isNumber(url_data['time_start'])
-
-        if 'time_end' in url_data:
-            maxtime = _isNumber(url_data['time_end'])
-        elif 'time_start' in url_data:
-            maxtime = _isNumber( float(url_data['time_start']) + float(config.default_time_window) )
-
-        if (not maxtime or maxtime == -1) or (mintime == -1 or not mintime):
-            _error("Error in maxtime:%s or mintime:%s" % (maxtime,mintime),res_data)
+        if not 'time_start' in res_data or not 'time_end' in res_data:
+            _error("Error in time:(%s,%s)" % (res_data['time_start'],res_data['time_end']),res_data)
             return  
 
-        res_data.update( {'time_start':mintime} )
-        res_data.update( {'time_end':maxtime} )
+        if not 'sta' in res_data: 
+            _error('Error. No stations in selection.' % url_data['sta'], res_data)
+            return  
 
-        # Handle wildcards on station value
-        sta_str  = "|".join(str(x) for x in url_data['sta'])
-        if sta_str.find('.') or sta_str.find('*') :
-            res_data.update( {'sta':[]} )
-            db = Dbptr(self.db)
-            db.lookup(table="sitechan")
-
-            db.subset("sta =~/%s/" % sta_str)
-            if config.debug: log.msg("Wildcard for statioin sta =~/%s/ " % sta_str)
-
-            db.process([ 'dbsort -u sta' ])
-
-
-            if db.query(dbRECORD_COUNT) == 0:
-                _error('%s not a valid station regex' % (sta_str),res_data)
-                return res_data
-
-            for i in range(db.query(dbRECORD_COUNT)):
-                db.record = i
-                res_data['sta'].append(db.getv('sta')[0])
-        else:
-            res_data.update( {'sta':url_data['sta']} )
-
-
-        # Lets try to get channels from URL, or from PF file, or just everything in the DB
-        if 'chans' in url_data:
-            if config.debug: log.msg("Query for channels(from URL): %s" % url_data['chans'])
-            res_data.update( {'chan':url_data['chans']} )
-        elif config.default_chans: 
-            if config.debug: log.msg("Query for channels(from pf): %s" % config.default_chans)
-            res_data.update( {'chan':config.default_chans} )
-        else:
-            temp_chan = defaultdict()
-            for sta in url_data['sta']:
-                for cha in stations(sta).keys():
-                    temp_chan[cha] = 1
-            if config.debug: log.msg("Query for channels(from db:ALL): %s" % temp_chan.keys())
-            res_data.update( {'chan':temp_chan.keys()} )
-
-        # Handle wildcards on channel value
-        chan_str  = "|".join(str(x) for x in res_data['chan'])
-        if chan_str.find('.') or chan_str.find('*') :
-            res_data.update( {'chan':[]} )
-            temp_chan = defaultdict()
-
-            db = Dbptr(self.db)
-            for station in res_data['sta']:
-                db.lookup(table="sitechan")
-
-                db.subset("sta =~ /%s/ && chan =~ /%s/" % (station,chan_str))
-                if config.debug: log.msg("Wildcard for sta =~ /%s/ && chan =~/%s/ " % (station,chan_str))
-
-                db.process([ 'dbjoin sensor', 'dbjoin instrument', 'dbsort -u chan' ])
-
-                for i in range(db.query(dbRECORD_COUNT)):
-                    db.record = i
-                    temp_chan[db.getv('chan')[0]] = 1
-
-        res_data['chan'] = temp_chan.keys()
-
-        if len(res_data['chan']) == 0:
-            _error('%s not a valid channel regex' % (sta_str),res_data)
-            return res_data
+        if not 'chan' in res_data: 
+            _error('Error. No channels in selection.' % url_data['cahns'], res_data)
+            return  
 
         # Getting phase arrival times.
-        phase_arrivals = events.phases(url_data['sta'],mintime,maxtime)
-        res_data.update( {'phases':phase_arrivals } )
+        res_data['phases'] = events.phases(res_data['sta'],res_data['time_start'],res_data['time_end'])
 
 
         for station in res_data['sta']:
@@ -624,40 +679,23 @@ class EventData():
 
                 res_data[station][channel] = defaultdict(dict)
 
-                res_data[station][channel].update({'start':mintime})
-                res_data[station][channel].update({'end':maxtime})
-                res_data[station][channel].update({'metadata':temp_dic[channel]})
+                res_data[station][channel]['start']     = res_data['time_start']
+                res_data[station][channel]['end']       = res_data['time_end']
+                res_data[station][channel]['metadata']  = temp_dic[channel]
 
-                if config.debug: log.msg("New meta-query (%s %s %s %s)" % (mintime,maxtime,station,channel))
+                if config.debug: log.msg("New meta-query (%s %s %s %s)" % (res_data['time_start'],res_data['time_end'],station,channel))
 
         if not res_data:
-            _error("No possible meta-queries out of URL elements...",res_data)
+            _error("No possible meta-queries out of URL elements: %s" % url_data ,res_data)
 
         return res_data
+#}}}
 
     def get_segment(self, url_data, stations, events):
-
+#{{{
         """
         Get a segment of waveform data.
-    
-        Return a list of (time, value) or (time, min, max) tuples,
-        e.g: [(t1, v1), (t2, v2), ...]
-        or
-             [(t1, v1min, v1max), (t2, v2min, v2max), ...]
-
-        TEST:
-            http://localhost:8008/data?type=wf&sta=113A&orid_time=1234512345
-    
-        Client-side plotting library, Flot, plots the following 
-        [time,max,min] - hence need to rearrange
-        from [time,min,max] to [time,max,min]
-        Javascript takes milliseconds, so multiply utc time
-        by 1000
-
-        Also return event metadata
         """
-
-        res_data = defaultdict(dict)
 
         if config.debug:
             log.msg("\nStarting functions eventdata.get_segment(): %s" % url_data)
@@ -665,31 +703,23 @@ class EventData():
         """
         Setting vars
         """
-        res_data.update( {'type':'waveform'} )
+        res_data = self._extract_values(url_data)
 
-        if 'sta' in url_data:
-            res_data.update( {'sta':url_data['sta']} )
-        else:
-            _error("Error in sta:%s" % (url_data['sta']),res_data)
-            return  
-        if 'chan' in url_data:
-            res_data.update( {'chan':url_data['chan']} )
-        else:
-            _error("Error in chan:%s" % (url_data['chan']),res_data)
+        res_data['type'] = 'waveform'
+
+        """
+        Verify data extracted.
+        """
+        if not 'time_start' in res_data or not 'time_end' in res_data:
+            _error("Error in time:(%s,%s)" % (res_data['time_start'],res_data['time_end']),res_data)
             return  
 
-        if 'time_start' in url_data:
-            mintime = _isNumber(url_data['time_start'])
-            res_data.update( {'time_start':mintime} )
-        else:
-            _error("Error in time_start:%s" % (url_data['time_start']),res_data)
+        if not 'sta' in res_data: 
+            _error('Error. No stations in selection.' % url_data['sta'], res_data)
             return  
 
-        if 'time_end' in url_data:
-            maxtime = _isNumber(url_data['time_end'])
-            res_data.update( {'time_end':maxtime} )
-        else:
-            _error("Error in time_end:%s" % (url_data['time_end']),res_data)
+        if not 'chan' in res_data: 
+            _error('Error. No channels in selection.' % url_data['cahns'], res_data)
             return  
 
         """
@@ -703,7 +733,7 @@ class EventData():
         else:
             filter = None
 
-        res_data.update( {'filter':filter} )
+        res_data['filter'] = filter
 
 
         for station in res_data['sta']:
@@ -724,14 +754,14 @@ class EventData():
 
                 res_data[station][channel] = defaultdict(dict)
 
-                res_data[station][channel].update({'start':mintime})
-                res_data[station][channel].update({'end':maxtime})
-                res_data[station][channel].update({'metadata':temp_dic[channel]})
+                res_data[station][channel]['start']     = res_data['time_start']
+                res_data[station][channel]['end']       = res_data['time_end']
+                res_data[station][channel]['metadata']  = temp_dic[channel]
 
-                if config.debug: log.msg("Get data for (%s %s %s %s)" % (mintime,maxtime,station,channel))
+                if config.debug: log.msg("Get data for (%s %s %s %s)" % (res_data['time_start'],res_data['time_end'],station,channel))
 
                 # Loop over all samplerates and get max
-                points = int( (maxtime-mintime)* max([ temp_dic[channel][x]['samprate'] for x in temp_dic[channel]]) )
+                points = int( (res_data['time_end']-res_data['time_start'])* max([ temp_dic[channel][x]['samprate'] for x in temp_dic[channel]]) )
 
                 if config.debug: log.msg("Total points:%s Canvas Size:%s Binning threshold:%s" % (points,config.canvas_size_default,config.binning_threshold))
 
@@ -741,7 +771,7 @@ class EventData():
                 elif points <  (config.binning_threshold * config.canvas_size_default):
 
                     try:
-                        res_data[station][channel]['data'] = self.db.sample(mintime,maxtime,station,channel,False, filter)
+                        res_data[station][channel]['data'] = self.db.sample(res_data['time_start'],res_data['time_end'],station,channel,False, filter)
                     except Exception,e:
                         _error("Exception on data: %s" % e,res_data,True)
 
@@ -751,7 +781,7 @@ class EventData():
 
                     binsize = points/config.canvas_size_default
                     try:
-                        res_data[station][channel]['data'] = self.db.samplebins(mintime, maxtime, station, channel, binsize, False, filter)
+                        res_data[station][channel]['data'] = self.db.samplebins(res_data['time_start'], res_data['time_end'], station, channel, binsize, False, filter)
                     except Exception,e:
                         _error("Exception on data: %s" % e,res_data,True)
 
@@ -761,24 +791,12 @@ class EventData():
             _error("No data out of db.sample or db.samplebins",res_data)
 
         return res_data
-
+#}}}
 
     def coverage(self, params=None):
-
+#{{{
         """
         Get list of segments of data for the respective station and channel
-
-        Return a list of (start, end) tuples,
-        e.g: [(s1, e1), (s2, e2), ...]
-
-        TEST:
-            http://localhost:8008/data/coverage/
-            http://localhost:8008/data/coverage/AAK+USP
-            http://localhost:8008/data/coverage/AAK+USP/BHZ+BHN
-            http://localhost:8008/data/coverage/AAK+USP/706139700
-            http://localhost:8008/data/coverage/AAK+USP/BHZ/706139700
-            http://localhost:8008/data/coverage/AAK+USP/BHZ/706139700/706139820
-
         """
         sta_str  = ''
         chan_str = ''
@@ -798,8 +816,8 @@ class EventData():
             db.subset("sta =~/%s/" % sta_str)
             if config.debug: log.msg("\n\nCoverage subset on sta =~/%s/ " % sta_str)
 
-        if 'chans' in params:
-            chan_str  = "|".join(str(x) for x in params['chans'])
+        if 'chan' in params:
+            chan_str  = "|".join(str(x) for x in params['chan'])
             db.subset("chan =~/%s/" % chan_str)
             if config.debug: log.msg("\n\nCoverage subset on chan =~/%s/ " % chan_str)
 
@@ -838,10 +856,16 @@ class EventData():
             if not this_chan in res_data['chan']:
                 res_data['chan'].append(this_chan)
 
-            res_data[this_sta][this_chan] = { 'data':[] }
+            # Build the dictionary
+            if not this_sta in res_data:
+                res_data[this_sta] = {}
+            if not this_chan in res_data[this_sta]:
+                res_data[this_sta][this_chan] = {}
+            if not 'data' in res_data[this_sta][this_chan]:
+                res_data[this_sta][this_chan] = { 'data':[] }
 
             res_data[this_sta][this_chan]['data'].append([time,endtime])
 
         return res_data
-
-
+#}}}
+#}}}

@@ -408,16 +408,17 @@ PlotSelect = {
         });
         // use substring(1) to remove first character '+' on new string
 
+        $.each(args.stas, function(sta_iterator,mysta){
 
-        $.ajax({
-            type:'get',
-            dataType:'json',
-            url:"/data/"+args.type+"/"+sta_list.substring(1)+"/"+chan_list.substring(1)+"/"+args.ts+"/"+args.te+"/"+args.filter ,
-            success:PlotSelect.setData,
-            error:PlotSelect.errorResponse
+            $.each(args.chans, function(chan_iterator,mychan){
+                var stachan_data = mysta + '_' + mychan ;
+                $("#"+stachan_data+"_wrapper").remove();
+
+                PlotSelect.plotData(mysta,mychan);
+
+            });
+
         });
-
-        //  Get data
 
         $("#loading").hide();
 //}}}
@@ -427,13 +428,6 @@ PlotSelect = {
     ajaxSetData: function(resp) {
 
 //{{{
-        //  Define graph defaults
-
-        if (typeof(resp['type']) == "undefined" ) {
-            alert("Sorry, query failed! Please retry or restart server");
-            return;
-        }
-
         // Define globally for app
         PlotSelect.ts       = resp['time_start'];
         PlotSelect.te       = resp['time_end'];
@@ -455,6 +449,10 @@ PlotSelect = {
 
         //  Some data to plot
 
+        if (typeof(resp['error']) != "undefined" ) {
+            PlotSelect.errorResponse('parsererror',resp['error']);
+        }
+
         $.each(resp.sta, function(sta_iterator,mysta){
 
             $.each(resp.chan, function(chan_iterator,mychan){
@@ -465,10 +463,6 @@ PlotSelect = {
 
         });
 
-        if (typeof(resp['error']) != "undefined" ) {
-            alert('ERROR ON SERVER:\n'+resp['error']);
-        }
-
         $("#loading").fadeOut(500);
         $("#tools").show();
 //}}}
@@ -478,11 +472,6 @@ PlotSelect = {
     setCoverage: function(resp) {
 
 //{{{
-        if (typeof(resp['type']) == "undefined" ) {
-            alert("Sorry, query failed! Please retry or restart server");
-            return;
-        }
-
         //  Define graph defaults
         var opts0 = {
             colors: [PlotSelect.canvasLineColor], 
@@ -788,6 +777,10 @@ PlotSelect = {
             url:"/data/wf/"+sta+"/"+chan+"/"+PlotSelect.ts+"/"+PlotSelect.te ,
             success: function(data) {
 //{{{
+                if (typeof(data[sta][chan]) == "undefined" ) { 
+                return;
+                }
+
                 wrapper.append(lbl);
                 wrapper.append(plt);
                 chan_plots.append(wrapper);
@@ -837,7 +830,9 @@ PlotSelect = {
 //}}}
                 }
 //}}}
-            }
+            },
+            timeout: 30000,
+            error:PlotSelect.errorResponse
         });
 //}}}
 
