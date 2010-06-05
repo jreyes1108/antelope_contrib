@@ -179,7 +179,7 @@ class Stations():
         """
         method to intercepts data requests.
         """
-        if self.stachan_cache[station]:
+        if station in self.stachan_cache:
             return self.stachan_cache[station]
 
         else:
@@ -236,6 +236,27 @@ class Stations():
 
 
         self.call = reactor.callLater(60, self._get_stachan_cache)
+#}}}
+
+    def channels(self,station=False):
+#{{{
+        """
+        Get unique list of channels.
+        """
+        chans = {}
+
+        if station:
+            if station in self.stachan_cache:
+                for ch in self.stachan_cache[station]:
+                    chans[ch] = 1
+            else:
+                return False
+        else:
+            for st in self.stachan_cache.keys():
+                for ch in self.stachan_cache[st]:
+                    chans[ch] = 1
+
+        return chans.keys()
 #}}}
 
     def list(self):
@@ -793,7 +814,7 @@ class EventData():
         return res_data
 #}}}
 
-    def coverage(self, params=None):
+    def coverage(self, params=None, stations=None):
 #{{{
         """
         Get list of segments of data for the respective station and channel
@@ -804,7 +825,6 @@ class EventData():
 
         res_data.update( {'type':'coverage'} )
         res_data.update( {'format':'bars'} )
-
         res_data['sta'] = []
         res_data['chan'] = []
 
@@ -813,13 +833,37 @@ class EventData():
 
         if 'sta' in params:
             sta_str  = "|".join(str(x) for x in params['sta'])
+
+            if sta_str.find('.') == -1 and sta_str.find('*') == -1  :
+                res_data['sta'] = params['sta']
+                for sta in params['sta']:
+                    if stations(sta):
+                        res_data[sta] = {}
             db.subset("sta =~/%s/" % sta_str)
             if config.debug: log.msg("\n\nCoverage subset on sta =~/%s/ " % sta_str)
+        else:
+            for sta in stations.list():
+                res_data[sta] = {}
+                res_data['sta'].append(sta)
 
         if 'chan' in params:
             chan_str  = "|".join(str(x) for x in params['chan'])
+
+            if chan_str.find('.') == -1 and chan_str.find('*') == -1  :
+                res_data['chan'] = params['chan']
+                for sta in res_data['sta']:
+                    for chan in params['chan']:
+                        if stations.channels(sta):
+                            for chan in stations.channels(sta):
+                                res_data[sta][chan] = {}
+
             db.subset("chan =~/%s/" % chan_str)
             if config.debug: log.msg("\n\nCoverage subset on chan =~/%s/ " % chan_str)
+        else:
+            for sta in res_data['sta']:
+                for chan in stations.channels(chan):
+                    res_data[sta][chan] = {}
+                    res_data['chan'].append(chan)
 
         if 'time_start' in params:
             res_data.update( {'time_start':params['time_start']} )

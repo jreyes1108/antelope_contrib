@@ -6,21 +6,22 @@ h1 { color:#C5C5C5;font-size:20px;margin-left:18px; }
 
 h4 { text-align:center;font-family:sans-serif;padding:8px; }
 
-.wrapper { width:100%;height:200px;margin:0 auto;padding:0;text-align:center; }
-.label { width:100px;line-height:200px;margin:0;padding:0;float:left; }
-.plot { width:950px;height:200px;margin:0;padding:0;margin-left:110px;cursor:e-resize; }
+.wrapper { width:100%;height:200px;text-align:center;}
+.label { width:15px;line-height:200px;}
+.plot { width:100%;height:200px;cursor:e-resize; }
+.wrapper_cov { width:100%;height:50px;text-align:center;}
+.plot_cov { width:100%;height:50px;cursor:e-resize; }
 .tickLabel { font-size:8px;overflow:visible;min-width:30px; }
-p.chantitle { margin:0;font-weight:bold;font-size:120%;padding:0; }
 
 /* Block level elements */
 div#content { margin:0;padding:0;z-index:0; }
 div#container { width:800px; }
 div#event { display:block;float:right }
 div#loading { position:absolute;top:0px;right:0px;min-height:33px;min-width:100px;padding:4px;margin:0;background: url(/static/images/ajax-loader.gif) #FFA500 no-repeat center left;z-index:999; }
-div#chan_labels { font-weight:bold;font-size:120%; }
+/*
 div#wforms { border:1px solid #C9C9EE;background-color:#FFF;margin:0 auto;z-index:4; }
 div#wforms div#chan_plots { display:block;margin:0 auto;}
-div#wrapper { margin:0 auto;}
+*/
 
 /* Inline elements */
 div#crumbs { margin:0;padding:0;border:1px solid #C9C9EE;clear:both; }
@@ -69,6 +70,19 @@ div#subnav ul, div#subnav p { margin:0;padding:0;text-align:left; }
 div#subnav ul li { display:inline;padding:5px;margin:0 5px 5px 0;list-style-type:none;float:left;text-align:center; }
 div#subnav ul br { margin-bottom:15px; }
 div#subnav div#event { float:right;width:400px; }
+
+/* Subnavcontent */
+/*
+div#subnavcontent { border:1px solid black;background:#7F7F7F;margin:20px}
+div#subnavcontent div{ margin:5px;padding:10px;}
+div#subnavcontent input{ padding:10px;padding:2px 5px 0 0}
+*/
+
+/* Subnavcontent */
+/*
+div#list { margin:20px;padding:10px;}
+div#list div{ margin:5px;padding:10px;}
+*/
 
 /* Text formatting */
 div#interact p { text-align:center;color:#696969;margin:14px; }

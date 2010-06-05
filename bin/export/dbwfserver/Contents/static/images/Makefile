@@ -1,19 +1,19 @@
 DATADIR = www/dbwfserver/static/images
 
-DATA = ui-bg_diagonals-small_0_aaaaaa_40x40.png \
-    ui-bg_flat_100_444444_40x100.png \
-    ui-bg_flat_100_D9D9EE_40x100.png \
-    ui-bg_highlight-hard_50_CC0000_1x100.png \
-    ui-bg_highlight-soft_100_C9C9EE_1x100.png \
-    ui-bg_highlight-soft_100_CCCCCC_1x100.png \
-    ui-bg_highlight-soft_100_FFFF00_1x100.png \
-    ui-bg_highlight-soft_100_FFFFFF_1x100.png \
-    ui-bg_inset-soft_100_CCCCCC_1x100.png \
-    ui-icons_000000_256x240.png \
-    ui-icons_7F7F7F_256x240.png \
-    ui-icons_990000_256x240.png \
-    ui-icons_D9D9EE_256x240.png \
-    ui-icons_FFA500_256x240.png \
+DATA = ui-bg_flat_30_cccccc_40x100.png \
+    ui-bg_flat_50_5c5c5c_40x100.png \
+    ui-bg_glass_20_555555_1x400.png \
+    ui-bg_glass_40_0078a3_1x400.png \
+    ui-bg_glass_40_ffc73d_1x400.png \
+    ui-bg_gloss-wave_25_333333_500x100.png \
+    ui-bg_highlight-soft_80_eeeeee_1x100.png \
+    ui-bg_inset-soft_25_000000_1x100.png \
+    ui-bg_inset-soft_30_f58400_1x100.png \
+    ui-icons_222222_256x240.png \
+    ui-icons_4b8e0b_256x240.png \
+    ui-icons_a83300_256x240.png \
+    ui-icons_cccccc_256x240.png \
+    ui-icons_ffffff_256x240.png \
     ajax-loader.gif \
     bkgrd_1x50.png \
     config_bkgrd.png \

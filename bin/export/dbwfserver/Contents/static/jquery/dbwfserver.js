@@ -15,9 +15,14 @@ PlotSelect = {
 
         // Create initial plot with max values:
         $("#loading").hide();
-        $("#wforms").hide();
-        $("#interact").hide();
-        $("#tools").hide();
+        $("#plot_type").buttonset();
+        $("button, input:submit, input:checkbox").button();
+        $("#nav a").button();
+        //if(! $("#wforms").is(':visible') ){
+        //    $("#subnavcontent").show('slow');
+        //};
+
+        PlotSelect.chan_plot_obj = {};
 
         // {{{ Define colorschemes
 
@@ -60,9 +65,6 @@ PlotSelect = {
             selection : "#FFFFFF"
         }
         PlotSelect.colorschemes.def = {
-            lineColor : "#FDFF4F",
-            bgColor   : "#00029F",
-            tickColor : "#0009FF",
             selection : "#FFFFFF"
         }
 
@@ -73,6 +75,28 @@ PlotSelect = {
         if( PlotSelect.canvasSelection === undefined ) PlotSelect.canvasSelection = PlotSelect.colorschemes.def.selection;
 
         // }}} Define colorschemes
+
+        PlotSelect.wf_opts = {
+            colors: [PlotSelect.canvasLineColor], 
+            selection: {mode:"x", color:PlotSelect.canvasSelection}, 
+            grid: {clickable:true, borderColor:PlotSelect.canvasTickColor, color:PlotSelect.canvasTickColor, tickColor:PlotSelect.canvasTickColor, backgroundColor:PlotSelect.canvasBgColor},
+            xaxis: {ticks:5, labelWidth:20, labelHeight:20, mode:"time", timeformat:"%H:%M:%S<br/>%y-%m-%d"},
+            yaxis: {ticks:4, labelWidth:25},
+            lines: {show:false},
+            bars: {show:false} 
+        };
+
+        PlotSelect.cov_opts = {
+            colors: [PlotSelect.canvasLineColor], 
+            selection: {mode:"x", color:PlotSelect.canvasSelection}, 
+            grid: {clickable:true, borderColor:PlotSelect.canvasTickColor, color:PlotSelect.canvasTickColor, tickColor:PlotSelect.canvasTickColor, backgroundColor:PlotSelect.canvasBgColor},
+            //xaxis: {ticks:3, labelWidth:20, labelHeight:20, mode:"time", timeformat:"%H:%M:%S<br/>%y-%m-%d"},
+            xaxis: {ticks:5, labelWidth:20, labelHeight:20, mode:"time", timeformat:"%H:%M:%S<br/>%y-%m-%d"},
+            yaxis: {ticks:0,max:2,min:1},
+            bars: {show:true, horizontal:true, barWidth:1}
+        };
+
+
 
         // {{{ Setup AJAX defaults
         $.ajaxSetup({
@@ -123,13 +147,166 @@ PlotSelect = {
         };
         // }}} Arrival flag CSS
 
-        // {{{ Initialize functions
-        //PlotSelect.urlParser();
-        //PlotSelect.colorschemeChange();
-        //PlotSelect.filterChange();
-        //PlotSelect.phaseSelector();
-        //PlotSelect.typeChange();
-        // }}} Initialize functions
+        $('#clear').click( function($e){
+            $e.preventDefault();
+            $('#subnavcontent').hide('fast');
+            $("#station_string").val('.*');
+            $("#channel_string").val('.*');
+            $("#start_time").val('');
+            $("#end_time").val('');
+            $('#list').empty();
+            $('#subnavcontent').show('slow');
+        });
+        $('#plot').click( function($e){
+            $e.preventDefault();
+            sta = $("#station_string").val();
+            chan = $("#channel_string").val();
+            start = $("#start_time").val();
+            end = $("#end_time").val();
+            type = $("input[name='type']:checked").attr('id');
+            //if ( typeof(sta) != "undefined" ) {
+            //    alert('We need value for ...');
+            //    return;
+            //}
+            //alert('Got this values...\n\tsta:'+sta+'\n\tchan:'+chan+'\n\tstart:'+start+'\n\tend:'+end+'\n\ttype:'+type);
+            url = "/"+type+'/'+sta+'/'+chan+'/'+start+'/'+end;
+            $(location).attr('href',url);
+        });
+
+        $('#load_stas').click( function($e){
+            $e.preventDefault();
+            $('#list').empty();
+            $("<ul></ul>").appendTo("#list")
+            $.ajax({
+                url: "/data/stations",
+                success: function(json) {
+                    sorted_list = [];
+                    $.each(json, function(k,v) {
+                        sorted_list.push(v);
+                    });
+                    sorted_list = sorted_list.sort();
+                    $.each(sorted_list, function(i,item){
+                        $("#list ul").append('<li><button id="'+item+'" class="add_sta">'+item+'</button></li>');
+                    });
+                    $('.add_sta').click( function(){
+                        name = $(this).text();
+                        if ($("#station_string").val() == '.*'){
+                            $("#station_string").val(name);
+                        } else {
+                            old = $("#station_string").val()
+                            $("#station_string").val(old+'+'+name);
+                        }
+                    });
+                }
+            });
+        });
+
+        $('#load_chans').click( function($e){
+            $e.preventDefault();
+            $('#list').empty();
+            $("<ul></ul>").appendTo("#list")
+            $.ajax({
+                url: "/data/channels",
+                success: function(json) {
+                    sorted_list = [];
+                    $.each(json, function(k,v) {
+                        sorted_list.push(v);
+                    });
+                    sorted_list = sorted_list.sort();
+                    $.each(sorted_list, function(i,item){
+                        $("#list ul").append('<li><button id="'+item+'" class="add_chan">'+item+'</button></li>');
+                    });
+                    $('.add_chan').click( function(){
+                        name = $(this).text();
+                        if ($("#channel_string").val() == '.*'){
+                            $("#channel_string").val(name);
+                        } else {
+                            old = $("#channel_string").val()
+                            $("#channel_string").val(old+'+'+name);
+                        }
+                    });
+                }
+            });
+        });
+
+        $('#load_events').click( function($e){
+            $e.preventDefault();
+            $('#list').empty();
+            $.ajax({
+                url: "/data/events",
+                success: function(json) {
+                    sorted_e_list = [];
+                    table_headers = [];
+
+                    jQuery.each(json, function(key,value) {
+                        sorted_e_list.push(key);
+                        jQuery.each( value, function(sKey,sVal) {
+                            if( jQuery.inArray(sKey,table_headers) == -1 ) { table_headers.push(sKey); }
+                        });
+                    });
+                    sorted_e_list = sorted_e_list.sort();
+                    table_headers = table_headers.sort();
+
+                    subnavcontent = '<table id="evsTbl" class="evListTable">';
+
+                    subnavcontent += '<thead><tr>\n';
+                    subnavcontent += '<th>time</th>\n';
+                    jQuery.each(table_headers, function(thi, thv) {
+                        if( thv !== 'time' ) {
+                            subnavcontent += '<th>'+thv+'</th>\n';
+                        }
+                    });
+                    subnavcontent += '</tr></thead><tbody>\n';
+
+                    jQuery.each(sorted_e_list, function(key, value) {
+                        subnavcontent += "<tr>";
+                        var time  = json[value]['time'];
+                        var tbl_date = new Date(time * 1000);
+                        subnavcontent += "<td><a class='add_events'href='#'id='";
+                        subnavcontent += json[value]['time'] * 1000 + "'>";
+                        subnavcontent += "<span style='display:none;'>";
+                        subnavcontent += json[value]['time'] * 1000 + "</span>" + tbl_date + "</a></td>";
+                        jQuery.each(table_headers, function(thi, thv) { 
+                            if( thv !== 'time' ) {
+                                subnavcontent += "<td>" + json[value][thv] + "</td>";
+                            }
+                        });
+                        subnavcontent += "</tr>";
+                    });
+                    subnavcontent += '</tbody></table>';
+                    $("#list").append(subnavcontent);
+                    $("#list #evsTbl").tablesorter( {sortList: [[0,0], [1,0]]} );
+                    $('.add_events').click( function($e){
+                        $e.preventDefault();
+                        $('#list').empty();
+                        time = $(this).attr("id");
+                        if ( typeof(time) != "undefined" ) {
+                            time /=  1000;
+                        }
+                        $("#start_time").val(time);
+                    });
+                }
+            });
+        });
+        $('#last_1_hr').click( function(){
+            $('#start_time').val('last_1_hr');
+            $('#end_time').val('');
+        });
+
+        $('#last_24_hrs').click( function(){
+            $('#start_time').val('last_24_hrs');
+            $('#end_time').val('');
+        });
+
+        $('#last_week').click( function(){
+            $('#start_time').val('last_week');
+            $('#end_time').val('');
+        });
+
+        $('#last_month').click( function(){
+            $('#start_time').val('last_month');
+            $('#end_time').val('');
+        });
 
         // }}} Set defaults
 
@@ -147,7 +324,7 @@ PlotSelect = {
 
 
         $("select#filter").change( function() {
-            PlotSelect.getData();
+            PlotSelect.setData();
         });
 
 
@@ -171,7 +348,7 @@ PlotSelect = {
             $("span#csFg").css("background-color",PlotSelect.canvasLineColor);
             $("span#csBg").css("background-color",PlotSelect.canvasBgColor);
 
-            PlotSelect.getData();
+            PlotSelect.setData();
 
         });
 
@@ -202,7 +379,7 @@ PlotSelect = {
 
         $("form#conftype select#type").change( function() {
             PlotSelect.type = $(this).val();
-            PlotSelect.getData();
+            PlotSelect.setData();
 
         });
         // }}} Dynamic type change data query
@@ -278,7 +455,7 @@ PlotSelect = {
 
         PlotSelect.te += delta;
 
-        PlotSelect.getData();
+        PlotSelect.setData();
 
         // }}} Future data
 
@@ -296,7 +473,7 @@ PlotSelect = {
 
         PlotSelect.te -= delta;
 
-        PlotSelect.getData();
+        PlotSelect.setData();
 
         // }}} Past data
 
@@ -340,268 +517,159 @@ PlotSelect = {
 
         }
 
-        PlotSelect.getData();
+        PlotSelect.setData();
 
         // }}} Selection zoom functionality
 
     },
 
-    getData: function(args){
+    setData: function(resp) {
 
 //{{{
-        //  Get data
-
-        if ( typeof(args) == "undefined" ) {
-            // PlotSelect is define globally for app
-            args = {};
-
-            args.type   = PlotSelect.type,
-            args.stas   = PlotSelect.stas,
-            args.chans  = PlotSelect.chans,
-            args.ts     = PlotSelect.ts,
-            args.te     = PlotSelect.te,
-            args.phases = PlotSelect.phases
-        }
-
-        // Test if filter defined
-        if( args.filter !== $("select#filter option:selected").val() ) {
-            args.filter = $("select#filter option:selected").val();
-        }
-
-        // Test for type over-ride
-        if( args.type !== $("select#type").val() ) {
-            args.type = $("select#type").val();
-        }
-
-        // Update phases checkbox
-        if(  args.phases == 'True' ) {
-            $("form#wformer input#phases").attr('checked','checked');
-        } else {
-            $("form#wformer input#phases").attr('checked','');
-        }
-
-        // Override phases if coverage requested
-        if( args.type === 'coverage' ) {
-            $("form#wformer input#phases").attr('checked','');
-            args.phases = 'False';
-        } else {
-            if( $("form#wformer input#phases").attr('checked') ) {
-                args.phases = 'True';
-            } else {
-                args.phases = 'False';
-            }
-        }
-
         $("#loading").show();
 
+        if ( typeof(resp) != "undefined" ) {
+            // PlotSelect is define globally for app
+            if (typeof(resp['error']) != "undefined" ) {
+                PlotSelect.errorResponse('parsererror',resp['error']);
+            }
+            PlotSelect.type     = resp['type'];
+            PlotSelect.stas     = resp.sta;
+            PlotSelect.chans    = resp.chan;
+            PlotSelect.ts       = resp['time_start'];
+            PlotSelect.te       = resp['time_end'];
+            PlotSelect.orid     = resp.orid;
+            PlotSelect.phases   = resp.phases;
+        }
 
-        // Query
-        // Change arrays to strings w/ + 
-        var sta_list = ''; 
-        var chan_list = ''; 
-
-        $.each(args.stas, function(iterator,mysta){
-            sta_list = sta_list + '+' + mysta ;
-        });
-        $.each(args.chans, function(iterator,mychan){
-            chan_list = chan_list + '+' + mychan ;
-        });
-        // use substring(1) to remove first character '+' on new string
-
-        $.each(args.stas, function(sta_iterator,mysta){
-
-            $.each(args.chans, function(chan_iterator,mychan){
-                var stachan_data = mysta + '_' + mychan ;
-                $("#"+stachan_data+"_wrapper").remove();
-
-                PlotSelect.plotData(mysta,mychan);
-
-            });
-
-        });
-
-        $("#loading").hide();
-//}}}
-
-    },
-
-    ajaxSetData: function(resp) {
-
-//{{{
-        // Define globally for app
-        PlotSelect.ts       = resp['time_start'];
-        PlotSelect.te       = resp['time_end'];
-        PlotSelect.type     = resp['type'];
-        PlotSelect.stas     = resp.sta;
-        PlotSelect.chans    = resp.chan;
-        PlotSelect.orid     = resp.orid;
-
-        PlotSelect.chan_plot_obj = {}; // A mapping from a named channel to it's associated 'flot' plot.
-
-        var chan_labels = $("#chan_labels");
-        var chan_plots = $("#chan_plots"); 
-        chan_labels.empty();
-        chan_plots.empty();
-
+        // Hide Controls
+        $('#subnavcontent').hide('fast');
         // Show plots
         $("#wforms").show();
         $("#interact").show();
+        $("#tools").show();
 
-        //  Some data to plot
+        if (PlotSelect.type == 'coverage') {
+            var url = '/data/coverage'
 
-        if (typeof(resp['error']) != "undefined" ) {
-            PlotSelect.errorResponse('parsererror',resp['error']);
-        }
+            if (typeof(PlotSelect.stas) != "undefined" ) {
+                url += '/' + PlotSelect.stas.join("+");
+            }
+            if (typeof(PlotSelect.chans) != "undefined" ) {
+                url += '/' + PlotSelect.chans.join("+");
+            }
+            if (typeof(PlotSelect.ts) != "undefined" ) {
+                url += '/' + PlotSelect.ts;
+            }
+            if (typeof(PlotSelect.te) != "undefined" ) {
+                url += '/' + PlotSelect.te;
+            }
 
-        $.each(resp.sta, function(sta_iterator,mysta){
+            $.ajax({ 
+                url:url, 
+                success: function(data){
+                    PlotSelect.setCoverage(data); 
+                }
+            });
+        } else {
 
-            $.each(resp.chan, function(chan_iterator,mychan){
+            $.each(PlotSelect.stas.sort(), function(sta_iterator,mysta){
 
-                PlotSelect.plotData(mysta,mychan);
+                $.each(PlotSelect.chans.sort(), function(chan_iterator,mychan){
+
+                    PlotSelect.plotData(mysta,mychan);
+
+                });
 
             });
+        }
 
-        });
-
-        $("#loading").fadeOut(500);
-        $("#tools").show();
+        $("#loading").fadeOut();
 //}}}
 
     },
 
-    setCoverage: function(resp) {
+    setCoverage: function(data) {
 
 //{{{
-        //  Define graph defaults
-        var opts0 = {
-            colors: [PlotSelect.canvasLineColor], 
-            selection: {mode:"x", color:PlotSelect.canvasSelection}, 
-            grid: {clickable:true, borderWidth:0, color:PlotSelect.canvasTickColor, tickColor:PlotSelect.canvasTickColor, backgroundColor:PlotSelect.canvasBgColor},
-            xaxis: {ticks:5, labelWidth:20, labelHeight:20, mode:"time", timeformat:"%H:%M:%S<br/>%y-%m-%d"},
-            yaxis: {ticks:4, labelWidth:25}
-        };
+        var NameCss = { color:'black', 'font-size':'20px', position:'absolute', left:'10%', top:'25%'};
+        var ErrorCss = { color:'red', 'ont-size':'20px', position:'absolute', left:'30%', top:'25%'};
 
+        PlotSelect.ts = data['time_start'];
+        PlotSelect.te = data['time_end'];
+        PlotSelect.stas = data['sta'];
+        PlotSelect.chans = data['chan'];
 
-        var url = '/data/coverage'
+        PlotSelect.cov_opts['xaxis']['min'] = PlotSelect.ts * 1000;
+        PlotSelect.cov_opts['xaxis']['max'] = PlotSelect.te * 1000;
 
-        // Define globally for app
-        if (typeof(resp['sta']) != "undefined" ) {
-            PlotSelect.stas = resp['sta'];
-            url += '/' + resp['sta'];
-        }
-        if (typeof(resp['chan']) != "undefined" ) {
-            PlotSelect.chans = resp['chan'];
-            url += '/' + resp['chan'];
-        }
-        if (typeof(resp['time_start']) != "undefined" ) {
-            url += '/' + resp['time_start'];
-        }
-        if (typeof(resp['time_end']) != "undefined" ) {
-            url += '/' + resp['time_end'];
-        }
+        //var chan_plots = $("#wforms"); 
+        //chan_plots.empty();
 
-        $.ajax({
-            type:'get',
-            dataType:'json',
-            url:url,
-            success: function(data) {
 //{{{
-                PlotSelect.ts = data['time_start'];
-                PlotSelect.te = data['time_end'];
+        $.each(data.sta, function(sta_iterator,mysta){
 
-                opts0['xaxis']['min'] = PlotSelect.ts * 1000;
-                opts0['xaxis']['max'] = PlotSelect.te * 1000;
+            $.each(data.chan, function(chan_iterator,mychan){
 
-                PlotSelect.chan_plot_obj = {}; // A mapping from a named channel to it's associated 'flot' plot.
-
-                var chan_labels = $("#chan_labels");
-                var chan_plots = $("#chan_plots"); 
-                chan_labels.empty();
-                chan_plots.empty();
-
-                if( data.sta === undefined ) {
-                } else if( data.chan === undefined ) {
+                if (typeof(data[mysta]) == "undefined" ) { 
+                } else if (typeof(data[mysta][mychan]) == "undefined" ) { 
                 } else {
-        //{{{
-                    $.each(data.sta, function(sta_iterator,mysta){
+                    var name = mysta + '_' + mychan ; // Create the STA_CHAN data arrays from other response items
+                    var wrapper = $("<div>").attr("id", name+"_wrapper").attr("class","wrapper_cov");
+                    var plt = $("<div>").attr("id", name+"_plot" ).attr("class", "plot_cov");
 
-                        $.each(data.chan, function(chan_iterator,mychan){
+                    plt.remove();
 
-                            //  Per channel
+                    $("#wforms").append(plt);
 
-                            var stachan_data = mysta + '_' + mychan ; // Create the STA_CHAN data arrays from other response items
-                            var wrapper = $("<div>").attr("id", stachan_data+"_wrapper").attr("class","wrapper");
-                            var lbltxt = $("<p>").attr("class","chantitle").text(stachan_data);
-                            var lbl = $("<div>").attr("id", stachan_data+"_label").attr("class", "label").append(lbltxt);
-                            var plt = $("<div>").attr("id", stachan_data+"_plot").attr("class", "plot");
+                    plt.bind("plotselected", PlotSelect.handleSelect);
 
-                            // Show plots
-                            $("#wforms").show();
-                            $("#interact").show();
+                    // If no plot... build one and store object
+                    //if (typeof(PlotSelect.chan_plot_obj[name]) == "undefined" ) { 
+                    //    $("#wforms").append(plt);
+                    //} else {
+                    //    plt.empty()
+                    //}
 
-                            if (typeof(data[mysta]) == "undefined" ) { 
-                            } else if (typeof(data[mysta][mychan]) == "undefined" ) { 
-                            } else {
-                            
-                                wrapper.append(lbl);
-                                wrapper.append(plt);
-                                chan_plots.append(wrapper);
-                                chan_plot = $("#"+stachan_data+"_plot");
+                    var flot_data = [];
 
-                                var flot_data = [];
+//{{{
+                    //  Coverage plot
 
-    //{{{
-                                //  Coverage plot
+                    if (typeof(data[mysta][mychan]['data']) == "undefined" ) { 
 
-                                if (typeof(data[mysta][mychan]['data']) == "undefined" ) { 
+                        var plot = $.plot(plt, [], PlotSelect.cov_opts);
 
-                                    var plot = $.plot(chan_plot, [], opts0);
+                        var arrDiv = $("<div>").css(ErrorCss).append('No data in time segment: ('+PlotSelect.ts+','+PlotSelect.te+').');
 
-                                } else {
+                        plt.append(arrDiv);
 
-                                    $.each( data[mysta][mychan]['data'], function(i,arr) {
+                    } else {
 
-                                        var start_time = parseFloat(arr[0],10) *1000;
-                                        var end_time   = parseFloat(arr[1],10) *1000;
-                                        flot_data.push([start_time,1,end_time]);
+                        $.each( data[mysta][mychan]['data'], function(i,arr) {
 
-                                    });
-
-                                    opts0['yaxis']['ticks'] = 0;
-                                    opts0['yaxis']['min'] = 0.8 ;
-                                    opts0['yaxis']['max'] = 2.2 ;
-                                    opts0['bars'] = {show:true, horizontal:'true', barWidth:1};
-
-                                    var plot = $.plot(chan_plot,[ flot_data ], opts0 );
-                                }
-                                //
-                                //$("canvas").css("height","20px");
-                                //$(".label").css("height","20px");
-                                //$(".plot").css("height","20px");
-                                //$(".wrapper").css("height","20px");
-    //}}}
-
-                                // Bind and store
-                                chan_plot.bind("plotselected", PlotSelect.handleSelect);
-                                PlotSelect.chan_plot_obj[stachan_data] = plot;
-
-                            } 
+                            var start_time = parseFloat(arr[0],10) *1000;
+                            var end_time   = parseFloat(arr[1],10) *1000;
+                            flot_data.push([start_time,1,end_time]);
 
                         });
 
-                    });
-        //}}}
-                }
+                        var plot = $.plot(plt,[ flot_data ], PlotSelect.cov_opts );
+                    }
 //}}}
-            }
+                    var arrDiv = $("<div>").css(NameCss).append(name);
+
+                    plt.append(arrDiv);
+
+                    // Bind and store
+                    plt.bind("plotselected", PlotSelect.handleSelect);
+                    PlotSelect.chan_plot_obj[name] = plot;
+                } 
+
+            });
+
         });
-
-        if (typeof(resp['error']) != "undefined" ) {
-            alert('ERROR ON SERVER:\n'+resp['error']);
-        }
-
-        $("#loading").fadeOut(500);
-        $("#tools").show();
+//}}}
 //}}}
 
     },
@@ -609,7 +677,8 @@ PlotSelect = {
     setEventData: function(resp){
 
 //{{{
-        $('#subnav #event').empty();
+        //$('#subnav #event').empty();
+        $('#list').empty();
 
         //  Plot event table
 
@@ -621,126 +690,7 @@ PlotSelect = {
         event_metadata += "<tr><th>Author</th><td>"+resp['auth']+"</td><th>nass</th><td>"+resp['nass']+"</td></tr>";
         event_metadata += "</table>";
 
-        $('#subnav #event').append(event_metadata);
-//}}}
-
-    },
-
-    buildSelect: function(s_list,e_list,st,time){
-
-//{{{
-       var subnavcontent = '';
-
-       if (s_list && time) {
-//{{{
-            s_list = s_list.sort() ;
-            subnavcontent = '<ul class="ui-helper-reset ui-helper-clearfix">';
-            jQuery.each(s_list, function() {
-                subnavcontent += "<li class='ui-state-active ui-corner-all'>" + "<a href='/wf/" + this + "/" + time + "'>" + this + "</a></li>\n";
-            });
-            subnavcontent += '</ul>';
-            $("#subnavcontent").append(subnavcontent);
-//}}}
-        }
-
-        else if (s_list) {
-//{{{
-            s_list = s_list.sort() ;
-            subnavcontent = '<ul class="ui-helper-reset ui-helper-clearfix">';
-            jQuery.each(s_list, function() {
-                subnavcontent += "<li class='ui-state-active ui-corner-all'>" + "<a href='/stations/" + this + "'>" + this + "</a></li>\n";
-            });
-            subnavcontent += '</ul>';
-            $("#subnavcontent").append(subnavcontent);
-//}}}
-        }
-
-        else if (e_list && st) {
-//{{{
-            sorted_e_list = [];
-            table_headers = [];
-
-            jQuery.each(e_list, function(key,value) {
-                sorted_e_list.push(key);
-                jQuery.each( value, function(sKey,sVal) {
-                    if( jQuery.inArray(sKey,table_headers) == -1 ) { table_headers.push(sKey); }
-                });
-            });
-            sorted_e_list = sorted_e_list.sort();
-            table_headers = table_headers.sort();
-
-            subnavcontent = '<table id="evsTbl" class="evListTable">';
-
-            subnavcontent += '<thead><tr>\n';
-            subnavcontent += '<th>time</th>\n';
-            jQuery.each(table_headers, function(thi, thv) {
-                if( thv !== 'time' ) {
-                    subnavcontent += '<th>'+thv+'</th>\n';
-                }
-            });
-            subnavcontent += '</tr></thead><tbody>\n';
-
-            jQuery.each(sorted_e_list, function(key, value) {
-                subnavcontent += "<tr>";
-                var time  = e_list[value]['time'];
-                var tbl_date = new Date(time * 1000);
-                subnavcontent += "<td><span style='display:none;'>" + e_list[value]['time'] * 1000 + "</span><a href='/wf/" + st + "/" + time + "'>" + tbl_date + "</a></td>";
-                jQuery.each(table_headers, function(thi, thv) { 
-                    if( thv !== 'time' ) {
-                        subnavcontent += "<td>" + e_list[value][thv] + "</td>";
-                    }
-                });
-                subnavcontent += "</tr>";
-            });
-            subnavcontent += '</tbody></table>';
-            $("#subnavcontent").append(subnavcontent);
-            $("#subnavcontent #evsTbl").tablesorter( {sortList: [[0,0], [1,0]]} );
-//}}}
-        }
-
-        else if (e_list) {
-//{{{
-            sorted_e_list = [];
-            table_headers = [];
-
-            jQuery.each(e_list, function(key,value) {
-                sorted_e_list.push(key);
-                jQuery.each( value, function(sKey,sVal) {
-                    if( jQuery.inArray(sKey,table_headers) == -1 ) { table_headers.push(sKey); }
-                });
-            });
-            sorted_e_list = sorted_e_list.sort();
-            table_headers = table_headers.sort();
-
-            subnavcontent = '<table id="evsTbl" class="evListTable">\n';
-
-            subnavcontent += '<thead><tr>\n';
-            subnavcontent += '<th>time</th>\n';
-            jQuery.each(table_headers, function(thi, thv) {
-                if( thv !== 'time' ) {
-                    subnavcontent += '<th>'+thv+'</th>\n';
-                }
-            });
-            subnavcontent += '</tr></thead><tbody>\n';
-
-            jQuery.each(sorted_e_list, function(key, value) {
-                subnavcontent += "<tr>";
-                var time  = e_list[value]['time'];
-                var tbl_date = new Date(time * 1000);
-                subnavcontent += "<td><span style='display:none;'>" + e_list[value]['time'] * 1000 + "</span><a href='/events/" + time + "'>" + tbl_date + "</a></td>";
-                jQuery.each(table_headers, function(thi, thv) { 
-                    if( thv !== 'time' ) {
-                        subnavcontent += "<td>" + e_list[value][thv] + "</td>";
-                    }
-                });
-                subnavcontent += "</tr>";
-            });
-            subnavcontent += '</tbody></table>';
-            $("#subnavcontent").append(subnavcontent);
-            $("#subnavcontent #evsTbl").tablesorter( {sortList: [[0,0], [1,0]]} );
-//}}}
-        }
-
+        $('#list').append(event_metadata);
 //}}}
 
     },
@@ -749,31 +699,17 @@ PlotSelect = {
 
 //{{{
         //  Define graph defaults
-        var opts0 = {
-            colors: [PlotSelect.canvasLineColor], 
-            selection: {mode:"x", color:PlotSelect.canvasSelection}, 
-            grid: {clickable:true, borderWidth:0, color:PlotSelect.canvasTickColor, tickColor:PlotSelect.canvasTickColor, backgroundColor:PlotSelect.canvasBgColor},
-            xaxis: {ticks:5, labelWidth:20, labelHeight:20, mode:"time", timeformat:"%H:%M:%S<br/>%y-%m-%d"},
-            yaxis: {ticks:4, labelWidth:25}
-        };
 
-        opts0['xaxis']['min'] = PlotSelect.ts * 1000;
-        opts0['xaxis']['max'] = PlotSelect.te * 1000;
+        var NameCss = { color:'black', 'font-size':'20px', position:'absolute', left:'10%', top:'5%'};
+        var ErrorCss = { color:'red', 'ont-size':'20px', position:'absolute', left:'50%', top:'50%'};
+
+
+        PlotSelect.wf_opts.xaxis.min = PlotSelect.ts * 1000;
+        PlotSelect.wf_opts.xaxis.max = PlotSelect.te * 1000;
 
         var flot_data = [];
 
-        var chan_labels = $("#chan_labels");
-        var chan_plots = $("#chan_plots"); 
-
-        var stachan_data = sta + '_' + chan ; // Create the STA_CHAN data arrays from other response items
-        var wrapper = $("<div>").attr("id", stachan_data+"_wrapper").attr("class","wrapper");
-        var lbltxt = $("<p>").attr("class","chantitle").text(stachan_data);
-        var lbl = $("<div>").attr("id", stachan_data+"_label").attr("class", "label").append(lbltxt);
-        var plt = $("<div>").attr("id", stachan_data+"_plot").attr("class", "plot");
-
         $.ajax({
-            type:'get',
-            dataType:'json',
             url:"/data/wf/"+sta+"/"+chan+"/"+PlotSelect.ts+"/"+PlotSelect.te ,
             success: function(data) {
 //{{{
@@ -781,24 +717,40 @@ PlotSelect = {
                 return;
                 }
 
-                wrapper.append(lbl);
+                var name = sta + '_' + chan ; // Create the STA_CHAN data arrays from other response items
+                var plt = $("<div>").attr("id", name+"_plot" );
+                var wrapper = $("<div>").attr("id", name+"_wrapper");
+                plt.attr("class", "plot");
+                wrapper.attr("class","wrapper");
+
+                if ($("#"+name+"_plot").length == 0) {
+                    $("#wforms").append(wrapper);
+                } else { 
+                    $("#"+name+"_plot").remove();
+                }
+
                 wrapper.append(plt);
-                chan_plots.append(wrapper);
-                chan_plot = $("#"+stachan_data+"_plot");
+                plt.bind("plotselected", PlotSelect.handleSelect);
+
+                // If no plot... build one and store object
+                //if (typeof(PlotSelect.chan_plot_obj[name]) == "undefined" ) { 
+                //    $("#wforms").append(wrapper);
+                //    wrapper.append(plt);
+                //    plt.bind("plotselected", PlotSelect.handleSelect);
+                //} else {
+                //    wrapper.empty()
+                //    //$("#"+name+"_plot").remove()
+                //    wrapper.append(plt);
+                //    //plt.bind("plotselected", PlotSelect.handleSelect);
+                //}
 
                 if (typeof(data[sta][chan]['data']) == "undefined" ) { 
 //{{{
-                    var plot = $.plot(chan_plot, [], opts0);
+                    var plot = $.plot(plt, [], PlotSelect.wf_opts);
 
-                    var flagCss = {};
-                    flagCss['color'] = 'red';
-                    flagCss['position'] = 'absolute';
-                    flagCss['left'] =  '250px';
-                    flagCss['bottom'] = '50px';
-                    flagCss['font-size'] = 'large';
-                    var arrDiv = $("<div>").css(flagCss).append('No data in time segment: ('+PlotSelect.ts+','+PlotSelect.te+').');
+                    var arrDiv = $("<div>").css(ErrorCss).append('No data in time segment: ('+PlotSelect.ts+','+PlotSelect.te+').');
 
-                    chan_plot.append(arrDiv);
+                    plt.append(arrDiv);
 //}}}
                 } else {
 //{{{
@@ -808,8 +760,8 @@ PlotSelect = {
                             temp_data = data[sta][chan]['data'][i];
                             flot_data[i] =  [temp_data[0]*1000,temp_data[2],temp_data[1]];
                         }
-                        opts0['bars'] = {show:true,barWidth:0,align:'center'};
-                        opts0['lines'] = {show:false};
+                        PlotSelect.wf_opts['bars'] = {show:true,barWidth:0,align:'center'};
+                        PlotSelect.wf_opts['lines'] = {show:false};
 
                     } else {
 
@@ -817,27 +769,24 @@ PlotSelect = {
                             temp_data = data[sta][chan]['data'][i];
                             flot_data[i] =  [temp_data[0]*1000,temp_data[1]];
                         }
-                        opts0['lines'] = {show:true,lineWidth:2,shadowSize:4};
-                        opts0['bars'] = {show:false};
+                        PlotSelect.wf_opts['lines'] = {show:true,lineWidth:2,shadowSize:4};
+                        PlotSelect.wf_opts['bars'] = {show:false};
 
                     }
 
-                    var plot = $.plot(chan_plot,[ flot_data ], opts0 );
-
-                    // Bind and store
-                    chan_plot.bind("plotselected", PlotSelect.handleSelect);
-                    PlotSelect.chan_plot_obj[stachan_data] = plot;
+                    var plot = $.plot(plt, [flot_data], PlotSelect.wf_opts);
 //}}}
                 }
+
+                PlotSelect.chan_plot_obj[name] = plot;
+
+                var arrDiv = $("<div>").css(NameCss).append(name);
+                plt.append(arrDiv);
 //}}}
             },
-            timeout: 30000,
-            error:PlotSelect.errorResponse
         });
 //}}}
 
     }
 
 };
-
-$(document).ready(PlotSelect.init);

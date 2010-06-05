@@ -155,12 +155,6 @@ class QueryParser(resource.Resource):
             "error":             'false',
             "meta_query":        'false',
             "coverage":          'false',
-            "event_list":        'false',
-            "event_data":        'false',
-            "event_selc":        'false',
-            "station_selc":      'false',
-            "station_data":      'false',
-            "station_list":      'false',
             "dbname":            config.dbname,
             "application_title": config.application_title,
             "jquery_includes":   self._jquery_includes(),
@@ -217,7 +211,7 @@ class QueryParser(resource.Resource):
                     Return coverage tuples as JSON objects. For client ajax calls.
                     """
 
-                    response_data.update(self.eventdata.coverage(self._parse_url(args)))
+                    response_data.update(self.eventdata.coverage(self._parse_url(args),self.stations))
 
                     return json.dumps(response_data)
 #}}}
@@ -243,8 +237,8 @@ class QueryParser(resource.Resource):
                 elif 'stations' in args:
 #{{{
                     """
-                    Return station dictionary as JSON objects. For client ajax calls.
-                    Called with or without argument
+                    Return station list as JSON objects. For client ajax calls.
+                    Called with argument return dictionary
                     """
                     if len(args) == 3:
                         args = self._parse_url(args)
@@ -256,6 +250,14 @@ class QueryParser(resource.Resource):
 
                     else:
                         return json.dumps(self.stations.list())
+#}}}
+
+                elif 'channels' in args:
+#{{{
+                    """
+                    Return channels list as JSON objects. For client ajax calls.
+                    """
+                    return json.dumps(self.stations.channels())
 #}}}
 
                 elif 'filters' in args:
@@ -275,45 +277,6 @@ class QueryParser(resource.Resource):
 #}}}
 
                 #}}}
-
-            elif args[0] == 'events':
-#{{{
-                if len(args) > 1:
-
-                    tvals['key'] = args[1]
-                    tvals['event_selc'] = args[1]
-                    tvals['station_list'] = self.stations.list()
-
-                else:
-
-                    tvals['event_list'] = json.dumps(self.events.table())
-
-#}}}
-
-            elif args[0] == 'stations':
-#{{{
-                if len(args) > 1:
-
-                    tvals['key'] = args[1]
-                    args = self._parse_url(args)
-                    tvals['station_data'] = {}
-
-                    for sta in args['sta']:
-                        if config.debug: log.msg("\n\n\tcalling self.stations(%s)\n\n" % sta)
-                        tvals['station_data'][sta] = json.dumps( self.stations(sta) )
-
-                    if not tvals['station_data']:
-                        dbwfserver.eventdata._error("No matching station in db: %s" % args)
-                        tvals['error'] =  json.dumps( "No matching station in db: %s" % args )
-
-                    tvals['station_selc'] = json.dumps( args['sta'] )
-                    tvals['event_list'] = json.dumps(self.events.table())
-
-                else:
-
-                    tvals['station_list'] = json.dumps( self.stations.list() )
-
-#}}}
 
             elif args[0] == 'wf':
 #{{{
@@ -341,7 +304,9 @@ class QueryParser(resource.Resource):
                 Parse query for coverage and return data inside html code.
                 """
 
-                tvals['coverage'] = json.dumps(self._parse_url(args))
+                temp_args = self._parse_url(args)
+                temp_args['type'] = 'coverage'
+                tvals['meta_query'] = json.dumps(temp_args)
 
                 args.remove('coverage')
                 tvals['key']  = " / ".join(str(x) for x in args)

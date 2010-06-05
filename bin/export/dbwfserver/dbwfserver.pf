@@ -29,7 +29,7 @@ jquery_files &Tbl{
     /static/jquery/jquery.tablesorter-2.0.3.min.js
 }
 
-display_tracebacks True 
+display_tracebacks False 
 
 apply_calib True
 
