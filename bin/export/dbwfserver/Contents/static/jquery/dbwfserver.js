@@ -500,20 +500,20 @@ PlotSelect = {
         if (PlotSelect.isShiftPressed) { /*if the Shift Key is pressed, we zoom out. */
             var delta = 0;
 
-            delta = parseInt( pos.xaxis.from / 1000, 10 ) - PlotSelect.ts ;
+            delta = parseInt( pos.xaxis.from, 10 ) - PlotSelect.ts ;
 
             PlotSelect.ts -= delta;
 
-            delta = PlotSelect.te - parseInt( pos.xaxis.to / 1000, 10 ) ;
+            delta = PlotSelect.te - parseInt( pos.xaxis.to, 10 ) ;
 
             PlotSelect.te += delta;
 
         }
         else { 
 
-            PlotSelect.ts = parseInt( pos.xaxis.from / 1000, 10 ) ;
+            PlotSelect.ts = parseInt( pos.xaxis.from, 10 ) ;
 
-            PlotSelect.te = parseInt( pos.xaxis.to / 1000, 10 ) ;
+            PlotSelect.te = parseInt( pos.xaxis.to, 10 ) ;
 
         }
 
@@ -533,13 +533,28 @@ PlotSelect = {
             if (typeof(resp['error']) != "undefined" ) {
                 PlotSelect.errorResponse('parsererror',resp['error']);
             }
-            PlotSelect.type     = resp['type'];
-            PlotSelect.stas     = resp.sta;
-            PlotSelect.chans    = resp.chan;
-            PlotSelect.ts       = resp['time_start'];
-            PlotSelect.te       = resp['time_end'];
-            PlotSelect.orid     = resp.orid;
-            PlotSelect.phases   = resp.phases;
+
+            if (typeof(resp.type) != "undefined" ) {
+                PlotSelect.type = resp['type'];
+            }
+            if (typeof(resp.stas) != "undefined" ) {
+                PlotSelect.stas = resp['sta'];
+            }
+            if (typeof(resp.chans) != "undefined" ) {
+                PlotSelect.chans = resp['chans'];
+            }
+            if (typeof(resp.ts) != "undefined" ) {
+                PlotSelect.ts = resp['ts'] * 1000;
+            }
+            if (typeof(resp.te) != "undefined" ) {
+                PlotSelect.te = resp['te'] * 1000;
+            }
+            if (typeof(resp.orid) != "undefined" ) {
+                PlotSelect.orid = resp['orid'];
+            }
+            if (typeof(resp.phases) != "undefined" ) {
+                PlotSelect.phases = resp['phases'];
+            }
         }
 
         // Hide Controls
@@ -559,10 +574,10 @@ PlotSelect = {
                 url += '/' + PlotSelect.chans.join("+");
             }
             if (typeof(PlotSelect.ts) != "undefined" ) {
-                url += '/' + PlotSelect.ts;
+                url += '/' + PlotSelect.ts / 1000;
             }
             if (typeof(PlotSelect.te) != "undefined" ) {
-                url += '/' + PlotSelect.te;
+                url += '/' + PlotSelect.te / 1000;
             }
 
             $.ajax({ 
@@ -595,16 +610,13 @@ PlotSelect = {
         var NameCss = { color:'black', 'font-size':'20px', position:'absolute', left:'10%', top:'25%'};
         var ErrorCss = { color:'red', 'ont-size':'20px', position:'absolute', left:'30%', top:'25%'};
 
-        PlotSelect.ts = data['time_start'];
-        PlotSelect.te = data['time_end'];
+        PlotSelect.ts = data['time_start'] * 1000;
+        PlotSelect.te = data['time_end'] * 1000;
         PlotSelect.stas = data['sta'];
         PlotSelect.chans = data['chan'];
 
-        PlotSelect.cov_opts['xaxis']['min'] = PlotSelect.ts * 1000;
-        PlotSelect.cov_opts['xaxis']['max'] = PlotSelect.te * 1000;
-
-        //var chan_plots = $("#wforms"); 
-        //chan_plots.empty();
+        PlotSelect.cov_opts['xaxis']['min'] = PlotSelect.ts;
+        PlotSelect.cov_opts['xaxis']['max'] = PlotSelect.te;
 
 //{{{
         $.each(data.sta, function(sta_iterator,mysta){
@@ -618,18 +630,13 @@ PlotSelect = {
                     var wrapper = $("<div>").attr("id", name+"_wrapper").attr("class","wrapper_cov");
                     var plt = $("<div>").attr("id", name+"_plot" ).attr("class", "plot_cov");
 
-                    plt.remove();
+                    if ($("#"+name+"_plot").length == 0) {
+                        $("#wforms").append(wrapper);
+                        wrapper.append(plt);
+                        plt.bind("plotselected", PlotSelect.handleSelect);
+                    }
 
-                    $("#wforms").append(plt);
-
-                    plt.bind("plotselected", PlotSelect.handleSelect);
-
-                    // If no plot... build one and store object
-                    //if (typeof(PlotSelect.chan_plot_obj[name]) == "undefined" ) { 
-                    //    $("#wforms").append(plt);
-                    //} else {
-                    //    plt.empty()
-                    //}
+                    plt = $("#"+name+"_plot");
 
                     var flot_data = [];
 
@@ -661,8 +668,6 @@ PlotSelect = {
 
                     plt.append(arrDiv);
 
-                    // Bind and store
-                    plt.bind("plotselected", PlotSelect.handleSelect);
                     PlotSelect.chan_plot_obj[name] = plot;
                 } 
 
@@ -704,45 +709,55 @@ PlotSelect = {
         var ErrorCss = { color:'red', 'ont-size':'20px', position:'absolute', left:'50%', top:'50%'};
 
 
-        PlotSelect.wf_opts.xaxis.min = PlotSelect.ts * 1000;
-        PlotSelect.wf_opts.xaxis.max = PlotSelect.te * 1000;
+        PlotSelect.wf_opts.xaxis.min = PlotSelect.ts;
+        PlotSelect.wf_opts.xaxis.max = PlotSelect.te;
 
         var flot_data = [];
 
+        var url = '/data/wf'
+
+        if (typeof(PlotSelect.stas) == "undefined" ) {
+            alert("ERROR: we need station!");
+            return;
+        }
+        url += '/' + PlotSelect.stas.join("+");
+
+        if (typeof(PlotSelect.chans) == "undefined" ) {
+            alert("ERROR: we need channels!");
+            return;
+        }
+        url += '/' + PlotSelect.chans.join("+");
+
+        if (typeof(PlotSelect.ts) == "undefined" ) {
+            alert("ERROR: we need start-time!");
+            return;
+        }
+        url += '/' + PlotSelect.ts / 1000;
+
+        if (typeof(PlotSelect.te) != "undefined" ) {
+            url += '/' + PlotSelect.te / 1000;
+        }
         $.ajax({
-            url:"/data/wf/"+sta+"/"+chan+"/"+PlotSelect.ts+"/"+PlotSelect.te ,
+            url:url,
             success: function(data) {
 //{{{
                 if (typeof(data[sta][chan]) == "undefined" ) { 
-                return;
+                    return;
                 }
 
                 var name = sta + '_' + chan ; // Create the STA_CHAN data arrays from other response items
-                var plt = $("<div>").attr("id", name+"_plot" );
-                var wrapper = $("<div>").attr("id", name+"_wrapper");
-                plt.attr("class", "plot");
-                wrapper.attr("class","wrapper");
+                var wrapper = $("<div>").attr("id", name+"_wrapper").attr("class","wrapper");
+                var plt = $("<div>").attr("id", name+"_plot" ).attr("class", "plot");
 
                 if ($("#"+name+"_plot").length == 0) {
                     $("#wforms").append(wrapper);
-                } else { 
-                    $("#"+name+"_plot").remove();
+                    wrapper.append(plt);
+                    plt.bind("plotselected", PlotSelect.handleSelect);
                 }
 
-                wrapper.append(plt);
-                plt.bind("plotselected", PlotSelect.handleSelect);
+                plt = $("#"+name+"_plot");
 
-                // If no plot... build one and store object
-                //if (typeof(PlotSelect.chan_plot_obj[name]) == "undefined" ) { 
-                //    $("#wforms").append(wrapper);
-                //    wrapper.append(plt);
-                //    plt.bind("plotselected", PlotSelect.handleSelect);
-                //} else {
-                //    wrapper.empty()
-                //    //$("#"+name+"_plot").remove()
-                //    wrapper.append(plt);
-                //    //plt.bind("plotselected", PlotSelect.handleSelect);
-                //}
+
 
                 if (typeof(data[sta][chan]['data']) == "undefined" ) { 
 //{{{

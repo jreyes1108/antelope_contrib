@@ -861,7 +861,7 @@ class EventData():
             if config.debug: log.msg("\n\nCoverage subset on chan =~/%s/ " % chan_str)
         else:
             for sta in res_data['sta']:
-                for chan in stations.channels(chan):
+                for chan in stations.channels(sta):
                     res_data[sta][chan] = {}
                     res_data['chan'].append(chan)
 
