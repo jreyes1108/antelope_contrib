@@ -47,12 +47,28 @@ class QueryParser(resource.Resource):
     """
     Serve Datascope query requests.
     """
-    def __init__(self):
+    def __init__(self,db):
 #{{{
         resource.Resource.__init__(self)
 
-        self.dbname = config.dbname
+        self.dbname = db
         self.db = dbopen(self.dbname)
+
+        db = Dbptr(self.db)
+
+        db.lookup( table='wfdisc')
+
+        if db.query(dbTABLE_PRESENT): 
+            for check in ['instrument','sensor','origin','arrival']:
+                db.lookup( table=check)
+                if db.query(dbTABLE_PRESENT): 
+                    log.msg('ERROR:' + check + ' table not present !!!!')
+                    log.msg('Running on SIMPLE mode (-s) !!!!')
+                    config.simple = True
+
+        else:
+            log.msg('Can not run server without wfdisc table present for database:'+self.db)
+            sys.exit('Not wfdisc table')
 
         self.stations = evdata.Stations(self.dbname)
         self.events = evdata.Events(self.dbname)
@@ -155,7 +171,7 @@ class QueryParser(resource.Resource):
             "error":             'false',
             "meta_query":        'false',
             "coverage":          'false',
-            "dbname":            config.dbname,
+            "dbname":            self.dbname,
             "application_title": config.application_title,
             "jquery_includes":   self._jquery_includes(),
             "filters":           '<option value="None">None</option>'
@@ -171,15 +187,35 @@ class QueryParser(resource.Resource):
         else:
             tvals['display_arrivals'] = ''
 
+        if config.simple:
+            tvals['event_controls'] = ''
+        else:
+            tvals['event_controls'] = ' \
+                <p>Get time from event list:</p> \
+                <input type="submit" id="load_events" value="Show Events"/> \
+            '
+
+
         args = request.uri.split("/")[1:]
 
         #
-        # remove last element if it's empty... 
+        # remove all empty  elements
         # This (localhost:8008/stations/) is the same as 
         # (localhost:8008/stations) 
         #
-        if args[len(args)-1] == '':
-            args.pop()
+        null_items = 0
+        if config.debug:
+            log.msg('Removing empty arguments args:(size %s)%s' % (len(args),args) )
+
+        while True:
+            try: 
+                args.remove('')
+            except: 
+                break
+
+        if config.debug:
+            log.msg('Fixed arguments args:(size %s)%s' % (len(args),args) )
+
 #}}}
 
         if args:
@@ -195,7 +231,16 @@ class QueryParser(resource.Resource):
 
                 request.setHeader("content-type", "application/json")
 
-                if 'wf' in args:
+                if 'meta' in args:
+#{{{
+                    """
+                    TEST metaquery parsing response. Return json with meta-query data for further ajax requests.
+                    """
+                    return json.dumps(self.eventdata.parse_query(self._parse_url(args), self.stations, self.events))
+
+#}}}
+
+                elif 'wf' in args:
 #{{{
                     """
                     Return JSON object of data. For client ajax calls.
@@ -222,13 +267,15 @@ class QueryParser(resource.Resource):
                     Return events dictionary as JSON objects. For client ajax calls.
                     Called with or without argument
                     """
-                    if len(args) == 3:
-                        args = self._parse_url(args)
 
-                        for event in args[2]:
-                            log.msg("\n\n\tcalling self.events(%s)\n\n" % event)
+                    if len(args) == 3:
+
+                        for event in [args[2]]:
                             response_data[event] = self.events(event)
                         return json.dumps(response_data)
+
+                    elif len(args) == 4:
+                        return json.dumps(self.events.phases(args[2],args[3]))
 
                     else:
                         return json.dumps(self.events.table())
@@ -272,7 +319,7 @@ class QueryParser(resource.Resource):
 #{{{ ERROR: Unknown query type.
                     request.setHeader("content-type", "text/html")
                     request.setHeader("response-code", 500)
-                    dbwfserver.eventdata._error("Unknown type of query: %s" % args)
+                    evdata._error("Unknown type of query: %s" % args)
                     tvals['error'] =  json.dumps( "Unknown query type:(%s)" % args )
 #}}}
 
@@ -284,38 +331,17 @@ class QueryParser(resource.Resource):
                 Parse query for data request. Return html with meta-query data for further ajax requests.
                 """
                 log.msg('args: %s (%s)' % (len(args),str(args)))
-                if len(args) > 2:
 
-                    tvals['meta_query'] = json.dumps(self.eventdata.parse_query(self._parse_url(args), self.stations, self.events))
+                tvals['meta_query'] = json.dumps(self.eventdata.parse_query(self._parse_url(args), self.stations, self.events))
 
-                    args.remove('wf')
-                    tvals['key']  = " / ".join(str(x) for x in args)
-
-                else:
-                    request.setHeader("response-code", 500)
-                    dbwfserver.eventdata._error("You must provide a station code and epoch time or origin: %s" % args)
-                    tvals['error'] =  json.dumps( "You must provide a station code and epoch time or origin: %s" % args )
-
-#}}}
-
-            elif args[0] == 'coverage':
-#{{{
-                """
-                Parse query for coverage and return data inside html code.
-                """
-
-                temp_args = self._parse_url(args)
-                temp_args['type'] = 'coverage'
-                tvals['meta_query'] = json.dumps(temp_args)
-
-                args.remove('coverage')
+                args.remove('wf')
                 tvals['key']  = " / ".join(str(x) for x in args)
 
 #}}}
 
             elif args[0] != '':
                 request.setHeader("response-code", 500)
-                dbwfserver.eventdata._error("Unknown type of query: %s" % args)
+                evdata._error("Unknown type of query: %s" % args)
                 tvals['error'] =  json.dumps( "Unknown query type:(%s)" % args )
 
         html_stations = Template(open(template).read()).substitute(tvals)

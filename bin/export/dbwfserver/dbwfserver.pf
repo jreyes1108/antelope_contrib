@@ -3,6 +3,12 @@ application_name waveform_explorer
 
 port 8008
 
+dbs &Arr{ # use these db's if none provided at runtime
+# port          #db path
+8007            /opt/antelope/data/db/demo/demo
+8008            /opt/antelope/data/db/demo/demo
+8009            /Users/reyes/dbwfserver/db/usarray_2009_01
+}
 default_chans &Tbl{
 #    BHZ
 #    BHN
@@ -22,6 +28,8 @@ jquery_dir &datafilename(www/dbwfserver/static/jquery)
 static_dir &datafilename(www/dbwfserver/static)
 
 jquery_files &Tbl{
+    /static/jquery/jquery.selectmenu.js
+    /static/jquery/jquery.cookie.js
     /static/jquery/excanvas.pack.js
     /static/jquery/jquery.flot.min.js
     /static/jquery/jquery.flot-selection.min.js

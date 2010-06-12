@@ -6,23 +6,60 @@ PlotSelect = {
     init: function(sta){
 
         // {{{ Set defaults
+        $("#loading").show();
 
-        $(document).bind("keydown", "r", PlotSelect.resetPlot);
-        $(document).bind("keydown", "left", PlotSelect.shiftPlotViewLeft);
-        $(document).bind("keydown", "right", PlotSelect.shiftPlotViewRight);
-        $(window).bind("keydown", PlotSelect.toggleShift);
-        $(window).bind("keyup", PlotSelect.toggleShift);
+    //{{{ Binding keys
+        document.onkeyup = function (e) { 
+            if(e.which == 16) PlotSelect.isShiftPressed = false; 
+        }
+        document.onkeydown = function (e) { 
+            if(e.which == 16) PlotSelect.isShiftPressed = true;
+        }
 
-        // Create initial plot with max values:
-        $("#loading").hide();
+        // for detecting nav keys
+        $(document).keypress(function(e) {
+            if (e.keyCode == '38') {
+                // Up key
+                e.preventDefault();
+                PlotSelect.shiftPlot('I');
+            } else if (e.keyCode == '40') {
+                // Down key
+                e.preventDefault();
+                PlotSelect.shiftPlot('O');
+            } else if (e.keyCode == '37') {
+                // Left key
+                e.preventDefault();
+                PlotSelect.shiftPlot('L');
+            } else if (e.keyCode == '39') {
+                // Right key
+                e.preventDefault();
+                PlotSelect.shiftPlot('R');
+            } else if (e.keyCode == '82') {
+                // r for reset plot
+                e.preventDefault();
+                location.reload(true);
+            }
+        });
+    //}}} Binding keys
+
+        // To store plot objects
+        PlotSelect.chan_plot_obj = {};
+
+        // Set COOKIE global options
+        //PlotSelect.COOKIE_OPTS = { path: '/dbwfserver', expires: 99};
+        PlotSelect.COOKIE_OPTS = { 
+            path: '/', 
+            expiresAt: 99
+        };
+
+        // Get the values and update buttons
+        PlotSelect.getCookie();
+
+        // Apply all JQUERY UI functions.
         $("#plot_type").buttonset();
         $("button, input:submit, input:checkbox").button();
         $("#nav a").button();
-        //if(! $("#wforms").is(':visible') ){
-        //    $("#subnavcontent").show('slow');
-        //};
-
-        PlotSelect.chan_plot_obj = {};
+        $("#cs, #filter").selectmenu({style:'dropdown',menuWidth:200});
 
         // {{{ Define colorschemes
 
@@ -36,7 +73,8 @@ PlotSelect = {
         };
         PlotSelect.colorschemes.bw = {
             lineColor : "#000000",
-            bgColor   : "#DBDBDB",
+            //bgColor   : "#DBDBDB",
+            bgColor   : { colors: ["#eee", "#999"] },
             tickColor : "#666666",
             selection : "#666666"
         };
@@ -48,7 +86,8 @@ PlotSelect = {
         };
         PlotSelect.colorschemes.wb = {
             lineColor : "#FFFFFF",
-            bgColor   : "#000000",
+            bgColor   : { colors: ["#000", "#999"] },
+            //bgColor   : "#000000",
             tickColor : "#666666",
             selection : "#FFFFFF"
         };
@@ -65,38 +104,18 @@ PlotSelect = {
             selection : "#FFFFFF"
         }
         PlotSelect.colorschemes.def = {
-            selection : "#FFFFFF"
+            bgColor   : "#eee"
+            //bgColor   : { colors: ["#fff", "#eee"] }
         }
-
-        // Set defaults for the colorscheme
-        if( PlotSelect.canvasLineColor == undefined ) PlotSelect.canvasLineColor = PlotSelect.colorschemes.def.lineColor;
-        if( PlotSelect.canvasBgColor == undefined ) PlotSelect.canvasBgColor = PlotSelect.colorschemes.def.bgColor;
-        if( PlotSelect.canvasTickColor === undefined ) PlotSelect.canvasTickColor = PlotSelect.colorschemes.def.tickColor;
-        if( PlotSelect.canvasSelection === undefined ) PlotSelect.canvasSelection = PlotSelect.colorschemes.def.selection;
 
         // }}} Define colorschemes
 
-        PlotSelect.wf_opts = {
-            colors: [PlotSelect.canvasLineColor], 
-            selection: {mode:"x", color:PlotSelect.canvasSelection}, 
-            grid: {clickable:true, borderColor:PlotSelect.canvasTickColor, color:PlotSelect.canvasTickColor, tickColor:PlotSelect.canvasTickColor, backgroundColor:PlotSelect.canvasBgColor},
-            xaxis: {ticks:5, labelWidth:20, labelHeight:20, mode:"time", timeformat:"%H:%M:%S<br/>%y-%m-%d"},
-            yaxis: {ticks:4, labelWidth:25},
-            lines: {show:false},
-            bars: {show:false} 
-        };
+        // Bind actions to elements
+        PlotSelect.configChange();
 
-        PlotSelect.cov_opts = {
-            colors: [PlotSelect.canvasLineColor], 
-            selection: {mode:"x", color:PlotSelect.canvasSelection}, 
-            grid: {clickable:true, borderColor:PlotSelect.canvasTickColor, color:PlotSelect.canvasTickColor, tickColor:PlotSelect.canvasTickColor, backgroundColor:PlotSelect.canvasBgColor},
-            //xaxis: {ticks:3, labelWidth:20, labelHeight:20, mode:"time", timeformat:"%H:%M:%S<br/>%y-%m-%d"},
-            xaxis: {ticks:5, labelWidth:20, labelHeight:20, mode:"time", timeformat:"%H:%M:%S<br/>%y-%m-%d"},
-            yaxis: {ticks:0,max:2,min:1},
-            bars: {show:true, horizontal:true, barWidth:1}
-        };
-
-
+        // Define global variables depending 
+        // on the configuration. 
+        PlotSelect.plotVarSet();
 
         // {{{ Setup AJAX defaults
         $.ajaxSetup({
@@ -112,42 +131,25 @@ PlotSelect = {
         $("a#configuration_open_link").click( function() {
             $("#configpanel").slideToggle("slow", function() {
                 if( $(this).is(":hidden") ) {
-                    $("a#configuration_open_link").html('Show configuration');
+                    $("a#configuration_open_link").html('Show Help');
                 } else {
-                    $("a#configuration_open_link").html('Hide configuration');
+                    $("a#configuration_open_link").html('Hide Help');
                 }
             });
         });
         // }}} Open the config panel
 
-        // {{{ Canvas resize experiment
-        // Not used yet
-        // $(window).resize(function(){
-        //     $('canvas').css({'width':'100%'});
-        // });
+        // {{{ Canvas resize
+        $(window).resize(function(){
+
+            PlotSelect.setData();
+
+        });
         // }}} Canvas resize experiment
 
-        // {{{ Arrival flag CSS
-        PlotSelect.arrivalFlagCss = {
-            'border':'1px solid #FFF',
-            'background-color':'#F00',
-            'font-weight':'bold',
-            'font-size':'smaller',
-            'color':'#FFF',
-            'padding':'3px',
-            'position':'absolute'
-        };
-        PlotSelect.arrivalTailCss = {
-            'position':'absolute',
-            'border':'none',
-            'border-left':'1px solid #FFF',
-            'margin':'0',
-            'padding':'0',
-            'width':'1px'
-        };
-        // }}} Arrival flag CSS
 
         $('#clear').click( function($e){
+//{{{
             $e.preventDefault();
             $('#subnavcontent').hide('fast');
             $("#station_string").val('.*');
@@ -156,24 +158,27 @@ PlotSelect = {
             $("#end_time").val('');
             $('#list').empty();
             $('#subnavcontent').show('slow');
+//}}}
         });
+
         $('#plot').click( function($e){
+//{{{
             $e.preventDefault();
             sta = $("#station_string").val();
             chan = $("#channel_string").val();
             start = $("#start_time").val();
             end = $("#end_time").val();
-            type = $("input[name='type']:checked").attr('id');
-            //if ( typeof(sta) != "undefined" ) {
-            //    alert('We need value for ...');
-            //    return;
-            //}
-            //alert('Got this values...\n\tsta:'+sta+'\n\tchan:'+chan+'\n\tstart:'+start+'\n\tend:'+end+'\n\ttype:'+type);
-            url = "/"+type+'/'+sta+'/'+chan+'/'+start+'/'+end;
+
+            // Save sattings
+            PlotSelect.setCookie();
+
+            url = '/wf/'+sta+'/'+chan+'/'+start+'/'+end;
             $(location).attr('href',url);
+//}}}
         });
 
         $('#load_stas').click( function($e){
+//{{{
             $e.preventDefault();
             $('#list').empty();
             $("<ul></ul>").appendTo("#list")
@@ -199,9 +204,11 @@ PlotSelect = {
                     });
                 }
             });
+//}}}
         });
 
         $('#load_chans').click( function($e){
+//{{{
             $e.preventDefault();
             $('#list').empty();
             $("<ul></ul>").appendTo("#list")
@@ -227,9 +234,11 @@ PlotSelect = {
                     });
                 }
             });
+//}}}
         });
 
         $('#load_events').click( function($e){
+//{{{
             $e.preventDefault();
             $('#list').empty();
             $.ajax({
@@ -287,102 +296,203 @@ PlotSelect = {
                     });
                 }
             });
-        });
-        $('#last_1_hr').click( function(){
-            $('#start_time').val('last_1_hr');
-            $('#end_time').val('');
+//}}}
         });
 
-        $('#last_24_hrs').click( function(){
-            $('#start_time').val('last_24_hrs');
-            $('#end_time').val('');
-        });
-
-        $('#last_week').click( function(){
-            $('#start_time').val('last_week');
-            $('#end_time').val('');
-        });
-
-        $('#last_month').click( function(){
-            $('#start_time').val('last_month');
-            $('#end_time').val('');
-        });
+        $("#loading").hide();
 
         // }}} Set defaults
 
     },
 
-    resetPlot: function(evt){
+    getCookie: function(){
 
-        location.reload(true);
+    //{{{ Get cookie values
+        //
+        // Look for cookie values and update elements
+        //
+        //alert('Value of type:'+ $.cookie('dbwfserver_type'));
+        //$.each($.cookies.get('dbwfserver_filter'), function(e) {
+        //    alert('Value of type:'+e);
+        //});
+
+        if ($.cookie('dbwfserver_phases') ==  'false'){
+            $('input[name=phases]').attr('checked', false);
+        }
+        if ($.cookie('dbwfserver_phases') ==  'true'){
+            $('input[name=phases]').attr('checked', true);
+        }
+        if ($.cookie('dbwfserver_type') != null){
+            $('#plot_type input').val([$.cookie('dbwfserver_type')]);
+        }
+        if ($.cookie('dbwfserver_color') != null){
+            $('#cs').val($.cookie('dbwfserver_color'));
+        }
+        if ($.cookie('dbwfserver_filter') != null){
+            $('#filter').val($.cookie('dbwfserver_filter'));
+        }
+        if ($.cookie('dbwfserver_stime') != null){
+            $('#start_time').val($.cookie('dbwfserver_stime'));
+        }
+        if ($.cookie('dbwfserver_etime') != null){
+            $('#end_time').val($.cookie('dbwfserver_etime'));
+        }
+        if ($.cookie('dbwfserver_sta') != null){
+            $('#station_string').val($.cookie('dbwfserver_sta'));
+        }
+        if ($.cookie('dbwfserver_chan') != null){
+            $('#channel_string').val($.cookie('dbwfserver_chan'));
+        }
+    //}}} Get cookie values
+
+    },
+    setCookie: function(){
+
+    //{{{ Set cookie
+
+        $.cookie('dbwfserver_type', $("input[name='wf_type']:checked").val(), PlotSelect.COOKIE_OPTS);
+
+        $.cookie('dbwfserver_color', $("#cs").val(), PlotSelect.COOKIE_OPTS);
+
+        $.cookie('dbwfserver_filter', $("#filter").val(), PlotSelect.COOKIE_OPTS);
+
+        $.cookie('dbwfserver_phases', $("#phases").is(':checked'), PlotSelect.COOKIE_OPTS);
+
+        $.cookie('dbwfserver_stime', $("#start_time").val(), PlotSelect.COOKIE_OPTS);
+
+        $.cookie('dbwfserver_etime', $("#end_time").val(), PlotSelect.COOKIE_OPTS);
+
+        $.cookie('dbwfserver_sta', $("#station_string").val(), PlotSelect.COOKIE_OPTS);
+
+        $.cookie('dbwfserver_chan', $("#channel_string").val(), PlotSelect.COOKIE_OPTS);
+
+    //}}} Set cookie
 
     },
 
-    filterChange: function(evt){
+    configChange: function(){
 
-        // {{{ Dynamic filter change data query
-
-
-        $("select#filter").change( function() {
-            PlotSelect.setData();
-        });
-
-
-        // }}} Dynamic filter change data query
-
-    },
-
-    colorschemeChange: function(evt){
-
-        // {{{ Change colorscheme
-
-        $("select#cs").change(function(){
-
-            var cs = $(this).val() ;
-
-            PlotSelect.canvasLineColor = PlotSelect.colorschemes[cs]['lineColor'] ;
-            PlotSelect.canvasBgColor   = PlotSelect.colorschemes[cs]['bgColor'];
-            PlotSelect.canvasTickColor = PlotSelect.colorschemes[cs]['tickColor'];
-            PlotSelect.canvasSelection = PlotSelect.colorschemes[cs]['selection'];
-
-            $("span#csFg").css("background-color",PlotSelect.canvasLineColor);
-            $("span#csBg").css("background-color",PlotSelect.canvasBgColor);
-
-            PlotSelect.setData();
-
-        });
-
-        // }}} Change colorscheme
-
-    },
-
-    phaseSelector: function(evt){
+    //{{{ Bind actions to elements
 
         // {{{ Dynamic phase selector
 
-        $("input#phases").change( function() {
+        $("#phases").change( function() {
             if( $(this).attr('checked') ) { 
                 PlotSelect.phases = 'True' ;
             } else { 
                 PlotSelect.phases = 'False' ;
             }
-            $(".flag").toggle();
-            $(".flagTail").toggle();
+            if ( PlotSelect.phases == 'True' ) { 
+
+                $(".flag").show();
+                $(".flagTail").show();
+
+            } else { 
+
+                $(".flag").hide();
+                $(".flagTail").hide();
+
+            }
+
+            PlotSelect.setCookie();
+
         });
         // }}} Dynamic phase selector
 
-    },
+        // {{{ Change controls
 
-    typeChange: function(evt){
+        $("select#cs, select#filter, #plot_type").change(function(){
 
-        // {{{ Dynamic type change data query
-
-        $("form#conftype select#type").change( function() {
-            PlotSelect.type = $(this).val();
-            PlotSelect.setData();
+            PlotSelect.plotVarSet();
+            PlotSelect.setCookie();
+            if (! $("#subnavcontent").is(":visible") ) {
+                PlotSelect.setData();
+            }
 
         });
-        // }}} Dynamic type change data query
+
+        // }}} Change controls
+
+    //}}} Bind actions to elements
+
+    },
+
+    plotVarSet: function(){
+
+    // {{{ Set vars for plots
+
+        //{{{ Set color scheme
+        // Set the color scheme
+        var cs = $("select#cs").val();
+
+        if (cs == undefined) {
+            cs = 'def';
+        }
+
+        // Set global vars for color
+        PlotSelect.canvasLineColor = PlotSelect.colorschemes[cs]['lineColor'] ;
+        PlotSelect.canvasBgColor   = PlotSelect.colorschemes[cs]['bgColor'];
+        PlotSelect.canvasTickColor = PlotSelect.colorschemes[cs]['tickColor'];
+        PlotSelect.canvasSelection = PlotSelect.colorschemes[cs]['selection'];
+        //}}} Set color scheme
+
+        //{{{ Flot options
+        // Set coverage defaults
+        PlotSelect.cov = {
+            colors: [PlotSelect.canvasLineColor], 
+            selection: {mode:"x", color:PlotSelect.canvasSelection}, 
+            grid: {clickable:true, borderColor:PlotSelect.canvasTickColor, color:PlotSelect.canvasTickColor, tickColor:PlotSelect.canvasTickColor, backgroundColor:PlotSelect.canvasBgColor},
+            xaxis: {ticks:5, labelHeight:20, mode:"time", timeformat:"%H:%M:%S<br/>%y-%m-%d"},
+            yaxis: {ticks:0,min:1,max:2},
+            bars: {show:true,horizontal:true,barWidth:1,fill:true,fillColor:PlotSelect.canvasLineColor}
+        };
+
+        // Set waveforms defaults lines
+        PlotSelect.wf_lines = {
+            colors: [PlotSelect.canvasLineColor], 
+            selection: {mode:"x", color:PlotSelect.canvasSelection}, 
+            grid: {clickable:true, borderColor:PlotSelect.canvasTickColor, color:PlotSelect.canvasTickColor, tickColor:PlotSelect.canvasTickColor, backgroundColor:PlotSelect.canvasBgColor},
+            xaxis: {ticks:5, labelWidth:20, labelHeight:20, mode:"time", timeformat:"%H:%M:%S<br/>%y-%m-%d"},
+            yaxis: {ticks:4,labelWidth:30},
+            lines: {show:true,lineWidth:2,shadowSize:4},
+        };
+
+        // Set waveforms defaults bins
+        PlotSelect.wf_bins = {
+            colors: [PlotSelect.canvasLineColor], 
+            selection: {mode:"x", color:PlotSelect.canvasSelection}, 
+            grid: {clickable:true, borderColor:PlotSelect.canvasTickColor, color:PlotSelect.canvasTickColor, tickColor:PlotSelect.canvasTickColor, backgroundColor:PlotSelect.canvasBgColor},
+            xaxis: {ticks:5, labelWidth:20, labelHeight:20, mode:"time", timeformat:"%H:%M:%S<br/>%y-%m-%d"},
+            yaxis: {ticks:4,labelWidth:40},
+            bars: {show:true,barWidth:0,align:'center'},
+        };
+
+        // For the text on the screen.
+        PlotSelect.NameCss = { color:PlotSelect.canvasLineColor, 'font-size':'20px', position:'absolute', left:'10%', top:'15%'};
+
+        //}}} Flot options
+
+        // {{{ Arrival flag CSS
+        PlotSelect.arrivalFlagCss = {
+            'border':'1px solid #FFF',
+            'background-color':'#F00',
+            'font-weight':'bold',
+            'font-size':'smaller',
+            'color':'#FFF',
+            'padding':'3px',
+            'position':'absolute'
+        };
+        PlotSelect.arrivalTailCss = {
+            'position':'absolute',
+            'border':'none',
+            'border-left':'1px solid #FFF',
+            'margin':'0',
+            'padding':'0',
+            'width':'1px'
+        };
+        // }}} Arrival flag CSS
+
+    // }}} Set vars for plots
 
     },
 
@@ -443,53 +553,31 @@ PlotSelect = {
 
     },
 
-    shiftPlotViewRight: function(evt) {
+    shiftPlot: function(evt) {
 
         // {{{ Future data
 
         var delta = PlotSelect.te - PlotSelect.ts ;
 
-        dleta = delta/4;
+        delta /= 4;
 
-        PlotSelect.ts += delta;
-
-        PlotSelect.te += delta;
+        if (evt == 'L') { 
+            PlotSelect.ts -= delta;
+            PlotSelect.te -= delta;
+        } else if (evt == 'R') {
+            PlotSelect.ts += delta;
+            PlotSelect.te += delta;
+        } else if (evt == 'I') {
+            PlotSelect.ts += delta;
+            PlotSelect.te -= delta;
+        } else if (evt == 'O') {
+            PlotSelect.ts -= delta;
+            PlotSelect.te += delta;
+        }
 
         PlotSelect.setData();
 
         // }}} Future data
-
-    },
-
-    shiftPlotViewLeft: function(evt) {
-
-        // {{{ Past data
-
-        var delta = PlotSelect.te - PlotSelect.ts ;
-
-        dleta = delta/4;
-
-        PlotSelect.ts -= delta;
-
-        PlotSelect.te -= delta;
-
-        PlotSelect.setData();
-
-        // }}} Past data
-
-    },
-
-    toggleShift: function(evt) {
-
-//{{{
-    /*XXX Is there a better way to do this (toggleShift)?
-     Currently this pre and post Shift toggling is done
-     such that we can detect if Shift is pressed before
-     we go into "PlotSelect.handleSelect"  which is an
-     event handler that Flot passes plot click position data to.
-    */
-        PlotSelect.isShiftPressed = evt.shiftKey;
-//}}}
 
     },
 
@@ -523,167 +611,11 @@ PlotSelect = {
 
     },
 
-    setData: function(resp) {
-
-//{{{
-        $("#loading").show();
-
-        if ( typeof(resp) != "undefined" ) {
-            // PlotSelect is define globally for app
-            if (typeof(resp['error']) != "undefined" ) {
-                PlotSelect.errorResponse('parsererror',resp['error']);
-            }
-
-            if (typeof(resp.type) != "undefined" ) {
-                PlotSelect.type = resp['type'];
-            }
-            if (typeof(resp.stas) != "undefined" ) {
-                PlotSelect.stas = resp['sta'];
-            }
-            if (typeof(resp.chans) != "undefined" ) {
-                PlotSelect.chans = resp['chans'];
-            }
-            if (typeof(resp.ts) != "undefined" ) {
-                PlotSelect.ts = resp['ts'] * 1000;
-            }
-            if (typeof(resp.te) != "undefined" ) {
-                PlotSelect.te = resp['te'] * 1000;
-            }
-            if (typeof(resp.orid) != "undefined" ) {
-                PlotSelect.orid = resp['orid'];
-            }
-            if (typeof(resp.phases) != "undefined" ) {
-                PlotSelect.phases = resp['phases'];
-            }
-        }
-
-        // Hide Controls
-        $('#subnavcontent').hide('fast');
-        // Show plots
-        $("#wforms").show();
-        $("#interact").show();
-        $("#tools").show();
-
-        if (PlotSelect.type == 'coverage') {
-            var url = '/data/coverage'
-
-            if (typeof(PlotSelect.stas) != "undefined" ) {
-                url += '/' + PlotSelect.stas.join("+");
-            }
-            if (typeof(PlotSelect.chans) != "undefined" ) {
-                url += '/' + PlotSelect.chans.join("+");
-            }
-            if (typeof(PlotSelect.ts) != "undefined" ) {
-                url += '/' + PlotSelect.ts / 1000;
-            }
-            if (typeof(PlotSelect.te) != "undefined" ) {
-                url += '/' + PlotSelect.te / 1000;
-            }
-
-            $.ajax({ 
-                url:url, 
-                success: function(data){
-                    PlotSelect.setCoverage(data); 
-                }
-            });
-        } else {
-
-            $.each(PlotSelect.stas.sort(), function(sta_iterator,mysta){
-
-                $.each(PlotSelect.chans.sort(), function(chan_iterator,mychan){
-
-                    PlotSelect.plotData(mysta,mychan);
-
-                });
-
-            });
-        }
-
-        $("#loading").fadeOut();
-//}}}
-
-    },
-
-    setCoverage: function(data) {
-
-//{{{
-        var NameCss = { color:'black', 'font-size':'20px', position:'absolute', left:'10%', top:'25%'};
-        var ErrorCss = { color:'red', 'ont-size':'20px', position:'absolute', left:'30%', top:'25%'};
-
-        PlotSelect.ts = data['time_start'] * 1000;
-        PlotSelect.te = data['time_end'] * 1000;
-        PlotSelect.stas = data['sta'];
-        PlotSelect.chans = data['chan'];
-
-        PlotSelect.cov_opts['xaxis']['min'] = PlotSelect.ts;
-        PlotSelect.cov_opts['xaxis']['max'] = PlotSelect.te;
-
-//{{{
-        $.each(data.sta, function(sta_iterator,mysta){
-
-            $.each(data.chan, function(chan_iterator,mychan){
-
-                if (typeof(data[mysta]) == "undefined" ) { 
-                } else if (typeof(data[mysta][mychan]) == "undefined" ) { 
-                } else {
-                    var name = mysta + '_' + mychan ; // Create the STA_CHAN data arrays from other response items
-                    var wrapper = $("<div>").attr("id", name+"_wrapper").attr("class","wrapper_cov");
-                    var plt = $("<div>").attr("id", name+"_plot" ).attr("class", "plot_cov");
-
-                    if ($("#"+name+"_plot").length == 0) {
-                        $("#wforms").append(wrapper);
-                        wrapper.append(plt);
-                        plt.bind("plotselected", PlotSelect.handleSelect);
-                    }
-
-                    plt = $("#"+name+"_plot");
-
-                    var flot_data = [];
-
-//{{{
-                    //  Coverage plot
-
-                    if (typeof(data[mysta][mychan]['data']) == "undefined" ) { 
-
-                        var plot = $.plot(plt, [], PlotSelect.cov_opts);
-
-                        var arrDiv = $("<div>").css(ErrorCss).append('No data in time segment: ('+PlotSelect.ts+','+PlotSelect.te+').');
-
-                        plt.append(arrDiv);
-
-                    } else {
-
-                        $.each( data[mysta][mychan]['data'], function(i,arr) {
-
-                            var start_time = parseFloat(arr[0],10) *1000;
-                            var end_time   = parseFloat(arr[1],10) *1000;
-                            flot_data.push([start_time,1,end_time]);
-
-                        });
-
-                        var plot = $.plot(plt,[ flot_data ], PlotSelect.cov_opts );
-                    }
-//}}}
-                    var arrDiv = $("<div>").css(NameCss).append(name);
-
-                    plt.append(arrDiv);
-
-                    PlotSelect.chan_plot_obj[name] = plot;
-                } 
-
-            });
-
-        });
-//}}}
-//}}}
-
-    },
-
     setEventData: function(resp){
 
 //{{{
         //$('#subnav #event').empty();
-        $('#list').empty();
+        $('#event_meta').empty();
 
         //  Plot event table
 
@@ -695,109 +627,344 @@ PlotSelect = {
         event_metadata += "<tr><th>Author</th><td>"+resp['auth']+"</td><th>nass</th><td>"+resp['nass']+"</td></tr>";
         event_metadata += "</table>";
 
-        $('#list').append(event_metadata);
+        $('#event_meta').append(event_metadata);
 //}}}
 
     },
 
-    plotData: function(sta,chan){
+    setData: function(resp) {
 
 //{{{
-        //  Define graph defaults
+        $("#loading").show();
 
-        var NameCss = { color:'black', 'font-size':'20px', position:'absolute', left:'10%', top:'5%'};
-        var ErrorCss = { color:'red', 'ont-size':'20px', position:'absolute', left:'50%', top:'50%'};
+        //
+        // Get type
+        //
+        PlotSelect.type = $("input[name='wf_type']:checked").val();
 
+        if (typeof(PlotSelect.type) == "undefined") {
+            alert('Problems detecting "type" for plot. Select (waveforms or coverage).');
+        }
 
-        PlotSelect.wf_opts.xaxis.min = PlotSelect.ts;
-        PlotSelect.wf_opts.xaxis.max = PlotSelect.te;
+        // 
+        // If resp defined... update globals
+        //
+        if ( typeof(resp) != "undefined" ) {
+//{{{
+
+            // PlotSelect is define globally for app
+            if (typeof(resp['error']) != "undefined" ) {
+                PlotSelect.errorResponse('parsererror',resp['error']);
+            }
+
+            if (typeof(resp.sta) != "undefined" ) {
+                PlotSelect.sta = resp['sta'];
+                //alert('PlotSelect:{sta:'+PlotSelect.sta+'}');
+            }
+            if (typeof(resp.chan) != "undefined" ) {
+                PlotSelect.chan = resp['chan'];
+                //alert('PlotSelect:{chan:'+PlotSelect.chan+'}');
+            }
+            if (typeof(resp.time_start) != "undefined" ) {
+                PlotSelect.ts = resp['time_start'] * 1000;
+                //alert('PlotSelect:{ts:'+PlotSelect.ts+'}');
+            }
+            if (typeof(resp.time_end) != "undefined" ) {
+                PlotSelect.te = resp['time_end'] * 1000;
+                //alert('PlotSelect:{te:'+PlotSelect.te+'}');
+            }
+            if (typeof(resp.orid) != "undefined" ) {
+                PlotSelect.orid = resp['orid'];
+                //alert('PlotSelect:{orid:'+PlotSelect.orid+'}');
+            }
+            if (typeof(resp.phases) != "undefined" ) {
+                PlotSelect.phases = resp['phases'];
+                //alert('PlotSelect:{phases:'+PlotSelect.phases+'}');
+            }
+//}}}
+        }
+
+        // Hide Controls
+        $('#subnavcontent').hide('fast');
+        // Show plots
+        $("#wforms").show('fast');
+        $("#tools").show('fast');
+
+        if (PlotSelect.type == 'coverage') {
+            //
+            // Build URL for query
+            //
+//{{{
+            var url = '/data/coverage'
+
+            if (typeof(PlotSelect.sta) != "undefined" ) {
+                url += '/' + PlotSelect.sta.join("+");
+            } else { 
+                url += '/.*';
+            }
+
+            if (typeof(PlotSelect.chan) != "undefined" ) {
+                url += '/' + PlotSelect.chan.join("+");
+            } else { 
+                url += '/.*';
+            }
+
+            if (typeof(PlotSelect.ts) != "undefined" ) {
+                url += '/' + PlotSelect.ts / 1000;
+            } 
+
+            if (typeof(PlotSelect.te) != "undefined" ) {
+                url += '/' + PlotSelect.te / 1000;
+            }
+//}}}
+
+            // Just 1 ajax call for all coverage data 
+            // since all comes from the wfdisc table.
+            $.ajax({ 
+                url:url, 
+                success: function(data){
+                    //
+                    // Update Globals
+                    //
+//{{{
+                    PlotSelect.sta = data['sta'];
+                    PlotSelect.chan = data['chan'];
+
+                    // Coverage could be called without times... need update
+                    PlotSelect.ts = data['time_start'] * 1000;
+                    PlotSelect.te = data['time_end'] * 1000;
+
+                    // Set max and min for plots
+                    PlotSelect.cov.xaxis.min = PlotSelect.ts;
+                    PlotSelect.cov.xaxis.max = PlotSelect.te;
+//}}}
+
+                    $.each(data.sta.sort(), function(sta_iterator,mysta){
+
+                        $.each(data.chan.sort(), function(chan_iterator,mychan){
+
+                            var wpr = mysta + '_' + mychan + '_wrapper' ;
+
+                            if ( $("#"+wpr).length == 0 ){
+                                $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
+                            }
+
+                            // Verify if sta:chan combination is valid...
+                            if (typeof(data[mysta][mychan]) != "undefined" ) { 
+                                PlotSelect.plotData(mysta,mychan,data[mysta][mychan]);
+                            } else { 
+                                //alert('Not valid sta:chan combination.('+mysta+','+mychan+')');
+                            }
+
+                        });
+
+                    });
+                }
+            });
+        } else if (PlotSelect.type == 'waveform'){
+
+            $.each(PlotSelect.sta.sort(), function(sta_iterator,mysta){
+
+                $.each(PlotSelect.chan.sort(), function(chan_iterator,mychan){
+
+                    var url = '/data/wf'
+
+                    url += '/' + mysta;
+
+                    url += '/' + mychan;
+
+                    if (typeof(PlotSelect.ts) != "undefined" ) {
+
+                        url += '/' + PlotSelect.ts / 1000;
+
+                        // check end_time only if we have start time
+                        if (typeof(PlotSelect.te) != "undefined" ) {
+                            url += '/' + PlotSelect.te / 1000;
+
+                            // check filter only if we have end time
+                            if ( $("#filter").val() != "None" ) {
+                                url += '/' + $("#filter").val();
+                            }
+                        }
+                    }
+
+                    var wpr = mysta + '_' + mychan + '_wrapper' ;
+
+                    if ( $("#"+wpr).length == 0 ){
+                        $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
+                    }
+
+                    $.ajax({
+                        url:url,
+                        success: function(data) {
+                            if (typeof(data[mysta][mychan]) != "undefined" ) { 
+                                PlotSelect.plotData(mysta,mychan,data[mysta][mychan]);
+                            } else { 
+                                //alert('Not valid sta:chan combination.('+mysta+','+mychan+')');
+                            }
+                        },
+                    });
+
+                });
+
+            });
+
+            if ($("#phases").is(':checked') == true) { 
+                if (typeof(PlotSelect.ts) != "undefined" ) {
+                    // check end_time only if we have start time
+                    if (typeof(PlotSelect.te) != "undefined" ) {
+                        // call only if we have start and end times
+                        PlotSelect.setPhases(PlotSelect.ts/1000,PlotSelect.te/1000);
+                    }
+                }
+            }
+
+        } else {
+
+            // Show plots
+            $("#wforms").hide('fast');
+            $("#tools").hide('fast');
+            // Hide Controls
+            $('#subnavcontent').show('slow');
+
+        }
+//        }
+
+        $("#loading").fadeOut();
+//}}}
+
+    },
+
+    plotData: function(sta,chan,data){
+//{{{
 
         var flot_data = [];
 
-        var url = '/data/wf'
+        var name = sta + '_' + chan ; // Create the STA_CHAN data arrays from other response items
+        var wpr = name+"_wrapper";
+        var plt = name+"_plot";
+        var wrapper = $("<div>").attr("id",wpr ).attr("class","wrapper");
+        var plot = $("<div>").attr("id", plt );
 
-        if (typeof(PlotSelect.stas) == "undefined" ) {
-            alert("ERROR: we need station!");
-            return;
-        }
-        url += '/' + PlotSelect.stas.join("+");
 
-        if (typeof(PlotSelect.chans) == "undefined" ) {
-            alert("ERROR: we need channels!");
-            return;
-        }
-        url += '/' + PlotSelect.chans.join("+");
+        if ( $("#"+plt).length == 0 ){
 
-        if (typeof(PlotSelect.ts) == "undefined" ) {
-            alert("ERROR: we need start-time!");
-            return;
-        }
-        url += '/' + PlotSelect.ts / 1000;
+            $("#"+wpr).append(plot);
 
-        if (typeof(PlotSelect.te) != "undefined" ) {
-            url += '/' + PlotSelect.te / 1000;
+            $("#"+plt).bind("plotselected", PlotSelect.handleSelect);
+
         }
+
+        if ( typeof(data['data']) == "undefined" ) { 
+        //{{{
+            $("#"+plt).attr("class", "plot_cov");
+
+            var canvas = $.plot($("#"+plt),[], PlotSelect.cov);
+
+            var arrDiv = $("<div>").css(PlotSelect.NameCss);
+
+            arrDiv.css({ color:'red', left:'30%', top:'5%'});
+
+            arrDiv.append('No data in time segment: ('+PlotSelect.ts+','+PlotSelect.te+').');
+
+            $("#"+plt).append(arrDiv);
+        //}}}
+        } else {
+        //{{{
+            if ( typeof(data['format']) == "undefined" ) { 
+                //Here we are plotting coverage bars
+                $.each( data['data'], function(i,arr) {
+
+                    var start_time = parseFloat(arr[0],10) *1000;
+                    var end_time   = parseFloat(arr[1],10) *1000;
+                    flot_data.push([start_time,1,end_time]);
+
+                });
+
+                $("#"+plt).attr("class", "plot_cov");
+
+                var canvas = $.plot($("#"+plt),[ flot_data ], PlotSelect.cov);
+
+            } else if( data['format'] == 'bins' ) {
+
+                for ( var i=0, len=data['data'].length; i<len; ++i ){
+                    temp_data = data['data'][i];
+                    flot_data[i] =  [temp_data[0]*1000,temp_data[2],temp_data[1]];
+                }
+
+                // For waveforms
+                PlotSelect.wf_bins.xaxis.min = PlotSelect.ts;
+                PlotSelect.wf_bins.xaxis.max = PlotSelect.te;
+
+                $("#"+plt).attr("class", "plot");
+
+                var canvas = $.plot($("#"+plt),[ flot_data ], PlotSelect.wf_bins);
+
+            } else {
+
+                for ( var i=0, len=data['data'].length; i<len; ++i ){
+                    temp_data = data['data'][i];
+                    flot_data[i] =  [temp_data[0]*1000,temp_data[1]];
+                }
+
+                // For waveforms
+                PlotSelect.wf_lines.xaxis.min = PlotSelect.ts;
+                PlotSelect.wf_lines.xaxis.max = PlotSelect.te;
+
+                $("#"+plt).attr("class", "plot");
+
+                var canvas = $.plot($("#"+plt),[ flot_data ], PlotSelect.wf_lines);
+            }
+
+        //}}}
+        }
+
+        PlotSelect.chan_plot_obj[name] = canvas;
+
+        var arrDiv = $("<div>").css(PlotSelect.NameCss).append(name);
+        $('#'+plt).append(arrDiv);
+
+//}}}
+    },
+
+    setPhases: function(start,end){
+
+//{{{
         $.ajax({
-            url:url,
+            url:"/data/events/"+start+"/"+end,
             success: function(data) {
-//{{{
-                if (typeof(data[sta][chan]) == "undefined" ) { 
-                    return;
-                }
+                $.each(data, function(sta_chan,p){
 
-                var name = sta + '_' + chan ; // Create the STA_CHAN data arrays from other response items
-                var wrapper = $("<div>").attr("id", name+"_wrapper").attr("class","wrapper");
-                var plt = $("<div>").attr("id", name+"_plot" ).attr("class", "plot");
+                    var pt = $('#' + sta_chan + '_plot'); 
 
-                if ($("#"+name+"_plot").length == 0) {
-                    $("#wforms").append(wrapper);
-                    wrapper.append(plt);
-                    plt.bind("plotselected", PlotSelect.handleSelect);
-                }
+                    if ( pt.length != 0){
 
-                plt = $("#"+name+"_plot");
+                        $.each(p, function(phaseTime,phaseFlag){
 
+                            var plot_obj = PlotSelect.chan_plot_obj[sta_chan]; 
 
+                            var o = plot_obj.pointOffset( { x:(phaseTime*1000), y:1000 } ) ;
 
-                if (typeof(data[sta][chan]['data']) == "undefined" ) { 
-//{{{
-                    var plot = $.plot(plt, [], PlotSelect.wf_opts);
+                            var flagTop = plot_obj.getPlotOffset() ;
 
-                    var arrDiv = $("<div>").css(ErrorCss).append('No data in time segment: ('+PlotSelect.ts+','+PlotSelect.te+').');
+                            var flagCss = PlotSelect.arrivalFlagCss;
 
-                    plt.append(arrDiv);
-//}}}
-                } else {
-//{{{
-                    if( data[sta][chan]['format'] == 'bins' ) {
+                            flagCss['left'] = o.left + "px" ;
+                            flagCss['top'] = flagTop.top + "px" ;
 
-                        for ( var i=0, len=data[sta][chan]['data'].length; i<len; ++i ){
-                            temp_data = data[sta][chan]['data'][i];
-                            flot_data[i] =  [temp_data[0]*1000,temp_data[2],temp_data[1]];
-                        }
-                        PlotSelect.wf_opts['bars'] = {show:true,barWidth:0,align:'center'};
-                        PlotSelect.wf_opts['lines'] = {show:false};
+                            var flagTail = PlotSelect.arrivalTailCss;
+                            flagTail['left'] = flagCss['left'] ;
+                            flagTail['top'] = flagCss['top'] ;
+                            flagTail['height'] = pt.height() + 'px';
 
-                    } else {
+                            var arrDiv = $("<div class='flag'>").css(flagCss).append( phaseFlag );
+                            var arrTailDiv = $("<div class='flagTail'>").css(flagTail);
 
-                        for ( var i=0, len=data[sta][chan]['data'].length; i<len; ++i ){
-                            temp_data = data[sta][chan]['data'][i];
-                            flot_data[i] =  [temp_data[0]*1000,temp_data[1]];
-                        }
-                        PlotSelect.wf_opts['lines'] = {show:true,lineWidth:2,shadowSize:4};
-                        PlotSelect.wf_opts['bars'] = {show:false};
-
-                    }
-
-                    var plot = $.plot(plt, [flot_data], PlotSelect.wf_opts);
-//}}}
-                }
-
-                PlotSelect.chan_plot_obj[name] = plot;
-
-                var arrDiv = $("<div>").css(NameCss).append(name);
-                plt.append(arrDiv);
-//}}}
+                            pt.append(arrDiv); // Flag
+                            pt.append(arrTailDiv); // Flag tail
+                        });
+                    };
+                });
             },
         });
 //}}}

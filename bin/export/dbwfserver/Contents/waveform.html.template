@@ -19,6 +19,7 @@
     <script type="text/javascript" src="/static/jquery/dbwfserver.js"></script>
 
     <link rel="stylesheet" type="text/css" href="/static/css/dbwfserver.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/jquery-selectmenu.css">
     <link rel="stylesheet" type="text/css" href="/static/css/jquery-ui-1.8.1.custom.css">
 
 </head>
@@ -35,65 +36,36 @@
         <!-- {{{ PANEL -->
 
         <div id="configpanel">
-        <div class="panelcontent clearfix">
+            <div class="panelcontent clearfix">
 
-            <!-- {{{ CONFIGURATION -->
+                <div>
+                    <h1>Information</h1>
+                    <p>The <strong>'Stations'</strong>
+                    button will display a list of stations in the arrival
+                    database. The <strong>'Events'</strong> button
+                    will display a table of events sorted by time.
+                    You can sort the event table by any 
+                    column by simply clicking the column
+                    header; one click for a forward sort, two clicks for
+                    a reverse sort.</p>
 
-            <div id="info" title="Dbwfserver information">
-                <h1>Information</h1>
-                <p>Welcome to the waveform server. Please click the
-                <strong>'Stations'</strong> or <strong>'Events'</strong>
-                button to start exploring.</p>
-                <p>The <strong>'Stations'</strong>
-                button will display a list of stations in the arrival
-                database. The <strong>'Events'</strong> button
-                will display a table of events sorted by time.
-                You can sort the event table by any 
-                column by simply clicking the column
-                header; one click for a forward sort, two clicks for
-                a reverse sort.</p>
+                    <h1>Key Interactions:</h1>
+                    <p>
+                        [zoom in: click-drag]
+                        [zoom out: shift-click-drag]
+                        [scroll left: left arrow]
+                        [scroll right: right arrow] |
+                        [reset: click 'r']
+                    </p>
+                </div>
             </div>
-
-            <div id="themer" title="Dbwfserver themer">
-                <h1>Color scheme</h1>
-                <p>Select your waveform color scheme:</p>
-                <form id="formtheme" name="formtheme">
-                <select id="cs" name="cs">
-                    <option value="yb">yellow on blue</option>
-                    <option value="bw">black on white</option>
-                    <option value="yg">yellow on green</option>
-                    <option value="wb">white on black</option>
-                    <option value="yp">yellow on purple</option>
-                    <option value="ob">orange on black</option>
-                </select>
-                </form>
-                <p>
-                    <span id="csFg" align="absmiddle" class="cs"></span>
-                    <span id="csBg" align="absmiddle" class="cs"></span>
-                </p>
-            </div>
-
-            <div id="plotType" title="Dbwfserver plot type">
-                <h1>Plot type</h1>
-                <p>Select the type of waveform representation to plot:(WIP)</p>
-                <form id="conftype" name="conftype">
-                <select id="type" name="type">
-                    <option value="wf">Waveforms</option>
-                    <option value="coverage">Data coverage bars</option>
-                </select>
-                </form>
-            </div>
-
-        <!-- }}} CONFIGURATION -->
-
-        </div>
         </div>
 
         <div id="tab">
             <ul>
                 <li class="left"></li>
                 <li class="center">
-                    <a class="openconfig" id="configuration_open_link">Show configuration</a>
+                    <a class="openconfig" id="configuration_open_link">Show Help</a>
                 </li>
                 <li class="right"></li>
             </ul>
@@ -105,20 +77,42 @@
 
     <div id="location">
         <h1>$application_title / $dir / $key</h1>
-    </div>
-
-    <div id="title">
         <div id="dbpath">Current database: <span id="dbname">$dbname</span></div>
         <div id="nav">
-            <ul>
                 <a href="/">Home</a>
-            </ul>
         </div>
     </div>
 
-                
-    </div>
+    <div id="title">
+        <div class="controls" id="plot_type">
+            <input type="radio" id='waveform' checked="checked" name="wf_type" value='waveform'/><label for="waveform">Waveforms</label>
+            <input type="radio" id='coverage' name="wf_type" value='coverage'/><label for="coverage">Coverage</label>
+        </div>
 
+        <div class='controls'>
+            <label for="phases">Show Phases</label>
+            <input type="checkbox" name="phases" id="phases" $display_arrivals />
+        </div>
+
+        <div class='controls'>
+            <select style="display:none;" name="filter" id="filter">
+                $filters
+            </select>
+        </div>
+
+        <div class='controls'>
+            <select style="display:none;" id="cs" name="cs">
+                <option value="def">Default</option>
+                <option value="yb">yellow on blue</option>
+                <option value="bw">black on white</option>
+                <option value="yg">yellow on green</option>
+                <option value="wb">white on black</option>
+                <option value="yp">yellow on purple</option>
+                <option value="ob">orange on black</option>
+            </select>
+        </div>
+    </div>
+                
     <div id="subnav">
         <div id="event_metadata"></div>
         <div id="subnavcontent" class="ui-state-highlight ui-corner-all" style="padding:10px;margin:20px;display:none;">
@@ -139,36 +133,10 @@
                 <label for="end_time">End time:(epoch)</label>
                 <input type="text" name="end_time" id="end_time" size="25"/>
                 <br>
-                <input type="submit" id="last_1_hr" value="Last 1 Hr."/>
-                <input type="submit" id="last_24_hrs" value="Last 24 Hrs."/>
-                <input type="submit" id="last_week" value="Last Week"/>
-                <input type="submit" id="last_month" value="Last Month"/>
                 <br>
-                <br>
-                <p>Get time from event list:</p>
-                <input type="submit" id="load_events" value="Show Events"/>
-            </div>
-
-            <div class="fg-buttonset fg-buttonset-multi">
-                <h2>Plot type</h2>
-                <p>Select the type of representation:</p>
-                    <div id="plot_type">
-                        <input type="radio" id="wf"checked="checked" name="type"/><label for="wf">Waveforms</label>
-                        <input type="radio" id="coverage" name="type"/><label for="coverage">Coverage</label>
-                    </div>
+                $event_controls
             </div>
             <br>
-            <!--
-            <div id="tools">
-                <!-- populated dynamically by dbwfserver.js -->
-                <label for="filter">Filter:</label>
-                <select name="filter" id="filter">
-                    $filters
-                </select>
-                <label for="phases">Show Phases:</label>
-                <input type="checkbox" name="phases" id="phases" $display_arrivals />
-            </div>
-            -->
             <br>
             <div id="controls">
                 <input type="submit" id="plot" value="Plot"/>
@@ -179,17 +147,6 @@
     </div>
 
     <div id="wforms" style='display:none'></div>
-
-    <div id="interact" style='display:none'>
-        <p><strong>Key Interactions:</strong>
-            &nbsp;
-            [zoom in: click-drag] |
-            [zoom out: shift-click-drag] |
-            [scroll left: left arrow] |
-            [scroll right: right arrow] |
-            [reset: click 'r']
-        </p>
-    </div>
 
 </div>
 

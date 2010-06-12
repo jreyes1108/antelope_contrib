@@ -5,16 +5,20 @@ import dbwfserver.config as config
 import dbwfserver.resource as resource
 
 
-root = resource.QueryParser()
+for port,db  in config.run_servers.items():
 
-root.putChild('static',   static.File(config.static_dir))
+    print 'Now with db:'+str(db)+' and port:'+ str(port)
 
-rewrite_root = rewrite.RewriterResource(root)
+    root = resource.QueryParser(db)
 
-site = server.Site(rewrite_root)
+    root.putChild('static',   static.File(config.static_dir))
 
-site.displayTracebacks = config.display_tracebacks
+    rewrite_root = rewrite.RewriterResource(root)
 
-application = service.Application(config.application_name)
+    site = server.Site(rewrite_root)
 
-internet.TCPServer(config.port, site).setServiceParent(application)
+    site.displayTracebacks = config.display_tracebacks
+
+    application = service.Application(config.application_name+' '+str(port))
+
+    internet.TCPServer(int(port), site).setServiceParent(application)

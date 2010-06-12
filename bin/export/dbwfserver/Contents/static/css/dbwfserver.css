@@ -6,12 +6,18 @@ h1 { color:#C5C5C5;font-size:20px;margin-left:18px; }
 
 h4 { text-align:center;font-family:sans-serif;padding:8px; }
 
+/*
 .wrapper { width:100%;height:200px;text-align:center;}
 .label { width:15px;line-height:200px;}
 .plot { width:100%;height:200px;cursor:e-resize; }
 .wrapper_cov { width:100%;height:50px;text-align:center;}
 .plot_cov { width:100%;height:50px;cursor:e-resize; }
+*/
+.wrapper { width:100%;}
+.plot { width:100%;height:200px;cursor:e-resize; }
+.plot_cov { width:100%;height:50px;cursor:e-resize; }
 .tickLabel { font-size:8px;overflow:visible;min-width:30px; }
+.controls { float:left;padding:2px; }
 
 /* Block level elements */
 div#content { margin:0;padding:0;z-index:0; }
@@ -59,10 +65,9 @@ div#location h1 { padding:0 10px;margin:0;margin-top:10px;line-height:50px;color
 
 /* Title div */
 div#title { clear:both;float:left;border-bottom: 1px solid #7F7F7F; background-color:#FFF;margin:0;padding:0;width:100%;z-index:2 }
-div#title div#dbpath { float:left;margin:0;padding:10px;font-weight:bold; }
-div#title div#nav { float:right;margin:0;padding:10px; }
-div#title div#nav ul { margin:0;padding:0; }
-div#title div#nav ul li { display:inline;padding:5px;list-style-type:none; }
+div#dbpath { float:left;margin:0;padding:10px;font-weight:bold; }
+div#title { float:left;margin:0;padding:5px;}
+div#nav { float:right;margin:0;padding:0; }
 
 /* Subnav */
 div#subnav { clear:both;margin:0;padding:5px;z-index:3}
