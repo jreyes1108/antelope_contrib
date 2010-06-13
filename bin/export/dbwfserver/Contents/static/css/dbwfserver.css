@@ -74,7 +74,10 @@ div#subnav { clear:both;margin:0;padding:5px;z-index:3}
 div#subnav ul, div#subnav p { margin:0;padding:0;text-align:left; }
 div#subnav ul li { display:inline;padding:5px;margin:0 5px 5px 0;list-style-type:none;float:left;text-align:center; }
 div#subnav ul br { margin-bottom:15px; }
-div#subnav div#event { float:right;width:400px; }
+/*div#subnav div#event { float:right;width:400px; }
+ */
+div#subnav div#event { float:right;width:100%; }
+div#wforms { float:right;width:100%; }
 
 /* Subnavcontent */
 /*

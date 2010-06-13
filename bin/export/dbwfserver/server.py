@@ -1,3 +1,5 @@
+import sys
+from twisted.python import log
 from twisted.web import server, static, rewrite
 from twisted.application import service, internet
 
@@ -5,9 +7,16 @@ import dbwfserver.config as config
 import dbwfserver.resource as resource
 
 
+log.startLogging(sys.stdout)
+
+
+application = service.Application(config.application_name)
+
+sc = service.IServiceCollection(application)
+
 for port,db  in config.run_servers.items():
 
-    print 'Now with db:'+str(db)+' and port:'+ str(port)
+    log.msg('Now with db:'+str(db)+' and port:'+ str(port) )
 
     root = resource.QueryParser(db)
 
@@ -19,6 +28,4 @@ for port,db  in config.run_servers.items():
 
     site.displayTracebacks = config.display_tracebacks
 
-    application = service.Application(config.application_name+' '+str(port))
-
-    internet.TCPServer(int(port), site).setServiceParent(application)
+    sc.addService(internet.TCPServer(int(port), site))

@@ -5,7 +5,7 @@ port 8008
 
 dbs &Arr{ # use these db's if none provided at runtime
 # port          #db path
-8007            /opt/antelope/data/db/demo/demo
+8007            /Users/reyes/dbwfserver/simple_db/demo
 8008            /opt/antelope/data/db/demo/demo
 8009            /Users/reyes/dbwfserver/db/usarray_2009_01
 }
@@ -23,6 +23,8 @@ binning_threshold 2
 canvas_size_default 800
 
 html_template &datafilename(www/dbwfserver/waveform.html.template)
+
+simple_html_template &datafilename(www/dbwfserver/simple.html.template)
 
 jquery_dir &datafilename(www/dbwfserver/static/jquery)
 static_dir &datafilename(www/dbwfserver/static)

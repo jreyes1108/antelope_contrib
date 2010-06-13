@@ -60,15 +60,27 @@ class QueryParser(resource.Resource):
 
         if db.query(dbTABLE_PRESENT): 
             for check in ['instrument','sensor','origin','arrival']:
-                db.lookup( table=check)
-                if db.query(dbTABLE_PRESENT): 
-                    log.msg('ERROR:' + check + ' table not present !!!!')
-                    log.msg('Running on SIMPLE mode (-s) !!!!')
+                try: db.lookup( table=check )
+                except:
+                    sys.exit('\n\nKilling Server: Problem on db.lookup on db:%s\n\n'% sel.dbname)
+
+                if not db.query(dbTABLE_PRESENT):
+                    log.msg('\n\nERROR: %s table not present in %s !!!!\n\n' % (check,self.dbname))
                     config.simple = True
 
         else:
-            log.msg('Can not run server without wfdisc table present for database:'+self.db)
-            sys.exit('Not wfdisc table')
+            log.msg('\n\nERROR on database %s' % self.dbname)
+            log.msg('Can not run server without wfdisc table present for database:% \n\n'% self.dbname)
+            sys.exit('Killing Server: %s Not wfdisc table'% sel.dbname)
+
+        if config.simple:
+            log.msg('')
+            log.msg('Running %s on SIMPLE mode (-s)'% self.dbname)
+            log.msg('')
+        else:
+            log.msg('')
+            log.msg('Running %s on FULL mode'% self.dbname)
+            log.msg('')
 
         self.stations = evdata.Stations(self.dbname)
         self.events = evdata.Events(self.dbname)
@@ -159,7 +171,6 @@ class QueryParser(resource.Resource):
 
     def render(self, request):
 #{{{ Setup template, init variables
-        template = config.html_template
 
         response_data = defaultdict()
 
@@ -169,32 +180,8 @@ class QueryParser(resource.Resource):
             "dir":               '&mdash;',
             "key":               '&mdash;',
             "error":             'false',
-            "meta_query":        'false',
-            "coverage":          'false',
-            "dbname":            self.dbname,
-            "application_title": config.application_title,
-            "jquery_includes":   self._jquery_includes(),
-            "filters":           '<option value="None">None</option>'
+            "meta_query":        'false'
         }
-
-        for filter in config.filters:
-            tvals['filters'] += '<option value="'+config.filters[filter].replace(' ','_')+'">'
-            tvals['filters'] += filter
-            tvals['filters'] += '"</option>'
-
-        if config.display_arrivals:
-            tvals['display_arrivals'] = 'checked="checked"'
-        else:
-            tvals['display_arrivals'] = ''
-
-        if config.simple:
-            tvals['event_controls'] = ''
-        else:
-            tvals['event_controls'] = ' \
-                <p>Get time from event list:</p> \
-                <input type="submit" id="load_events" value="Show Events"/> \
-            '
-
 
         args = request.uri.split("/")[1:]
 
@@ -203,7 +190,6 @@ class QueryParser(resource.Resource):
         # This (localhost:8008/stations/) is the same as 
         # (localhost:8008/stations) 
         #
-        null_items = 0
         if config.debug:
             log.msg('Removing empty arguments args:(size %s)%s' % (len(args),args) )
 
@@ -219,8 +205,6 @@ class QueryParser(resource.Resource):
 #}}}
 
         if args:
-
-            tvals['dir'] = args[0]
 
             log.msg("\tQUERY: %s " % args)
 
@@ -325,7 +309,7 @@ class QueryParser(resource.Resource):
 
                 #}}}
 
-            elif args[0] == 'wf':
+            elif args[0] == 'wf' or args[0] == 'wfframe':
 #{{{
                 """
                 Parse query for data request. Return html with meta-query data for further ajax requests.
@@ -334,7 +318,13 @@ class QueryParser(resource.Resource):
 
                 tvals['meta_query'] = json.dumps(self.eventdata.parse_query(self._parse_url(args), self.stations, self.events))
 
-                args.remove('wf')
+                if args[0] == 'wf':
+                    tvals['dir'] = 'wf'
+                    #args.remove('wf')
+                else:
+                    tvals['dir'] = 'wfframe'
+                    #args.remove('wfframe')
+
                 tvals['key']  = " / ".join(str(x) for x in args)
 
 #}}}
@@ -344,8 +334,38 @@ class QueryParser(resource.Resource):
                 evdata._error("Unknown type of query: %s" % args)
                 tvals['error'] =  json.dumps( "Unknown query type:(%s)" % args )
 
+
+        if args[0] == 'wfframe':
+
+            template = config.simple_html_template
+
+        else:
+
+            template = config.html_template
+
+
+        tvals['dbname'] = self.dbname
+        tvals['application_title'] = config.application_title
+        tvals['jquery_includes'] = self._jquery_includes()
+        tvals['filters'] = '<option value="None">None</option>'
+
+        for filter in config.filters:
+            tvals['filters'] += '<option value="'+config.filters[filter].replace(' ','_')+'">'
+            tvals['filters'] += filter
+            tvals['filters'] += '"</option>'
+
+        if config.display_arrivals:
+            tvals['display_arrivals'] = 'checked="checked"'
+        else:
+            tvals['display_arrivals'] = ''
+
+        if config.simple:
+            tvals['event_controls'] = ''
+        else:
+            tvals['event_controls'] = ' \
+                <p>Get time from event list:</p> \
+                <input type="submit" id="load_events" value="Show Events"/> '
+
         html_stations = Template(open(template).read()).substitute(tvals)
 
-        #request.write( html_stations )
-        #request.finish()
         return html_stations

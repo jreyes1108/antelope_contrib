@@ -851,7 +851,11 @@ PlotSelect = {
 
             $("#"+wpr).append(plot);
 
+            $("#"+plt).attr("class", "plot");
+
             $("#"+plt).bind("plotselected", PlotSelect.handleSelect);
+
+            $.plot($("#"+plt),[], PlotSelect.wf_bins);
 
         }
 

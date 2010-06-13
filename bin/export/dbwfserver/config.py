@@ -16,6 +16,7 @@ def configure(args):
     global static_dir
     global jquery_dir
     global html_template
+    global simple_html_template
     global dbname
     global port
     global dbs
@@ -42,6 +43,7 @@ def configure(args):
     static_dir          = ''
     jquery_dir          = ''
     html_template       = ''
+    simple_html_template= ''
     dbname              = ''
     port                = -1
     binning_threshold   = -1
@@ -105,6 +107,7 @@ def configure(args):
     jquery_dir          = stock.pfget_string( pfname, "jquery_dir" )
     static_dir          = stock.pfget_string( pfname, "static_dir" )
     html_template       = stock.pfget_string( pfname, "html_template" )
+    simple_html_template= stock.pfget_string( pfname, "simple_html_template" )
     application_name    = stock.pfget_string( pfname, "application_name" )
     application_title   = stock.pfget_string( pfname, "application_title" )
     apply_calib         = stock.pfget_boolean( pfname, "apply_calib" )

@@ -600,7 +600,7 @@ class EventData():
 
         if db.query(dbRECORD_COUNT) == 0:
             _error('%s not a valid station regex' % sta_str)
-            return 
+            return []
 
         for i in range(db.query(dbRECORD_COUNT)):
             db.record = i
@@ -635,7 +635,7 @@ class EventData():
 
         if db.query(dbRECORD_COUNT) == 0:
             _error('%s not a valid channel regex' % chan_str)
-            return 
+            return []
 
         for i in range(db.query(dbRECORD_COUNT)):
             db.record = i
