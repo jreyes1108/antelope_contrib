@@ -49,6 +49,8 @@ class QueryParser(resource.Resource):
     """
     def __init__(self,db):
 #{{{
+        #log.startLogging(sys.stdout)
+
         resource.Resource.__init__(self)
 
         self.dbname = db

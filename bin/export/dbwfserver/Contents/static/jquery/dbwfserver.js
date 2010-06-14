@@ -8,40 +8,6 @@ PlotSelect = {
         // {{{ Set defaults
         $("#loading").show();
 
-    //{{{ Binding keys
-        document.onkeyup = function (e) { 
-            if(e.which == 16) PlotSelect.isShiftPressed = false; 
-        }
-        document.onkeydown = function (e) { 
-            if(e.which == 16) PlotSelect.isShiftPressed = true;
-        }
-
-        // for detecting nav keys
-        $(document).keypress(function(e) {
-            if (e.keyCode == '38') {
-                // Up key
-                e.preventDefault();
-                PlotSelect.shiftPlot('I');
-            } else if (e.keyCode == '40') {
-                // Down key
-                e.preventDefault();
-                PlotSelect.shiftPlot('O');
-            } else if (e.keyCode == '37') {
-                // Left key
-                e.preventDefault();
-                PlotSelect.shiftPlot('L');
-            } else if (e.keyCode == '39') {
-                // Right key
-                e.preventDefault();
-                PlotSelect.shiftPlot('R');
-            } else if (e.keyCode == '82') {
-                // r for reset plot
-                e.preventDefault();
-                location.reload(true);
-            }
-        });
-    //}}} Binding keys
-
         // To store plot objects
         PlotSelect.chan_plot_obj = {};
 
@@ -417,6 +383,67 @@ PlotSelect = {
 
     },
 
+    keyBinds: function(){
+
+    // {{{ Set bindings for keys
+
+
+        $(document).unbind('keyup');
+        $(document).unbind('keydown');
+
+        $(document).keydown(function(e) {
+            if (e.keyCode == '38') {
+                // Up key
+                e.preventDefault();
+            } else if (e.keyCode == '40') {
+                // Down key
+                e.preventDefault();
+            } else if (e.keyCode == '37') {
+                // Left key
+                e.preventDefault();
+            } else if (e.keyCode == '39') {
+                // Right key
+                e.preventDefault();
+            } else if (e.keyCode == '82') {
+                // r for reset plot
+                e.preventDefault();
+            } else if(e.which == 16) {
+                // Shift key
+                PlotSelect.isShiftPressed = true;
+            }
+        });
+
+        $(document).keyup(function(e) {
+            if (e.keyCode == '38') {
+                // Up key
+                e.preventDefault();
+                PlotSelect.shiftPlot('I');
+            } else if (e.keyCode == '40') {
+                // Down key
+                e.preventDefault();
+                PlotSelect.shiftPlot('O');
+            } else if (e.keyCode == '37') {
+                // Left key
+                e.preventDefault();
+                PlotSelect.shiftPlot('L');
+            } else if (e.keyCode == '39') {
+                // Right key
+                e.preventDefault();
+                PlotSelect.shiftPlot('R');
+            } else if (e.keyCode == '82') {
+                // r for reset plot
+                e.preventDefault();
+                location.reload(true);
+            } else if(e.which == 16) {
+                // Shift key
+                PlotSelect.isShiftPressed = false;
+            }
+        });
+
+    // }}} Set bindings for keys
+
+    },
+
     plotVarSet: function(){
 
     // {{{ Set vars for plots
@@ -691,6 +718,9 @@ PlotSelect = {
         $("#tools").show('fast');
 
         if (PlotSelect.type == 'coverage') {
+
+            PlotSelect.keyBinds();
+
             //
             // Build URL for query
             //
@@ -747,6 +777,7 @@ PlotSelect = {
 
                             if ( $("#"+wpr).length == 0 ){
                                 $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
+                                $("#"+wpr).width( $(window).width() );
                             }
 
                             // Verify if sta:chan combination is valid...
@@ -762,6 +793,8 @@ PlotSelect = {
                 }
             });
         } else if (PlotSelect.type == 'waveform'){
+
+            PlotSelect.keyBinds();
 
             $.each(PlotSelect.sta.sort(), function(sta_iterator,mysta){
 
@@ -792,6 +825,7 @@ PlotSelect = {
 
                     if ( $("#"+wpr).length == 0 ){
                         $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
+                         $("#"+wpr).width( $(window).width() );
                     }
 
                     $.ajax({
