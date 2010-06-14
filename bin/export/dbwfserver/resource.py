@@ -52,7 +52,13 @@ class QueryParser(resource.Resource):
         resource.Resource.__init__(self)
 
         self.dbname = db
-        self.db = dbopen(self.dbname)
+
+        try:
+            self.db = dbopen(self.dbname)
+        except:
+            log.msg('\n\nERROR on database %s' % self.dbname)
+            sys.exit('Killing Server: No database found (%s)'% self.dbname)
+
 
         db = Dbptr(self.db)
 
@@ -62,7 +68,7 @@ class QueryParser(resource.Resource):
             for check in ['instrument','sensor','origin','arrival']:
                 try: db.lookup( table=check )
                 except:
-                    sys.exit('\n\nKilling Server: Problem on db.lookup on db:%s\n\n'% sel.dbname)
+                    sys.exit('\n\nKilling Server: Problem on db.lookup on db:%s\n\n'% self.dbname)
 
                 if not db.query(dbTABLE_PRESENT):
                     log.msg('\n\nERROR: %s table not present in %s !!!!\n\n' % (check,self.dbname))
@@ -71,7 +77,7 @@ class QueryParser(resource.Resource):
         else:
             log.msg('\n\nERROR on database %s' % self.dbname)
             log.msg('Can not run server without wfdisc table present for database:% \n\n'% self.dbname)
-            sys.exit('Killing Server: %s Not wfdisc table'% sel.dbname)
+            sys.exit('Killing Server: No wfdisc table in database (%s)'% self.dbname)
 
         if config.simple:
             log.msg('')
