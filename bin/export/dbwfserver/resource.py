@@ -341,7 +341,7 @@ class QueryParser(resource.Resource):
                 tvals['error'] =  json.dumps( "Unknown query type:(%s)" % args )
 
 
-        if args[0] == 'wfframe':
+        if 'wfframe' in args:
 
             template = config.simple_html_template
 
@@ -349,11 +349,11 @@ class QueryParser(resource.Resource):
 
             template = config.html_template
 
-
         tvals['dbname'] = self.dbname
         tvals['application_title'] = config.application_title
         tvals['jquery_includes'] = self._jquery_includes()
         tvals['filters'] = '<option value="None">None</option>'
+
 
         for filter in config.filters:
             tvals['filters'] += '<option value="'+config.filters[filter].replace(' ','_')+'">'
