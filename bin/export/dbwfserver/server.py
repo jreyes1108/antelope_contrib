@@ -1,3 +1,11 @@
+global os
+global sys
+global log
+#import sys
+#from twisted.python import log 
+#log.startLogging(sys.stdout)
+#
+
 from twisted.web import server, static, rewrite
 from twisted.application import service, internet
 

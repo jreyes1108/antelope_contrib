@@ -1,8 +1,13 @@
-import sys
-import os
+global os
+global sys
+global log
+#import sys
+#from twisted.python import log 
+#log.startLogging(sys.stdout)
+#
+#import os
 import re
 
-from twisted.python import log 
 from twisted.internet import reactor
 
 from collections import defaultdict 
@@ -12,6 +17,7 @@ from antelope.stock import *
 
 import dbwfserver.config as config
     
+
 def _error(text,dictionary=None,quiet=False):
 #{{{
     """
@@ -61,8 +67,16 @@ class db_nulls():
 
     def __init__(self):
 #{{{
+
         self.dbname = config.dbname
-        self.db = dbopen(self.dbname)
+
+        try:
+            self.db = dbopen(self.dbname)
+        except:
+            log.msg('\n\nERROR on database %s' % self.dbname)
+            sys.exit('Killing Server: No database found (%s)'% self.dbname)
+
+
         self._get_nulls()
 #}}}
 
@@ -250,12 +264,42 @@ class Stations():
                 self.stachan_cache[sta][chan][time]['endtime'] = endtime
 
         if config.verbose:
-            log.msg("\tClass Stations(): Updating cache of stations. (%s) stations." % len(self.list()) )
+            log.msg("\tClass Stations(): Updating cache of stations. (%s) stations." % len(self.stachan_cache.keys()) )
 
         if config.debug: self.__str__()
 
 
         self.call = reactor.callLater(60, self._get_stachan_cache)
+#}}}
+
+    def times(self,station=False):
+#{{{
+        """
+        Get min and max times on db
+        """
+
+        data = {}
+
+        # Start wfdisc query
+        db = Dbptr(self.db)
+        db.process([ 'dbopen wfdisc', ])
+
+        # Subset wfdisc for stations
+        if station:
+            sta_str  = "|".join(str(x) for x in station)
+            db.subset("sta =~/%s/" % sta_str)
+            if config.debug: log.msg("\n\ntimes subset on sta =~/%s/ " % sta_str)
+
+
+        if not db.query(dbRECORD_COUNT):
+            _error('No records in wfdisc.',data)
+            return data
+
+        # no end time on request... use max in subset
+        data['start'] = db.ex_eval('min(time)')
+        data['end'] = db.ex_eval('max(endtime)')
+
+        return data
 #}}}
 
     def channels(self,station=False):
@@ -961,16 +1005,14 @@ class EventData():
             if not this_chan in res_data['chan']:
                 res_data['chan'].append(this_chan)
 
-            # Build the dictionary
-            #if not this_sta in res_data:
-            #    res_data[this_sta] = {}
-            #if not this_chan in res_data[this_sta]:
-            #    res_data[this_sta][this_chan] = {}
-            #if not 'data' in res_data[this_sta][this_chan]:
-            #    res_data[this_sta][this_chan] = { 'data':[] }
+            if config.debug:
+                log.msg("Now with: (%s,%s,%s,%s)" % (this_sta,this_chan,time,endtime) )
+
             try:
                 res_data[this_sta][this_chan]['data'].append([time,endtime])
             except:
+                res_data[this_sta] = {}
+                res_data[this_sta][this_chan] = {}
                 res_data[this_sta][this_chan]['data'] = [[time,endtime]]
 
         return res_data

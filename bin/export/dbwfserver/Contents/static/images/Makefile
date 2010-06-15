@@ -15,6 +15,7 @@ DATA = ui-bg_flat_30_cccccc_40x100.png \
     ui-icons_cccccc_256x240.png \
     ui-icons_ffffff_256x240.png \
     ajax-loader.gif \
+    calendar.gif \
     bkgrd_1x50.png \
     config_bkgrd.png \
     config_bkgrd_left.png \

@@ -1,10 +1,16 @@
-import sys
+global os
+global sys
+global log
+#import sys
+#from twisted.python import log 
+#log.startLogging(sys.stdout)
+#
+
 import re
 from time import gmtime, strftime
 
 from string import Template
 from twisted.web import resource
-from twisted.python import log 
 
 import antelope.stock as stock
 from antelope.datascope import *
@@ -28,6 +34,9 @@ else:
 
     import simplejson as json
 
+
+#log.startLogging(sys.stdout)
+
 def isNumber(test):
 #{{{
     """
@@ -49,10 +58,6 @@ class QueryParser(resource.Resource):
     """
     def __init__(self,db):
 #{{{
-        #log.startLogging(sys.stdout)
-
-        resource.Resource.__init__(self)
-
         self.dbname = db
 
         try:
@@ -89,6 +94,9 @@ class QueryParser(resource.Resource):
             log.msg('')
             log.msg('Running %s on FULL mode'% self.dbname)
             log.msg('')
+
+
+        resource.Resource.__init__(self)
 
         self.stations = evdata.Stations(self.dbname)
         self.events = evdata.Events(self.dbname)
@@ -262,7 +270,7 @@ class QueryParser(resource.Resource):
 
                     if len(args) == 3:
 
-                        for event in [args[2]]:
+                        for event in [args['time']]:
                             response_data[event] = self.events(event)
                         return json.dumps(response_data)
 
@@ -271,6 +279,24 @@ class QueryParser(resource.Resource):
 
                     else:
                         return json.dumps(self.events.table())
+#}}}
+
+                elif 'times' in args:
+#{{{
+                    """
+                    Return tuples of min time and max time in db
+                    for a list of stations or for the complete db.
+                    """
+                    if len(args) == 3:
+                        args = self._parse_url(args)
+
+                        for sta in args['sta']:
+                            log.msg("\n\n\tcalling self.stations.times(%s)\n\n" % sta)
+                            response_data[sta] = self.stations.times(sta)
+                        return json.dumps(response_data)
+
+                    else:
+                        return json.dumps(self.stations.times())
 #}}}
 
                 elif 'stations' in args:
@@ -282,13 +308,13 @@ class QueryParser(resource.Resource):
                     if len(args) == 3:
                         args = self._parse_url(args)
 
-                        for sta in args[2]:
+                        for sta in args['sta']:
                             log.msg("\n\n\tcalling self.stations(%s)\n\n" % sta)
                             response_data[sta] = self.stations(sta)
                         return json.dumps(response_data)
 
                     else:
-                        return json.dumps(self.stations.list())
+                        return json.dumps(self.stations.list().sort())
 #}}}
 
                 elif 'channels' in args:

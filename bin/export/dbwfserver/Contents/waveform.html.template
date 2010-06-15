@@ -129,9 +129,9 @@
             <div id="time_panel">
                 <h2>Time Segment:</h2>
                 <label for="start_time">Start time:(epoch)</label>
-                <input type="text" name="start_time" id="start_time" size="25"/>
+                <input type="text" name="start_time" id="start_time" class="datepicker" size="25"/>
                 <label for="end_time">End time:(epoch)</label>
-                <input type="text" name="end_time" id="end_time" size="25"/>
+                <input type="text" name="end_time" id="end_time" class="datepicker" size="25"/>
                 <br>
                 <br>
                 $event_controls

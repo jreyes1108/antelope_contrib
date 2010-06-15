@@ -27,6 +27,47 @@ PlotSelect = {
         $("#nav a").button();
         $("#cs, #filter").selectmenu({style:'dropdown',menuWidth:200});
 
+        // get tuple for min and max dates in database
+        var minTime = '0';
+        var maxTime = 'Today';
+
+        var dates = $(".datepicker").datepicker({showOn: 'button',
+                                buttonImage: 'static/images/calendar.gif',
+                                buttonImageOnly: true,
+                                dateFormat: '@',
+                                minDate: minTime,
+                                maxDate: maxTime,
+                                onSelect: function(dateText, inst) {
+                                    if (this.id == "end_time"){
+                                        var old = dates.not(this).val();
+                                        dates.not(this).datepicker("option", 'maxDate', dateText );
+                                        dates.not(this).val( old );
+                                        $("#end_time").val( (dateText / 1000) + 86399 );
+                                    } else {
+                                        var old = dates.not(this).val();
+                                        dates.not(this).datepicker("option", "minDate", dateText);
+                                        dates.not(this).val( old );
+                                        $("#start_time").val( dateText / 1000 );
+                                    }
+                                }
+                            });
+
+        //
+        // Set the max and min on datepicker to 
+        // database max and min times on wfdisc
+        //
+        $.ajax({
+            url: "/data/times",
+            success: function(json) {
+                if (json) {
+                    dates.datepicker("option", 'minDate', String(json['start']*1000));
+                    dates.datepicker("option", 'maxDate', String(json['end']*1000));
+                }
+            }
+        });
+
+
+
         // {{{ Define colorschemes
 
         PlotSelect.colorschemes = {};
@@ -297,18 +338,22 @@ PlotSelect = {
         if ($.cookie('dbwfserver_filter') != null){
             $('#filter').val($.cookie('dbwfserver_filter'));
         }
-        if ($.cookie('dbwfserver_stime') != null){
-            $('#start_time').val($.cookie('dbwfserver_stime'));
-        }
-        if ($.cookie('dbwfserver_etime') != null){
-            $('#end_time').val($.cookie('dbwfserver_etime'));
-        }
-        if ($.cookie('dbwfserver_sta') != null){
-            $('#station_string').val($.cookie('dbwfserver_sta'));
-        }
-        if ($.cookie('dbwfserver_chan') != null){
-            $('#channel_string').val($.cookie('dbwfserver_chan'));
-        }
+        //
+        // We have some problems with multiple 
+        // databases on different ports.
+        //
+        //if ($.cookie('dbwfserver_stime') != null){
+        //    $('#start_time').val($.cookie('dbwfserver_stime'));
+        //}
+        //if ($.cookie('dbwfserver_etime') != null){
+        //    $('#end_time').val($.cookie('dbwfserver_etime'));
+        //}
+        //if ($.cookie('dbwfserver_sta') != null){
+        //    $('#station_string').val($.cookie('dbwfserver_sta'));
+        //}
+        //if ($.cookie('dbwfserver_chan') != null){
+        //    $('#channel_string').val($.cookie('dbwfserver_chan'));
+        //}
     //}}} Get cookie values
 
     },
@@ -885,11 +930,7 @@ PlotSelect = {
 
             $("#"+wpr).append(plot);
 
-            $("#"+plt).attr("class", "plot");
-
             $("#"+plt).bind("plotselected", PlotSelect.handleSelect);
-
-            $.plot($("#"+plt),[], PlotSelect.wf_bins);
 
         }
 
