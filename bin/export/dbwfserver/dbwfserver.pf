@@ -6,8 +6,9 @@ port 8008
 dbs &Arr{ # use these db's if none provided at runtime
 # port          #db path
 #8007            /Users/reyes/dbwfserver/simple_db/demo
+8007            /anf/anfops1/usarray/db/usarray
 8008            /opt/antelope/data/db/demo/demo
-8009            /Users/reyes/dbwfserver/db/usarray_2009_01
+#8009            /Users/reyes/dbwfserver/db/usarray_2009_01
 }
 default_chans &Tbl{
 #    BHZ

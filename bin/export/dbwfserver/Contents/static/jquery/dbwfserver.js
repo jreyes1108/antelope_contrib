@@ -3,10 +3,22 @@ PlotSelect = {
 
     isShiftPressed: false,
 
+    isActive: true,
+
+    isPlotting: false,
+
     init: function(sta){
 
         // {{{ Set defaults
         $("#loading").show();
+
+        // {{{ Tell if window is active
+        $(function() {
+            $(window).focus(function() { PlotSelect.isActive = true; });
+            $(window).blur(function() { PlotSelect.isActive = false; });
+        });
+
+        // }}} Tell if window is active
 
         // To store plot objects
         PlotSelect.chan_plot_obj = {};
@@ -149,7 +161,9 @@ PlotSelect = {
         // {{{ Canvas resize
         $(window).resize(function(){
 
-            PlotSelect.setData();
+            if ( PlotSelect.isActive && PlotSelect.isPlotting){
+                PlotSelect.setData();
+            }
 
         });
         // }}} Canvas resize experiment
@@ -765,6 +779,7 @@ PlotSelect = {
         if (PlotSelect.type == 'coverage') {
 
             PlotSelect.keyBinds();
+            PlotSelect.isPlotting = true;
 
             //
             // Build URL for query
@@ -840,6 +855,7 @@ PlotSelect = {
         } else if (PlotSelect.type == 'waveform'){
 
             PlotSelect.keyBinds();
+            PlotSelect.isPlotting = true;
 
             $.each(PlotSelect.sta.sort(), function(sta_iterator,mysta){
 
@@ -900,6 +916,7 @@ PlotSelect = {
 
         } else {
 
+            PlotSelect.isPlotting = false;
             // Show plots
             $("#wforms").hide('fast');
             $("#tools").hide('fast');

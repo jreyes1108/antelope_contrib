@@ -1,15 +1,10 @@
-global os
-global sys
-global log
-#import sys
-#from twisted.python import log 
-#log.startLogging(sys.stdout)
+from __main__ import sys
+from __main__ import os
 
-#import os
-#import sys
 import getopt
 import antelope.stock as stock
 
+global sys
 
 def usage():
 

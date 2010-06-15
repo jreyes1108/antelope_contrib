@@ -1,13 +1,9 @@
-global os
-global sys
-global log
-#import sys
-#from twisted.python import log 
-#log.startLogging(sys.stdout)
-#
+from __main__ import sys
+from __main__ import os
+from __main__ import log
+from __main__ import config
 
 import re
-from time import gmtime, strftime
 
 from string import Template
 from twisted.web import resource
@@ -16,8 +12,8 @@ import antelope.stock as stock
 from antelope.datascope import *
 
 import dbwfserver.eventdata as evdata 
-import dbwfserver.config as config
 
+from time import gmtime, strftime
 from collections import defaultdict 
 
 """
@@ -256,9 +252,8 @@ class QueryParser(resource.Resource):
                     Return coverage tuples as JSON objects. For client ajax calls.
                     """
 
-                    response_data.update(self.eventdata.coverage(self._parse_url(args),self.stations))
+                    return json.dumps(self.eventdata.coverage(self._parse_url(args),self.stations))
 
-                    return json.dumps(response_data)
 #}}}
 
                 elif 'events' in args:
@@ -314,7 +309,7 @@ class QueryParser(resource.Resource):
                         return json.dumps(response_data)
 
                     else:
-                        return json.dumps(self.stations.list().sort())
+                        return json.dumps(self.stations.list())
 #}}}
 
                 elif 'channels' in args:

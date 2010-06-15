@@ -1,11 +1,8 @@
-global os
-global sys
-global log
-#import sys
-#from twisted.python import log 
-#log.startLogging(sys.stdout)
-#
-#import os
+from __main__ import sys
+from __main__ import os
+from __main__ import log
+from __main__ import config
+
 import re
 
 from twisted.internet import reactor
@@ -15,8 +12,6 @@ from collections import defaultdict
 from antelope.datascope import *
 from antelope.stock import *
 
-import dbwfserver.config as config
-    
 
 def _error(text,dictionary=None,quiet=False):
 #{{{
@@ -1011,8 +1006,6 @@ class EventData():
             try:
                 res_data[this_sta][this_chan]['data'].append([time,endtime])
             except:
-                res_data[this_sta] = {}
-                res_data[this_sta][this_chan] = {}
                 res_data[this_sta][this_chan]['data'] = [[time,endtime]]
 
         return res_data

@@ -1,10 +1,7 @@
-global os
-global sys
-global log
-#import sys
-#from twisted.python import log 
-#log.startLogging(sys.stdout)
-#
+from __main__ import os
+from __main__ import sys
+from __main__ import log
+from __main__ import config
 
 from twisted.web import server, static, rewrite
 from twisted.application import service, internet
@@ -32,3 +29,4 @@ for port,db  in config.run_servers.items():
     site.displayTracebacks = config.display_tracebacks
 
     sc.addService(internet.TCPServer(int(port), site))
+
