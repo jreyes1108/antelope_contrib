@@ -22,4 +22,9 @@ DATA = ui-bg_flat_30_cccccc_40x100.png \
     config_bkgrd_center.png \
     config_bkgrd_right.png
 
+ANTELOPEMAKELOCAL = $(ANTELOPE)/local/include/antelopemake.local
+
 include $(ANTELOPEMAKE)
+include $(ANTELOPEMAKELOCAL)
+
+SUBDIR= /local

@@ -10,6 +10,7 @@ double	Status_stepsize_sec = 0;
 char	*Rrdfile_pattern = 0;
 int	Verbose = 0;
 int 	VeryVerbose = 0;
+int 	Suppress_OK = 0;
 FILE	*Rrdfp;
 
 static void pfmorph( Pf *pf );
@@ -124,15 +125,21 @@ archive_dlsvar( Dbptr db, char *net, char *sta, char *dls_var, char *dsparams, T
 	Dbptr	dbt;
 	char	datasource[STRSZ];
 	char	command[STRSZ];
+/* Disable response printing for now (see below)
 	char	response[STRSZ];
 	char	*resp_ptr;
+*/
 	int	i;
 
 	sprintf( key, "%s:%s:%s", net, sta, dls_var );
 
 	rrd = getarr( Rrd_files, key );
 
-	if( rrd == NULL || ! is_present( rrd ) ) {
+/*	rrdtool in server-mode apparently does not write files until a request occurs to switch to the next
+	file, so the test below doesn't work right. Trust the database to report existing files:
+ 	if( rrd == NULL || ! is_present( rrd ) ) {
+*/
+	if( rrd == NULL ) {
 
 		start_time = time - Status_stepsize_sec;
 
@@ -143,7 +150,7 @@ archive_dlsvar( Dbptr db, char *net, char *sta, char *dls_var, char *dsparams, T
 				"sta", sta,
 				"rrdvar", dls_var,
 				"time", start_time,
-				0 );
+				NULL );
 
 		trwfname( dbt, Rrdfile_pattern, &rrd );
 
@@ -165,6 +172,9 @@ archive_dlsvar( Dbptr db, char *net, char *sta, char *dls_var, char *dsparams, T
 	
 		fprintf( Rrdfp, "%s\n", command );
 
+		/* Disable response printing for now since popen() bi-directional pipes 
+		   are not supported across all platforms:
+
 		if( VeryVerbose ) { 
 
 			resp_ptr = getaline( Rrdfp, response, STRSZ );
@@ -178,8 +188,9 @@ archive_dlsvar( Dbptr db, char *net, char *sta, char *dls_var, char *dsparams, T
 				elog_notify( 0, "%s\n", resp_ptr );
 			}
 		}
+		*/
 
-		setarr( Rrd_files, key, rrd );
+		setarr( Rrd_files, key, strdup( rrd ) );
 	}
 
 	if( VeryVerbose ) {
@@ -191,6 +202,9 @@ archive_dlsvar( Dbptr db, char *net, char *sta, char *dls_var, char *dsparams, T
 	sprintf( command, "update %s %d:%f", rrd, (int) floor( time ), val );
 
 	fprintf( Rrdfp, "%s\n", command );
+
+	/* Disable response printing for now since popen() bi-directional pipes 
+	   are not supported across all platforms:
 
 	if( VeryVerbose ) { 
 
@@ -205,6 +219,7 @@ archive_dlsvar( Dbptr db, char *net, char *sta, char *dls_var, char *dsparams, T
 			elog_notify( 0, "%s\n", resp_ptr );
 		}
 	}
+	*/
 }
 
 int
@@ -214,7 +229,7 @@ main( int argc, char **argv )
 	int	errflag = 0;
 	int	orb;
 	int	stop = 0;
-	int	nrecs;
+	long	nrecs;
 	char	*match = ".*/pf/st";
 	char	*from = 0;
 	char	*statefile = 0;
@@ -334,7 +349,17 @@ main( int argc, char **argv )
 		sprintf( command, "rrdtool -" );
 	}
 
-	Rrdfp = popen( command, "r+" );
+	if( Suppress_OK && ! VeryVerbose ) {
+
+		strcat( command, " | egrep -v ^OK" );
+	}
+
+	if( VeryVerbose ) {
+
+		elog_notify( 0, "Executing command: %s\n", command );
+	}
+
+	Rrdfp = popen( command, "w" );
 
 	if( Rrdfp == (FILE *) NULL ) {
 
@@ -409,16 +434,22 @@ main( int argc, char **argv )
 
 		dbgetv( dbt, 0, "net", &net, "sta", &sta, "rrdvar", &rrdvar, NULL );
 
-		dbfilename( db, (char *) &path );
+		dbfilename( dbt, (char *) &path );
 
 		sprintf( key, "%s:%s:%s", net, sta, rrdvar );
 
-		setarr( Rrd_files, key, path );
+		setarr( Rrd_files, key, strdup( path ) );
+
+		if( VeryVerbose ) {
+
+			elog_notify( 0, "Re-using rrd file '%s' for '%s'\n", path, key );
+		}
 	}
 
 	Rrdfile_pattern = pfget_string( pf, "rrdfile_pattern" );
 	Status_stepsize_sec = pfget_double( pf, "status_stepsize_sec" );
 	Default_network = pfget_string( pf, "default_network" );
+	Suppress_OK = pfget_boolean( pf, "suppress_OK" );
 	dlslines = pfget_tbl( pf, "dls_vars" );
 
 	Dls_vars_dsparams = newarr( 0 );

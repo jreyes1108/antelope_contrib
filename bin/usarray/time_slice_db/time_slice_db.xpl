@@ -1,3 +1,42 @@
+#
+#  This program does most the work using system calls to the Datascope interface
+#  This was done because of the memory usage in large databases which could not be really
+#  freed in perl.  Using system calls keeps the memory usage at a managable level even for
+#  megarow databases.
+#
+
+#####################################################
+# need to convert to %pf
+# need to copy dbmaster
+# need to dbfixcalib for all dbs
+# need to dbfixids for new db
+# 
+# time_slice_db add -n option
+# add segtype from calibration table
+# do not replace existing descriptor file
+# run dbfixids before merging
+# use /anf/TA/dbs/event_dbs/dbmaster/usarray
+# 
+# Taimi - 
+# Now we have the issue that we don't necessarily want to wait a year before we "archive" 
+# the 2009 events and wfs.  It would be nice to run something monthly that would copy the 
+# wfs and database tables into the "archive" and then the rtsystem could have the wfs cleaned 
+# up with rtdbclean after 3 months or so.  We could live with the rt dbtables being a maximum 
+# of 1 year long and having time_slice_db cut this on a yearly basis.
+# 
+# Jennifer - 
+# Say you run time_slice_db in January on a "real-time" database and split out a previous year 
+# of data from an origin table into a year-long database.  Now, what happens if the "real-time" 
+# database gets new events from the previous year that you decide you want to split out again.  
+# Will time_slice_db check the previously extracted database and add in the new events, will it 
+# complain an die, or will it croak saying the output db already exists?
+# 
+# Ideally, I would like to see some process that would perhaps do a dbmatches and add in any 
+# of the "new" events that are split out of the old db.
+# 
+# 
+#
+#####################################################
 
 use strict ; 
 #use warnings ; 
@@ -13,17 +52,6 @@ our ( $opt_e, $opt_f, $opt_m, $opt_p, $opt_s, $opt_t, $opt_v ) ;
 our ( $dbpath, $dblocks, $dbidserver) ;
 our ( $pgm, $host);
 
-#
-#  This program does most the work using system calls to the Datascope interface
-#  This was done because of the memory usage in large databases which could not be really
-#  freed in perl.  Using system calls keeps the memory usage at a managable level even for
-#  megarow databases.
-#
-
-#####################################################
-# need to check orb2db_msg functionality
-#
-#####################################################
 
 {    
     my ( $dbin, $dirbase, $wfbase, $start_time, $end_time, $lag, $last_time, $dbbase );
@@ -102,11 +130,10 @@ our ( $pgm, $host);
 
 sub process_events { # &process_events( $dbin, $dirbase, $wfbase, $dbbase, $start_time, $last_time, $period, $verbose, $debug);
     my ( $dbin, $dirbase, $wfbase, $dbbase, $start_time, $last_time, $period, $verbose, $debug) = @_ ;
-    my ( $first_event, $last_event, $n, $ts, $current, $next_ts, $nrecs, $narrivals, $nevents, $norigins );
-    my ( $subset, $dirname, $dbname, $noassoc, $cmd, $dtmp, $dbexist, $origin_dir, $msg, $exists, $subject);
-    my ( $wftmp, $wfpath, $wfdir, $base, $suffix) ; 
-    my ( @dbin, @dbevent, @dborigin, @dbarrival, @dbtmp, @dbj, @dbout);
-    my ( @ts );
+    my ( $arr_no_join, $base, $cmd, $current, $dbexist, $dbname, $dirname, $dtmp, $exists );
+    my ( $first_event, $last_event, $msg, $n, $narrivals, $nevents, $next_ts, $noassoc, $norigins );
+    my ( $nrecs, $origin_dir, $subject, $subset, $suffix, $ts, $wfdir, $wfpath, $wftmp );
+    my ( @dbarrival, @dbevent, @dbin, @dbj, @dbnj, @dbnj2, @dborigin, @dbout, @dbtmp, @ts) ;
     
 #
 #  open database tables
@@ -136,7 +163,10 @@ sub process_events { # &process_events( $dbin, $dirbase, $wfbase, $dbbase, $star
     @dborigin 	= dbsubset(@dborigin,"time < \_$last_time\_ && time >= \_$start_time\_" );
     $origin_dir = dbquery(@dborigin,"dbTABLE_DIRNAME");
     $nrecs      = dbquery(@dborigin,"dbRECORD_COUNT");
+
     elog_notify ("process_events	nrecs	$nrecs		origin_dir $origin_dir") if $opt_V;
+    return if ($nrecs == 0);
+
 #
 #  find first and last preferred origins in database
 #
@@ -157,7 +187,7 @@ sub process_events { # &process_events( $dbin, $dirbase, $wfbase, $dbbase, $star
     
     @ts = &time_splits($period, $debug, @dbj) ;
     dbclose(@dbin);
-
+    
 #
 #  process each unique year-month event information
 #
@@ -201,7 +231,7 @@ sub process_events { # &process_events( $dbin, $dirbase, $wfbase, $dbbase, $star
 #  subset data, selecting for all events with prefor in specific month, write out to dbname
                 
         $cmd  = "dbjoin $dbin.origin event | dbsubset - \" prefor==orid && $subset \" | dbseparate - event | ";
-        $cmd .= "dbjoin - origin | dbjoin -o - assoc arrival origerr stamag netmag emodel predarr | ";
+        $cmd .= "dbjoin - origin | dbjoin -o - assoc arrival origerr netmag stamag | ";
         $cmd .= "dbunjoin -o $dbname -";
 
         elog_notify( "process_events	$cmd ") if $opt_V;
@@ -212,16 +242,16 @@ sub process_events { # &process_events( $dbin, $dirbase, $wfbase, $dbbase, $star
             &sendmail($subject, $opt_m) if $opt_m ; 
             elog_die("\n$subject");
         }
-
-        @dbtmp 		   = dbopen($dbname,'r+');
-        @dbtmp   	   = dblookup(@dbtmp,0,"arrival",0,0);
-        $narrivals     = dbquery (@dbtmp,dbRECORD_COUNT);
-        @dbtmp   	   = dblookup(@dbtmp,0,"origin",0,0);
-        $norigins      = dbquery (@dbtmp,dbRECORD_COUNT);
-        @dbtmp   	   = dblookup(@dbtmp,0,"event",0,0);
-        $nevents       = dbquery (@dbtmp,dbRECORD_COUNT);
         
-        elog_notify("process_events	$current - $next_ts	events	$nevents	origins	$norigins	arrivals	$narrivals") if $opt_v;
+        @dbtmp 		   = dbopen  ( $dbname, 'r+' );
+        @dbtmp   	   = dblookup( @dbtmp, 0, "arrival", 0, 0 );
+        $narrivals     = dbquery ( @dbtmp, dbRECORD_COUNT );
+        @dbtmp   	   = dblookup( @dbtmp, 0, "origin", 0, 0 );
+        $norigins      = dbquery ( @dbtmp, dbRECORD_COUNT );
+        @dbtmp   	   = dblookup( @dbtmp, 0, "event", 0, 0 );
+        $nevents       = dbquery ( @dbtmp, dbRECORD_COUNT );
+        
+        elog_notify(sprintf("process_events  %s    events  %6d    origins  %6d      assoc arrivals  %8d", epoch2str(epoch($ts),"%Y_%m"), $nevents, $norigins, $narrivals)) if $opt_v;
 
         if ($opt_C) {
             $msg  = "orb2db_msg $dbin pause";
@@ -234,7 +264,7 @@ sub process_events { # &process_events( $dbin, $dirbase, $wfbase, $dbbase, $star
             }
             
             $cmd  = "dbjoin $dbin.origin event | ";
-            $cmd .= "dbsubset - \" $subset \" | dbjoin -o - assoc arrival stamag netmag emodel predarr | ";
+            $cmd .= "dbsubset - \" $subset \" | dbjoin -o - assoc arrival origerr stamag netmag emodel predarr | ";
             $cmd .= "dbdelete - ";
 
             elog_notify( "$cmd") if $opt_v;
@@ -254,20 +284,33 @@ sub process_events { # &process_events( $dbin, $dirbase, $wfbase, $dbbase, $star
             run($msg,0);
         }
 
-#  find all unassociated arrivals and append       
-        
-        $cmd = "dbsubset $dbin.arrival \" $subset && iphase !~ /del/ \" | dbnojoin - assoc | dbunjoin -o /tmp/tmp_$$ -";
+#  find all unassociated arrivals and append
 
-        elog_notify( "process_events	$cmd ") if $opt_V;
+        @dbnj  = dbopen  ( $dbin, 'r' ) ;
+        @dbnj  = dblookup( @dbnj, 0, "arrival", 0, 0 ) ;
+        @dbnj2 = dblookup( @dbnj, 0, "assoc", 0, 0 ) ;
+        
+        @dbnj  = dbsubset ( @dbnj, " $subset && iphase !~ /del/ " ) ;
+        @dbnj  = dbnojoin ( @dbnj, @dbnj2 ) ;
+        
+        $arr_no_join =  dbquery ( @dbnj, dbRECORD_COUNT) ;
+        
+        dbclose ( @dbnj ) ;
+        
+        if ( $arr_no_join > 0 ) {
+            $cmd = "dbsubset $dbin.arrival \" $subset && iphase !~ /del/ \" | dbnojoin - assoc | dbunjoin -o /tmp/tmp_$$ -";
+
+            elog_notify( "process_events	$cmd ") if $opt_V;
          
-        if (run($cmd,0)) {
-            elog_notify ("process_events	Cmd failed: $cmd");
+            if (run($cmd,0)) {
+                elog_notify ("process_events	Cmd failed: $cmd");
+            }
         }
 
         @dbtmp 		   = dbopen("/tmp/tmp_$$",'r+');
         @dbarrival 	   = dblookup(@dbtmp,0,"arrival",0,0);
         $noassoc       = dbquery(@dbarrival,dbRECORD_COUNT);
-        elog_notify("process_events	$current - $next_ts unassociated arrivals - $noassoc") if $opt_v;
+        elog_notify(sprintf("process_events  %s                                         noassoc arrivals  %8d", epoch2str(epoch($ts),"%Y_%m"), $noassoc )) if $opt_v;
 
         @dbout             = dbopen($dbname,"r+");
         @dbout             = dblookup(@dbout,0,"arrival",0,0);
@@ -279,7 +322,7 @@ sub process_events { # &process_events( $dbin, $dirbase, $wfbase, $dbbase, $star
         dbclose( @dbout );
         dbdestroy( @dbtmp );
         
-        if ($opt_C) {
+        if ( $opt_C && ( $arr_no_join > 0 ) ) {
             $msg  = "orb2db_msg $dbin pause";
             elog_notify("process_events	$msg") if $opt_v;
             if (run($msg,0)) {
@@ -345,7 +388,8 @@ sub process_wfdisc { # &process_wfdisc( $dbin, $dirbase, $dbbase, $start_time, $
     @dbwfdisc 	= dbsubset(@dbwfdisc,$subset);
     $nrecs      = dbquery(@dbwfdisc,"dbRECORD_COUNT");
     elog_notify ("process_wfdisc	nrecs	$nrecs") if $opt_V;
-            
+    return if ($nrecs == 0);
+    
     @ts = ();
     @ts = &time_splits($period,$debug,@dbwfdisc) ;
     elog_notify ("process_wfdisc	time_splits	@ts") if $opt_V;
