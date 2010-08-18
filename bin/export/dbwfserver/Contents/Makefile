@@ -1,6 +1,7 @@
 DATADIR = www/dbwfserver
-DATA = waveform.html.template \
-	   simple.html.template
+DATA = simple.html \
+	   full.html \
+	   iframe.html
 
 include $(ANTELOPEMAKE)
 

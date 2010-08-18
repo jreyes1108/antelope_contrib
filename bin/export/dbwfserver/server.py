@@ -1,16 +1,4 @@
-from __main__ import os
-from __main__ import sys
-from __main__ import log
-from __main__ import config
-
-from twisted.web import server, static, rewrite
-from twisted.application import service, internet
-
-import dbwfserver.config as config
-import dbwfserver.resource as resource
-
-
-
+from __main__ import *
 
 application = service.Application(config.application_name)
 
@@ -22,11 +10,9 @@ for port,db  in config.run_servers.items():
 
     root.putChild('static',   static.File(config.static_dir))
 
-    rewrite_root = rewrite.RewriterResource(root)
-
-    site = server.Site(rewrite_root)
+    site = server.Site(root)
 
     site.displayTracebacks = config.display_tracebacks
+    # if set, Twisted internal errors are displayed on rendered pages. Default to True.
 
     sc.addService(internet.TCPServer(int(port), site))
-

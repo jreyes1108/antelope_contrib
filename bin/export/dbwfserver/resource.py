@@ -1,20 +1,4 @@
-from __main__ import sys
-from __main__ import os
-from __main__ import log
-from __main__ import config
-
-import re
-
-from string import Template
-from twisted.web import resource
-
-import antelope.stock as stock
-from antelope.datascope import *
-
-import dbwfserver.eventdata as evdata 
-
-from time import gmtime, strftime
-from collections import defaultdict 
+from __main__ import *
 
 """
 Import Python module JSON or SimpleJSON to 
@@ -22,16 +6,9 @@ parse returned results from queries
 bsed on Python version test
 """
 
-if(float(sys.version_info[0])+float(sys.version_info[1])/10 >= 2.6):
-
-    import json
-
-else:
-
-    import simplejson as json
-
-
 #log.startLogging(sys.stdout)
+#log.msg('Re-start logging ...')
+
 
 def isNumber(test):
 #{{{
@@ -50,30 +27,37 @@ def isNumber(test):
 
 class QueryParser(resource.Resource):
     """
-    Serve Datascope query requests.
+    Serve HTML query requests.
     """
+#{{{
     def __init__(self,db):
 #{{{
+        isLeaf = True
+
         self.dbname = db
 
+        if not os.path.isfile(db):
+            log.msg('\n\nERROR on database name %s' % self.dbname)
+            sys.exit('Killing Server: No file found (%s)\n'% self.dbname)
+    
         try:
-            self.db = dbopen(self.dbname)
+            self.db = datascope.dbopen(self.dbname)
         except:
             log.msg('\n\nERROR on database %s' % self.dbname)
             sys.exit('Killing Server: No database found (%s)'% self.dbname)
 
 
-        db = Dbptr(self.db)
+        db = datascope.Dbptr(self.db)
 
         db.lookup( table='wfdisc')
 
-        if db.query(dbTABLE_PRESENT): 
+        if db.query(datascope.dbTABLE_PRESENT): 
             for check in ['instrument','sensor','origin','arrival']:
                 try: db.lookup( table=check )
                 except:
                     sys.exit('\n\nKilling Server: Problem on db.lookup on db:%s\n\n'% self.dbname)
 
-                if not db.query(dbTABLE_PRESENT):
+                if not db.query(datascope.dbTABLE_PRESENT):
                     log.msg('\n\nERROR: %s table not present in %s !!!!\n\n' % (check,self.dbname))
                     config.simple = True
 
@@ -109,19 +93,13 @@ class QueryParser(resource.Resource):
             if(re.match(r'^IE\s+', jqf)):
 
                 re.sub(r'^IE\s+', '', jqf)
-                jquery_includes += '<!--[if IE]>\n'
-                jquery_includes += '<script language="javascript" '
-                jquery_includes += 'type="text/javascript" src="'
-                jquery_includes += jqf
-                jquery_includes += '"></script>\n'
-                jquery_includes += '<![endif]-->\n'
+                jquery_includes += '\n\t<!--[if IE]>\n'
+                jquery_includes += '\t\t<script language="javascript" type="text/javascript" src="'
+                jquery_includes += jqf + '"></script>\n\t<![endif]-->\n'
 
             else:
 
-                jquery_includes += '<script type="text/javascript" '
-                jquery_includes += 'src="'
-                jquery_includes += jqf
-                jquery_includes += '"></script>\n'
+                jquery_includes += '\n\t<script type="text/javascript" src="' + jqf + '"></script>\n'
 
         return jquery_includes
         # }}}
@@ -178,12 +156,14 @@ class QueryParser(resource.Resource):
 
     def getChild(self, name, request):
 #{{{
+        #if name == '':
+        #    return self
+        #return resource.Resource.getChild(self, name, request)
         return self
 #}}}
 
-    def render(self, request):
-#{{{ Setup template, init variables
-
+    def render_GET(self, request):
+#{{{
         response_data = defaultdict()
 
         tvals = defaultdict(dict)
@@ -195,7 +175,33 @@ class QueryParser(resource.Resource):
             "meta_query":        'false'
         }
 
-        args = request.uri.split("/")[1:]
+        #
+        # Old method of parsing the URI
+        #
+        #args = request.uri.split("/")[1:]
+        #
+        # New method using request.postpath and request.args
+        #
+        
+        if config.debug:
+            log.msg('')
+            log.msg('Request:%s' % request )
+            log.msg('Request.uri:%s' % request.uri)
+            log.msg('Request.args:%s' % (request.args) )
+            log.msg('Request.prepath:%s' % (request.prepath) )
+            log.msg('Request.postpath:%s' % (request.postpath) )
+            log.msg('Request.path:%s' % (request.path) )
+            log.msg('')
+
+        args = request.args
+        path = request.prepath
+
+        if config.verbose:
+            log.msg('')
+            log.msg('Parsing of URI:')
+            log.msg('\targs:(size %s)%s' % (len(args),args) )
+            log.msg('\tpath:(size %s)%s' % (len(path),path) )
+            log.msg('')
 
         #
         # remove all empty  elements
@@ -203,89 +209,87 @@ class QueryParser(resource.Resource):
         # (localhost:8008/stations) 
         #
         if config.debug:
-            log.msg('Removing empty arguments args:(size %s)%s' % (len(args),args) )
+            log.msg('Removing empty arguments path:(size %s)%s' % (len(path),path) )
 
         while True:
             try: 
-                args.remove('')
+                path.remove('')
             except: 
                 break
 
         if config.debug:
-            log.msg('Fixed arguments args:(size %s)%s' % (len(args),args) )
+            log.msg('Fixed arguments path:(size %s)%s' % (len(path),path) )
 
-#}}}
 
-        if args:
+        if path:
 
-            log.msg("\tQUERY: %s " % args)
+            log.msg("\tQUERY: %s " % path)
 
-            if args[0] == 'data':
-                #{{{
+            if path[0] == 'data':
                 if config.verbose:
-                    log.msg("Data query of type: %s " % args[0])
+                    log.msg("Data query of type: %s " % path[0])
 
                 request.setHeader("content-type", "application/json")
 
-                if 'meta' in args:
+                if 'meta' in path:
 #{{{
                     """
                     TEST metaquery parsing response. Return json with meta-query data for further ajax requests.
                     """
-                    return json.dumps(self.eventdata.parse_query(self._parse_url(args), self.stations, self.events))
+                    return json.dumps(self.eventdata.parse_query(self._parse_url(path), self.stations, self.events))
 
 #}}}
 
-                elif 'wf' in args:
+                elif 'wf' in path:
 #{{{
                     """
                     Return JSON object of data. For client ajax calls.
                     """
 
-                    return json.dumps(self.eventdata.get_segment(self._parse_url(args), self.stations, self.events))
+                    return json.dumps(self.eventdata.get_segment(self._parse_url(path), self.stations, self.events))
 
 #}}}
 
-                elif 'coverage' in args:
+                elif 'coverage' in path:
 #{{{
                     """
                     Return coverage tuples as JSON objects. For client ajax calls.
                     """
 
-                    return json.dumps(self.eventdata.coverage(self._parse_url(args),self.stations))
+                    return json.dumps(self.eventdata.coverage(self._parse_url(path),self.stations))
 
 #}}}
 
-                elif 'events' in args:
+                elif 'events' in path:
 #{{{
                     """
                     Return events dictionary as JSON objects. For client ajax calls.
                     Called with or without argument
                     """
 
-                    if len(args) == 3:
+                    if len(path) == 3:
 
-                        for event in [args['time']]:
+                        for event in [path['time']]:
                             response_data[event] = self.events(event)
                         return json.dumps(response_data)
 
-                    elif len(args) == 4:
-                        return json.dumps(self.events.phases(args[2],args[3]))
+                    elif len(path) == 4:
+                        return json.dumps(self.events.phases(path[2],path[3]))
 
                     else:
                         return json.dumps(self.events.table())
 #}}}
 
-                elif 'times' in args:
+                elif 'times' in path:
 #{{{
                     """
                     Return tuples of min time and max time in db
                     for a list of stations or for the complete db.
                     """
-                    if len(args) == 3:
-                        args = self._parse_url(args)
+                    if len(path) == 3:
+                        path = self._parse_url(path)
 
-                        for sta in args['sta']:
+                        for sta in path['sta']:
                             log.msg("\n\n\tcalling self.stations.times(%s)\n\n" % sta)
                             response_data[sta] = self.stations.times(sta)
                         return json.dumps(response_data)
@@ -294,16 +298,16 @@ class QueryParser(resource.Resource):
                         return json.dumps(self.stations.times())
 #}}}
 
-                elif 'stations' in args:
+                elif 'stations' in path:
 #{{{
                     """
                     Return station list as JSON objects. For client ajax calls.
                     Called with argument return dictionary
                     """
-                    if len(args) == 3:
-                        args = self._parse_url(args)
+                    if len(path) == 3:
+                        path = self._parse_url(path)
 
-                        for sta in args['sta']:
+                        for sta in path['sta']:
                             log.msg("\n\n\tcalling self.stations(%s)\n\n" % sta)
                             response_data[sta] = self.stations(sta)
                         return json.dumps(response_data)
@@ -312,7 +316,7 @@ class QueryParser(resource.Resource):
                         return json.dumps(self.stations.list())
 #}}}
 
-                elif 'channels' in args:
+                elif 'channels' in path:
 #{{{
                     """
                     Return channels list as JSON objects. For client ajax calls.
@@ -320,7 +324,7 @@ class QueryParser(resource.Resource):
                     return json.dumps(self.stations.channels())
 #}}}
 
-                elif 'filters' in args:
+                elif 'filters' in path:
 #{{{
                     """
                     Return list of filters as JSON objects. For client ajax calls.
@@ -329,48 +333,44 @@ class QueryParser(resource.Resource):
 #}}}
 
                 else:
-#{{{ ERROR: Unknown query type.
+                #{{{ ERROR: Unknown query type.
                     request.setHeader("content-type", "text/html")
                     request.setHeader("response-code", 500)
-                    evdata._error("Unknown type of query: %s" % args)
-                    tvals['error'] =  json.dumps( "Unknown query type:(%s)" % args )
-#}}}
-
+                    evdata._error("Unknown type of query: %s" % path)
+                    tvals['error'] =  json.dumps( "Unknown query type:(%s)" % path )
                 #}}}
 
-            elif args[0] == 'wf' or args[0] == 'wfframe':
+            elif path[0] == 'wf':
 #{{{
                 """
                 Parse query for data request. Return html with meta-query data for further ajax requests.
                 """
-                log.msg('args: %s (%s)' % (len(args),str(args)))
+                log.msg('path: %s (%s)' % (len(path),str(path)))
 
-                tvals['meta_query'] = json.dumps(self.eventdata.parse_query(self._parse_url(args), self.stations, self.events))
+                tvals['meta_query'] = json.dumps(self.eventdata.parse_query(self._parse_url(path), self.stations, self.events))
 
-                if args[0] == 'wf':
-                    tvals['dir'] = 'wf'
-                    #args.remove('wf')
-                else:
-                    tvals['dir'] = 'wfframe'
-                    #args.remove('wfframe')
+                tvals['dir'] = 'wf'
+                #path.remove('wf')
 
-                tvals['key']  = " / ".join(str(x) for x in args)
+                tvals['key']  = " / ".join(str(x) for x in path)
 
 #}}}
 
-            elif args[0] != '':
+            elif path[0] != '':
                 request.setHeader("response-code", 500)
-                evdata._error("Unknown type of query: %s" % args)
-                tvals['error'] =  json.dumps( "Unknown query type:(%s)" % args )
+                evdata._error("Unknown type of query: %s" % path)
+                tvals['error'] =  json.dumps( "Unknown query type:(%s)" % path )
 
 
-        if 'wfframe' in args:
+        template = config.full_template
 
-            template = config.simple_html_template
+        if 'mode' in args:
+            if args['mode'][0] == 'iframe':
+                template = config.iframe_template
+        if 'mode' in args:
+            if args['mode'][0] == 'simple':
+                template = config.simple_template
 
-        else:
-
-            template = config.html_template
 
         tvals['dbname'] = self.dbname
         tvals['application_title'] = config.application_title
@@ -398,3 +398,5 @@ class QueryParser(resource.Resource):
         html_stations = Template(open(template).read()).substitute(tvals)
 
         return html_stations
+#}}}
+#}}}

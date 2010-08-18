@@ -1,8 +1,4 @@
-from __main__ import sys
-from __main__ import os
-
-import getopt
-import antelope.stock as stock
+from __main__ import *
 
 global sys
 
@@ -17,8 +13,9 @@ def configure(args):
     global application_title
     global static_dir
     global jquery_dir
-    global html_template
-    global simple_html_template
+    global simple_template
+    global iframe_template
+    global full_template
     global dbname
     global port
     global dbs
@@ -44,8 +41,9 @@ def configure(args):
     application_title   = ''
     static_dir          = ''
     jquery_dir          = ''
-    html_template       = ''
-    simple_html_template= ''
+    full_template       = ''
+    iframe_template     = ''
+    simple_template     = ''
     dbname              = ''
     port                = -1
     binning_threshold   = -1
@@ -108,8 +106,9 @@ def configure(args):
     canvas_size_default = stock.pfget_int( pfname, "canvas_size_default" )
     jquery_dir          = stock.pfget_string( pfname, "jquery_dir" )
     static_dir          = stock.pfget_string( pfname, "static_dir" )
-    html_template       = stock.pfget_string( pfname, "html_template" )
-    simple_html_template= stock.pfget_string( pfname, "simple_html_template" )
+    simple_template     = stock.pfget_string( pfname, "simple_template" )
+    full_template       = stock.pfget_string( pfname, "full_template" )
+    iframe_template     = stock.pfget_string( pfname, "iframe_template" )
     application_name    = stock.pfget_string( pfname, "application_name" )
     application_title   = stock.pfget_string( pfname, "application_title" )
     apply_calib         = stock.pfget_boolean( pfname, "apply_calib" )

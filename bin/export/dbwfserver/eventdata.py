@@ -1,17 +1,4 @@
-from __main__ import sys
-from __main__ import os
-from __main__ import log
-from __main__ import config
-
-import re
-
-from twisted.internet import reactor
-
-from collections import defaultdict 
-
-from antelope.datascope import *
-from antelope.stock import *
-
+from __main__ import *
 
 def _error(text,dictionary=None,quiet=False):
 #{{{
@@ -66,7 +53,7 @@ class db_nulls():
         self.dbname = config.dbname
 
         try:
-            self.db = dbopen(self.dbname)
+            self.db = datascope.dbopen(self.dbname)
         except:
             log.msg('\n\nERROR on database %s' % self.dbname)
             sys.exit('Killing Server: No database found (%s)'% self.dbname)
@@ -112,9 +99,9 @@ class db_nulls():
 
         self.null_vals = defaultdict(dict)
 
-        for table in self.db.query(dbSCHEMA_TABLES):
+        for table in self.db.query(datascope.dbSCHEMA_TABLES):
             self.db.lookup( '',table,'','')
-            for field in self.db.query(dbTABLE_FIELDS):
+            for field in self.db.query(datascope.dbTABLE_FIELDS):
                 self.db.lookup( '',table,field,'dbNULL')
                 self.null_vals[field] = _isNumber(self.db.get(''))
                 if config.debug: log.msg("Class Db_Nulls: set(%s):%s" % (field,self.null_vals[field]))
@@ -139,7 +126,7 @@ class Stations():
     def __init__(self, dbname):
 #{{{
         self.dbname = dbname
-        self.db = dbopen(self.dbname)
+        self.db = datascope.dbopen(self.dbname)
         self.stachan_cache = defaultdict(dict)
         self.index = []
         self._get_stachan_cache()
@@ -200,7 +187,7 @@ class Stations():
 #{{{
         self.stachan_cache = defaultdict(dict)
 
-        db = Dbptr(self.db)
+        db = datascope.Dbptr(self.db)
         if config.simple:
             db.process([
                 'dbopen wfdisc',
@@ -213,7 +200,7 @@ class Stations():
                 'dbsort sta chan'
                 ])
 
-        for i in range(db.query(dbRECORD_COUNT)):
+        for i in range(db.query(datascope.dbRECORD_COUNT)):
 
             db.record = i
 
@@ -276,7 +263,7 @@ class Stations():
         data = {}
 
         # Start wfdisc query
-        db = Dbptr(self.db)
+        db = datascope.Dbptr(self.db)
         db.process([ 'dbopen wfdisc', ])
 
         # Subset wfdisc for stations
@@ -286,7 +273,7 @@ class Stations():
             if config.debug: log.msg("\n\ntimes subset on sta =~/%s/ " % sta_str)
 
 
-        if not db.query(dbRECORD_COUNT):
+        if not db.query(datascope.dbRECORD_COUNT):
             _error('No records in wfdisc.',data)
             return data
 
@@ -331,7 +318,7 @@ class Events():
     def __init__(self, dbname):
 #{{{
         self.dbname = dbname
-        self.db = dbopen(self.dbname)
+        self.db = datascope.dbopen(self.dbname)
         self.event_cache = defaultdict(list)
         self.index = []
         self._get_event_cache()
@@ -407,7 +394,7 @@ class Events():
         start = float(orid_time)-float(window)
         end   = float(orid_time)+float(window)
 
-        db = Dbptr(self.db)
+        db = datascope.Dbptr(self.db)
 
         db.lookup( table='origin')
 
@@ -415,9 +402,9 @@ class Events():
         db.process([ 'dbsubset time >= %f' % start ])
         db.process([ 'dbsubset time <= %f' % end ])
 
-        if db.query(dbRECORD_COUNT):
+        if db.query(datascope.dbRECORD_COUNT):
 
-            for i in range(db.query(dbRECORD_COUNT)):
+            for i in range(db.query(datascope.dbRECORD_COUNT)):
 
                 db.record = i
 
@@ -439,11 +426,11 @@ class Events():
             return {}
         self.event_cache = defaultdict(list)
 
-        db = Dbptr(self.db)
+        db = datascope.Dbptr(self.db)
 
         db.lookup( table='event')
 
-        if db.query(dbTABLE_PRESENT): 
+        if db.query(datascope.dbTABLE_PRESENT): 
             db.process([ 'dbopen event' ])
             db.process([ 'dbjoin origin' ])
             db.process([ 'dbsubset orid == prefor' ])
@@ -451,7 +438,7 @@ class Events():
             if config.verbose: log.msg("\n\tevent table NOT present!!!\n")
             db.lookup( table='assoc')
 
-            if db.query(dbTABLE_PRESENT): 
+            if db.query(datascope.dbTABLE_PRESENT): 
                 db.process([ 'dbopen origin' ])
                 db.process([ 'dbjoin assoc' ])
                 db.process([ 'dbsort -u sta orid' ])
@@ -461,7 +448,7 @@ class Events():
 
         db.process([ 'dbsort -u orid' ])
 
-        for i in range(db.query(dbRECORD_COUNT)):
+        for i in range(db.query(datascope.dbRECORD_COUNT)):
 
             db.record = i
 
@@ -543,11 +530,11 @@ class Events():
 
         assoc_present = False
 
-        db = Dbptr(self.db)
+        db = datascope.Dbptr(self.db)
 
         db.lookup( table='assoc')
 
-        if db.query(dbTABLE_PRESENT): 
+        if db.query(datascope.dbTABLE_PRESENT): 
             db.process([ 'dbopen arrival' ])
             db.process([ 'dbjoin assoc' ])
             assoc_present = True
@@ -556,7 +543,7 @@ class Events():
             db.process([ 'dbopen arrival' ])
 
 
-        if db.query(dbTABLE_PRESENT):
+        if db.query(datascope.dbTABLE_PRESENT):
 
             try:
                 phase_sub = dbsubset(db,'time >= %s && time <= %s' % (float(mintime),float(maxtime)) )
@@ -564,7 +551,7 @@ class Events():
                 _error("Exception on phases: %s" % e,phases)
                 return phases
 
-            for p in range(phase_sub.query(dbRECORD_COUNT)):
+            for p in range(phase_sub.query(datascope.dbRECORD_COUNT)):
 
                 phase_sub.record = p
 
@@ -610,14 +597,14 @@ class EventData():
     def __init__(self, dbname):
 #{{{
         self.dbname = dbname
-        self.db = dbopen(self.dbname)
+        self.db = datascope.dbopen(self.dbname)
 #}}}
 
     def _get_matched_stations(self, sta=None):
 #{{{
         stations = []
 
-        db = Dbptr(self.db)
+        db = datascope.Dbptr(self.db)
 
         if config.simple:
             db.process([ 'dbopen wfdisc' ])
@@ -637,11 +624,11 @@ class EventData():
 
         db.process([ 'dbsort -u sta' ])
 
-        if db.query(dbRECORD_COUNT) == 0:
+        if db.query(datascope.dbRECORD_COUNT) == 0:
             _error('%s not a valid station regex' % sta_str)
             return []
 
-        for i in range(db.query(dbRECORD_COUNT)):
+        for i in range(db.query(datascope.dbRECORD_COUNT)):
             db.record = i
             stations.append(db.getv('sta')[0])
 
@@ -652,7 +639,7 @@ class EventData():
 #{{{
         channels = []
 
-        db = Dbptr(self.db)
+        db = datascope.Dbptr(self.db)
 
         if config.simple:
             db.process([ 'dbopen wfdisc' ])
@@ -672,11 +659,11 @@ class EventData():
 
         db.process([ 'dbsort -u chan' ])
 
-        if db.query(dbRECORD_COUNT) == 0:
+        if db.query(datascope.dbRECORD_COUNT) == 0:
             _error('%s not a valid channel regex' % chan_str)
             return []
 
-        for i in range(db.query(dbRECORD_COUNT)):
+        for i in range(db.query(datascope.dbRECORD_COUNT)):
             db.record = i
             channels.append(db.getv('chan')[0])
 
@@ -723,7 +710,7 @@ class EventData():
             # and go back 'default_time_window'.
 
             # Start wfdisc query
-            db = Dbptr(self.db)
+            db = datascope.Dbptr(self.db)
             db.process([ 'dbopen wfdisc', ])
 
             # Subset wfdisc for stations
@@ -738,7 +725,7 @@ class EventData():
                 db.subset("chan =~/%s/" % chan_str)
                 if config.debug: log.msg("\n\nCoverage subset on chan =~/%s/ " % chan_str)
 
-            if not db.query(dbRECORD_COUNT):
+            if not db.query(datascope.dbRECORD_COUNT):
                 _error('No records for: %s' %  url, data)
                 return data
 
@@ -946,7 +933,7 @@ class EventData():
         #
         # Start wfdisc query
         #
-        db = Dbptr(self.db)
+        db = datascope.Dbptr(self.db)
         db.process([ 'dbopen wfdisc', ])
 
         # Subset wfdisc for stations
@@ -973,7 +960,7 @@ class EventData():
             db.subset("time <= %s" % params['time_end'])
             if config.debug: log.msg("\n\nCoverage subset on time_end <= %s " % params['time_end'])
 
-        if not db.query(dbRECORD_COUNT):
+        if not db.query(datascope.dbRECORD_COUNT):
             _error('No records for: %s' %  params, res_data)
             return res_data
 
@@ -986,7 +973,7 @@ class EventData():
             res_data.update( {'time_end': db.ex_eval('max(endtime)') })
 
 
-        for i in range(db.query(dbRECORD_COUNT)):
+        for i in range(db.query(datascope.dbRECORD_COUNT)):
 
             db.record = i
 

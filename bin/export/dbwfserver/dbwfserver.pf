@@ -23,9 +23,12 @@ default_time_window 200
 binning_threshold 2
 canvas_size_default 800
 
-html_template &datafilename(www/dbwfserver/waveform.html.template)
-
-simple_html_template &datafilename(www/dbwfserver/simple.html.template)
+#
+# HTML templates
+#
+full_template &datafilename(www/dbwfserver/full.html)
+simple_template &datafilename(www/dbwfserver/simple.html)
+iframe_template &datafilename(www/dbwfserver/iframe.html)
 
 jquery_dir &datafilename(www/dbwfserver/static/jquery)
 static_dir &datafilename(www/dbwfserver/static)
