@@ -1,4 +1,5 @@
-#BIN = dbcentral.pyc
-#MAN1 = dbcentralpyc.1
+DATADIR = python/antelope
+DATA= dbcentral.py
+MAN1 = dbcentralpy.1
 
-#include $(ANTELOPEMAKE)
+include $(ANTELOPEMAKE)

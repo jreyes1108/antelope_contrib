@@ -1,0 +1,83 @@
+.TH DBCENTRAL.PYC 1 "$Date$" 
+.SH NAME
+dbcentral.py \- Python class for resolving dbcentral clusters table entries
+.SH SYNOPSIS
+.nf
+import antelope.dbcentral as dbcentral
+element = dbcentral.dbcentral('path/to/database','nickname')
+_or_
+element = dbcentral.dbcentral('path/to/database','nickname',include_times=True)
+_or_
+element = dbcentral.dbcentral('path/to/database','nickname',include_times=True,debug=True)
+.fi
+.SH DESCRIPTION
+The Python class dbcentral is useful for any Python script that needs to
+open and resolve database path names in a clusters table.
+
+Once instantiated the class includes methods for accessing the configuration,
+for accessing the databases names, and accessing the database pointers.
+If include_times is set to True, the keys are the resolved database 
+table paths and the values are tuples consisting of start time and end 
+time (in epoch seconds). If include_times is set to False, the databases are
+return as la list.
+Methods:
+list() will return a dictionary with key value pairs. 
+load() will take each database and open a pointer to it.
+list_pointers() will return a list of pointers.
+function calls (epoch) will return the database associated to the epoch time.
+pointer(epoch) will return the database pointer to the associated database for the time.
+
+If the class is initialize with a regular database (no clusters table present) the class
+will run in "masquerade" mode. In this mode the database is store in the class and all 
+function calls will return the same database as a result. If function load() is called, 
+the class will open the pointer to that database and it will be return by every pointer(epoch)
+call. 
+
+.SH OPTIONS
+N/A
+.SH FILES
+dbcentral.py
+.SH ENVIRONMENT
+python
+.SH PARAMETER FILE
+N/A
+.SH EXAMPLE
+.nf
+vista{reyes}% python
+Python 2.5.4 (r254:67916, Feb 11 2010, 00:50:55) 
+[GCC 4.2.1 (Apple Inc. build 5646)] on darwin
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from dbcentral import *
+>>> dbcntl = dbcentral("/Users/reyes/dbcentral/dbcentral","anza","True")
+>>> dbcntl.type
+"dbcentral"
+>>> dbcntl.path
+"/Users/reyes/dbcentral/dbcentral"
+>>> dbcntl.list()
+{'/anf/ANZA/dbs/event_dbs/2007/anza_2007': (1167609600.0, 1199145599.0), '/anf/ANZA/dbs/event_dbs/2008/anza_2008': (1199145600.0, 1230767999.0), '/anf/ANZA/dbs/event_dbs/2009/anza_2009': (1230768000.0, 1262303999.0)}
+>>> dbcntl.load()
+>>> dbcntl.list_pointers()
+[[1, -501, -501, -501], [2, -501, -501, -501], [3, -501, -501, -501]]
+>>> dbcntl(1181924400.0)
+"/anf/ANZA/dbs/event_dbs/2007/anza_2007"
+>>> dbcntl.pointer(1181924400.0)
+[1, -501, -501, -501]
+>>> 
+.fi
+.SH RETURN VALUES
+If successful, an unsorted Python dictionary. If unsuccessful, an error message.
+.SH "SEE ALSO"
+.nf
+pythondb(3p), pythonorb(3p), pythonstock(3p)
+.fi
+.SH "BUGS AND CAVEATS"
+Valid CSS3.0 schema dbcentral clusters table.
+Antelope interfaces to Python correctly installed.
+.SH AUTHOR
+.nf
+Rob Newman
+University of California, San Diego
+<rlnewman@ucsd.edu>
+.fi
+# This is just an id line from rcs.
+.\" $Id$
