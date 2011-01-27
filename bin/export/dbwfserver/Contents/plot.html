@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html>
+
+<head>
+
+    <title>$application_title</title>
+
+    <script src="http://www.google.com/jsapi" language="javascript" type="text/javascript"></script>
+    <script language="javascript" type="text/javascript">
+    google.load("jquery", "1.4.2" ); // Load jQuery
+    google.load("jqueryui", "1.8.5" ); // Load jQuery UI
+    </script>
+
+    $jquery_includes
+
+
+    <script type="text/javascript" src="/static/jquery/plot.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="/static/css/dbwfserver.css">
+
+</head>
+
+<body>
+
+<div id="content">
+
+    <div id="loading"></div>
+
+    <div id="wforms"></div>
+
+</div>
+
+<script type="text/javascript">
+
+    $(document).ready( PlotSelect.init);
+
+    $(function(){
+
+        var setupUI    =  $setupUI ;
+        var meta_query =  $meta_query ;
+        var error      =  $error ;
+
+        if (setupUI) {
+             PlotSelect.setupUI(setupUI);
+        }
+
+        if (error) {
+             PlotSelect.errorResponse('parsererror',error);
+        }
+
+        if (meta_query) {
+             PlotSelect.setData(meta_query);
+        }
+
+        $("#loading").show('slow');
+
+    });
+</script>
+
+</body>
+
+</html>

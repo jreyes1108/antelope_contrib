@@ -1,0 +1,224 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html>
+
+<head>
+
+    <title>$application_title</title>
+
+    <script src="http://www.google.com/jsapi" language="javascript" type="text/javascript"></script>
+    <script language="javascript" type="text/javascript">
+    google.load("jquery", "1.4.2" ); // Load jQuery
+    google.load("jqueryui", "1.8.5" ); // Load jQuery UI
+    </script>
+
+    $jquery_includes
+
+    <script type="text/javascript" src="/static/jquery/dbwfserver.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="/static/css/dbwfserver.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/jquery-ui-1.8.5.custom.css">
+
+</head>
+
+<body>
+
+<div id="content">
+
+<!--{{{ CONTENT -->
+
+    <div id="loading"></div>
+
+    <!--{{{ HELP TAB -->
+
+    <div id="toppanel">
+
+        <div id="helppanel">
+
+            <h2>DBWFSERVER:</h2>
+            <h1>General:</h1>
+            <p>
+            This application visualizes time series data as waveforms. It allows users to interactively explore data collected by a seismic network using the BRTT Antelope Environmental Monitoring System.
+            </p>
+            <h1>Key Interactions:</h1>
+            <p>
+                [zoom in: click-drag]
+                [zoom out: shift-click-drag]
+                [scroll left: left arrow]
+                [scroll right: right arrow] |
+                [reset: click 'r']
+            </p>
+        </div>
+
+        <div id="tab">
+            <ul>
+                <li class="left"></li>
+                <li class="center">
+                    <a class="openhelp" id="help_open">Show Help</a>
+                </li>
+                <li class="right"></li>
+            </ul>
+        </div>
+
+    </div>
+
+    <!--}}} HELP TAB -->
+
+    <!-- {{{ CONFIG PANEL -->
+
+    <div id="configpanel">
+
+        <h1>Current database:</h1>
+        <p>$dbname</p>
+        <!-- Gets contents from javascript -->
+
+        <h1>Traces:</h1>
+        <div id="plot_type_wrapper">
+            <!-- Gets contents from javascript -->
+        </div>
+
+        <div class='controls'>
+            <label for="phases">Show Phases</label>
+            <input type="checkbox" name="phases" id="phases" $display_arrivals />
+            <!-- Gets contents from javascript -->
+        </div>
+
+        <div class='controls'>
+            <label for="points">Show Points</label>
+            <input type="checkbox" name="points" id="points" $display_points />
+            <!-- Gets contents from javascript -->
+        </div>
+
+        <h2>Filters:</h2>
+        <div class='controls'>
+            <select  name="filter" id="filter">
+            <!-- Gets contents from javascript -->
+                $filters
+            </select>
+        </div>
+
+        <h2>Color Scheme:</h2>
+        <div class='controls'>
+            <select  id="cs" name="cs">
+                <option value="def">Default</option>
+                <option value="yb">yellow on blue</option>
+                <option value="bw">black on white</option>
+                <option value="yg">yellow on green</option>
+                <option value="wb">white on black</option>
+                <option value="yp">yellow on purple</option>
+                <option value="ob">orange on black</option>
+            </select>
+        </div>
+
+        <h2>Timezone:</h2>
+        <div id="time_zone_wrapper">
+            <!-- Gets contents from javascript -->
+        </div>
+
+        <h2>Acceleration Units:</h2>
+        <div id="acceleration">
+            <!-- Gets contents from javascript -->
+        </div>
+
+    </div>
+
+    <!-- }}} PANEL -->
+
+    <div id="name_path" class='ui-widget-header'>
+
+        <h2>$application_title / $dir / $key</h2>
+
+    </div>
+
+    <div id="control_bar"> 
+
+        <button id='home'>Home</button>
+        <button id='openconfig'>Config</button>
+
+    </div>
+                
+    <div id="subnav">
+
+        <!--{{{ SUB NAV-->
+
+        <div id="list"></div>
+
+        <div id="event_metadata"></div>
+
+        <div id="subnavcontent" class="ui-state-highlight ui-corner-all">
+
+            <div id="station_panel">
+                <h2>Stations:</h2>
+                <input type="text" name="station_string" id="station_string" size="50" value=".*" />
+                <input type="submit" id="load_stas" class="controls" value="Load"/>
+            </div>
+
+            <div id="channel_panel">
+                <h2>Channels:</h2>
+                <input type="text" name="channel_string" id="channel_string" size="50" value=".*" />
+                <input type="submit" id="load_chans" class="controls" value="Load"/>
+            </div>
+
+            <div id="time_panel">
+                <h2>Time Segment:</h2>
+                <label for="start_time">Start time:(epoch)</label>
+                <input type="text" name="start_time" id="start_time" class="datepicker" size="25"/>
+                <label for="end_time">End time:(epoch)</label>
+                <input type="text" name="end_time" id="end_time" class="datepicker" size="25"/>
+            </div>
+
+            <div class="controls">
+                $event_controls
+            </div>
+
+            <div class="controls">
+                <input type="submit" id="plot" value="Plot"/>
+                <input type="submit" id="clear" value="Clear"/>
+            </div>
+
+        </div>
+
+        <div id="event_list"></div>
+
+        <!--}}} SUB NAV-->
+
+    </div>
+
+    <div id="wforms"></div>
+
+<!--}}} CONTENT -->
+
+</div>
+
+<script type="text/javascript">
+
+    $(document).ready( PlotSelect.init);
+
+    $(function(){
+
+        var setupUI    =  $setupUI ;
+        var meta_query =  $meta_query ;
+        var error      =  $error ;
+
+        if (setupUI) {
+             PlotSelect.setupUI(setupUI);
+        }
+
+        if (error) {
+             PlotSelect.errorResponse('parsererror',error);
+        }
+
+        if (meta_query) {
+             PlotSelect.setData(meta_query);
+        }
+        else {
+            $("#subnavcontent").show('slow');
+        }
+
+    });
+</script>
+
+</body>
+
+</html>

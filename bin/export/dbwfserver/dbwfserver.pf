@@ -1,27 +1,39 @@
 application_title Waveform Explorer
 application_name waveform_explorer
 
-port 8008
+port 8008                               # default port to use for http requests
+
+db /opt/antelope/data/db/demo/demo      # default database to load in server
+
+nickname usarray                        # if using a dbcentral database, use this as matching clustername
 
 default_chans &Tbl{
-#    BHZ
-#    BHN
-#    BHE
-#    ..Z.*
+# list of values or regex
     .*
 }
 
 default_time_window 200
 
 binning_threshold 2
+
 canvas_size_default 800
 
-html_template &datafilename(www/dbwfserver/waveform.html.template)
+#
+# HTML templates
+#
+template        template.html
+plot_template   plot.html
+jquery_dir      static/jquery
+static_dir      static
+local_data      local/data/www/dbwfserver
+antelope        &env(ANTELOPE)
 
-jquery_dir &datafilename(www/dbwfserver/static/jquery)
-static_dir &datafilename(www/dbwfserver/static)
+#template   &datafilename(www/dbwfserver/template.html)
+#jquery_dir &datafilename(www/dbwfserver/static/jquery)
+#static_dir &datafilename(www/dbwfserver/static)
 
 jquery_files &Tbl{
+    /static/jquery/jquery.cookie.js
     /static/jquery/excanvas.pack.js
     /static/jquery/jquery.flot.min.js
     /static/jquery/jquery.flot-selection.min.js
@@ -35,7 +47,10 @@ apply_calib True
 
 display_arrivals True
 
+display_points False
+
 import_paths &Tbl{
+    /opt/antelope/5.0-64/local/data
 }
 
 filters &Arr{ # filter specifications

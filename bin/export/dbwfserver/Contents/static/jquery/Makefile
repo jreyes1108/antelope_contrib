@@ -6,6 +6,8 @@ DATA = excanvas.pack.js \
     jquery.flot-selection.min.js \
     jquery.hotkeys-0.7.8-packed.js \
     jquery.tablesorter-2.0.3.min.js \
+    jquery.cookie.js \
+    plot.js \
     dbwfserver.js
     
 
