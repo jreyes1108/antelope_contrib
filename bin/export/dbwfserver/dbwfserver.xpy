@@ -12,9 +12,9 @@ from time import gmtime, strftime, sleep
 
 def system_print():
 #{{{
-    """
-    Print system info in case of errors
-    """
+    #
+    #Print system info in case of errors
+    #
     print
     print 'uname:', platform.uname()
     print
@@ -33,9 +33,9 @@ def system_print():
 
 def missing_twisted():
 #{{{
-    """
-    Print instructions to install Twisted.
-    """
+    #
+    #Print instructions to install Twisted.
+    #
     v       = platform.python_version()
     v_major = sys.version_info[0]
     v_minor = sys.version_info[1]
@@ -58,7 +58,7 @@ def missing_twisted():
 def runApp(config):
     UnixApplicationRunner(config).run()
 
-def run():
+def run_reactor():
 
     id = os.getpid()
 
@@ -70,31 +70,10 @@ def run():
     ServerOptions.optParameters[1] = ['pidfile','',path+'/dbwfserver_'+str(id)+'.pid','Name of the pidfile']
     app.run(runApp, ServerOptions)
 
-""" Test dependencies. """
-try:
-    import pkg_resources
-    from setuptools.dist import Distribution
-except ImportError:
-    sys.exit("Please install module 'setuptools'. [ http://peak.telecommunity.com/DevCenter/setuptools ]")
 
-""" Test dependencies. """
-try:
-    pkg_resources.working_set.resolve(pkg_resources.parse_requirements('Twisted>=10.1.0'),
-            None,Distribution().fetch_build_egg)
-except Exception,e:
-    system_print()
-    missing_twisted()
-    sys.exit()
-
-""" Test dependencies. """
-try:
-    pkg_resources.require("Twisted>=10.1.0")
-except Exception,e:
-    system_print()
-    missing_twisted()
-    sys.exit()
-
-""" Try to import Antelope's Python Interface. """
+#
+#Try to import Antelope's Python Interface.
+#
 try:
     import antelope.stock as stock
     import antelope.datascope as datascope
@@ -103,34 +82,25 @@ except Exception,e:
     sys.exit()
 
 try:
-    #from twisted.python import log,threadpool
     from twisted.python import log
-    from twisted.scripts._twistd_unix import ServerOptions, UnixApplicationRunner 
+    from twisted.scripts.twistd import run
     from twisted.internet import reactor, defer, threads
-    #from twisted.internet.defer import returnValue
-    #from twisted.python.threadpool import ThreadPool
     from twisted.internet.task import LoopingCall
     from twisted.application import app, service, internet
-    from twisted.internet.threads import deferToThread, deferToThreadPool
+    from twisted.internet.threads import deferToThread
     from twisted.web import resource, server, static, rewrite
 except Exception,e:
+    system_print()
     print "Problem loading Twisted-Python libraries. (%s)" % e
     print "Force update with 'sudo easy_install -U Twisted'"
+    missing_twisted()
     sys.exit()
 
-""" Not working log.msg before we start reactor """
-#log.startLogging(sys.stdout)
-#log.msg('TEST')
-
-""" We work with this inside the resource.py class """
-#reactor.suggestThreadPoolSize(10)
-
-
-"""
-Import Python module JSON or SimpleJSON to 
-parse returned results from queries
-bsed on Python version test
-"""
+#
+#Import Python module JSON or SimpleJSON to 
+#parse returned results from queries
+#bsed on Python version test
+#
 if(float(sys.version_info[0])+float(sys.version_info[1])/10 >= 2.6):
 
     try:
@@ -159,9 +129,9 @@ except Exception,e:
     print "Problem loading dbwfserver's CONFIG module from contrib code. (%s)" % e
     sys.exit()
 
-"""
-Configure system with command-line flags and pf file values.
-"""
+#
+#Configure system with command-line flags and pf file values.
+#
 sys.argv = config.configure()
 
 try:
@@ -182,4 +152,12 @@ except Exception,e:
     print "Problem loading dbwfserver's RESOURCE module from contrib code. (%s)" % e
     sys.exit()
 
-run()
+#
+# Run the reactor now
+#
+try:
+    from twisted.scripts._twistd_unix import ServerOptions, UnixApplicationRunner 
+except:
+    run()
+else:
+    run_reactor()

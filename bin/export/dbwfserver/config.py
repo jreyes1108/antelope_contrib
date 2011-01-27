@@ -152,9 +152,6 @@ def configure():
     # 
     # Sanity check
     #
-    if not os.path.isfile(dbname):
-        sys.exit('\n\nERROR: No database found (%s)\n'% dbname)
-
     if not os.path.isfile(template):
         sys.exit('\n\nERROR: No template found (%s)\n'% template)
 
