@@ -2,10 +2,10 @@ from __main__ import *
 
 def isNumber(test):
 #{{{
-    """
-    Test if the string is a valid number 
-    and return the converted number. 
-    """
+    #
+    #Test if the string is a valid number 
+    #and return the converted number. 
+    #
     if config.debug: log.msg("isNunber(%s)" % test)
 
     try:
@@ -28,9 +28,9 @@ def isNumber(test):
 
 class QueryParser(resource.Resource):
 #{{{
-    """
-    Serve HTTP queries.
-    """
+    #
+    # Serve HTTP queries.
+    #
     isLeaf = False
     if config.debug: print "Set isLeaf = %s" % isLeaf
 
@@ -41,15 +41,15 @@ class QueryParser(resource.Resource):
     #{{{
         self.dbname = db
 
-        """
-        Initialize Classes
-        """
+        #
+        # Initialize Classes
+        #
         if config.verbose: print 'Load class resorce.Resource.__init__(self)'
         resource.Resource.__init__(self)
 
-        """
-        Open db using dbcentral CLASS
-        """
+        #
+        # Open db using dbcentral CLASS
+        #
         if config.debug: print "Create dbcentral object with database(%s)." % self.dbname
         self.db = dbcentral.dbcentral(self.dbname,config.nickname,config.debug)
 
@@ -57,17 +57,19 @@ class QueryParser(resource.Resource):
 
         if not self.db.list(): sys.exit('\nERROR: No databases to use! (%s)\n\n'% self.dbname)
 
-        """
-        We might need to remove 
-        databases without wfdisc table
-        """
+        #
+        # We might need to remove 
+        # databases without wfdisc table
+        #
         remove = []
 
         for dbname in sorted(self.db.list()):
 
-            """ Test database access. """
+            #
+            # Test database access. 
+            #
             try:
-                db_pntr = datascope.dbopen( dbname , "r" )
+                db = datascope.dbopen( dbname , "r" )
 
             except Exception, e:
 
@@ -76,10 +78,15 @@ class QueryParser(resource.Resource):
                 remove.append(dbname)
                 continue
 
-            if config.verbose: print "Databse %s" % db
-            if config.debug: print "[%s,%s,%s,%s]" % (db_pntr['database'],db_pntr['table'],db_pntr['field'],db_pntr['record'])
+            else:
+                config.dbpointers.append(db)
 
-            """ Test database tables. """
+            if config.verbose: print "Databse %s" % db
+            if config.debug: print "[%s,%s,%s,%s]" % (db['database'],db['table'],db['field'],db['record'])
+
+            #
+            #Test database tables.
+            #
             if config.debug:
                 """ List files in db directory. """
                 head, tail = os.path.split(dbname)
@@ -91,7 +98,7 @@ class QueryParser(resource.Resource):
                 if config.debug: print "Check table  [%s]." % tbl
 
                 try:
-                    db_pntr.lookup( table=tbl )
+                    db.lookup( table=tbl )
 
                 except Exception, e:
                     print '\nERROR: %s.%s not present (%s)\n' % (dbname,tbl,e)
@@ -99,7 +106,7 @@ class QueryParser(resource.Resource):
                     continue
 
                 try:
-                    records = db_pntr.query(datascope.dbRECORD_COUNT)
+                    records = db.query(datascope.dbRECORD_COUNT)
 
                 except Exception, e:
 
@@ -113,9 +120,6 @@ class QueryParser(resource.Resource):
 
                 if config.debug: print "%s.%s records=>[%s]" % (db,tbl,records)
 
-            db_pntr.free()
-            db_pntr.close()
-
         for db in remove:
             print "Removing %s from dbcentral object" % db
             try:
@@ -127,13 +131,13 @@ class QueryParser(resource.Resource):
 
         if not self.db.list(): sys.exit('\n\nNo good databases to work with! QUIT NOW! (run with -v or -V for more info)\n\n')
 
-        """
-        At this point we can start the reactor.
-        Load the rest after the reactor is running.
-        I want to run the rest in a separate thread 
-        and all functions synchronously. 
-        Each function on a different PID to avoid db access problems.
-        """
+        #
+        #At this point we can start the reactor.
+        #Load the rest after the reactor is running.
+        #I want to run the rest in a separate thread 
+        #and all functions synchronously. 
+        #Each function on a different PID to avoid db access problems.
+        #
         reactor.callWhenRunning(reactor.callInThread,self._init)
 
     #}}}
@@ -141,18 +145,18 @@ class QueryParser(resource.Resource):
     def _init(self):
     #{{{
 
-        """
-        Initialize Classes
-        """
+        #
+        # Initialize Classes
+        #
         if config.debug: print 'Load class evdata.Stations(%s)' % self.dbname
         self.stations = evdata.Stations(self.db)
 
         if config.debug: print 'Load class evdata.Events(%s)' % self.dbname
         self.events = evdata.Events(self.db)
 
-        """
-        Default configuration for template.html
-        """
+        #
+        # Default configuration for template.html
+        #
         self.tvals = {
             "filters":           '<option value="None">None</option>',
             "dbname":            self.dbname,
@@ -175,38 +179,78 @@ class QueryParser(resource.Resource):
         else:
             self.tvals['display_points'] = ''
 
-        self.tvals['event_controls'] = ' \
-            <p>Get time from event list:</p> \
-            <input type="submit" id="load_events" value="Show Events"/> '
+        #
+        # Test for event support
+        #
+        records = 0
+        for dbname in sorted(self.db.list()):
+
+            #
+            # Test database access. 
+            #
+            try:
+                db = datascope.dbopen( dbname , "r" )
+
+            except Exception, e:
+                continue
+
+            else:
+                config.dbpointers.append(db)
+
+            try:
+                db.lookup( table='origin' )
+                r = db.query(datascope.dbRECORD_COUNT)
+            except:
+                r = 0
+
+            if r > records: records = r 
+
+
+        if records: 
+            self.tvals['event_controls'] = ' \
+                <p>Get time from event list:</p> \
+                <input type="submit" id="load_events" value="Show Events"/> '
+        else:
+            self.tvals['event_controls'] = ''
 
         if config.debug: print 'Done loading clases for reactor.'
         config.loading = False
 
-        """
-        Update Thread Pool
-        """
-        self.tp = reactor.getThreadPool()
+        #
+        # Init object to clean dbpointers later
+        #
+        self.clean = reactor.callLater(10, self.dbclean)
 
-        if config.debug: 
-            print 'Actual Thread Pool.'
-            self.tp.dumpStats()
+        #
+        # Update Thread Pool
+        #
 
-        #reactor.suggestThreadPoolSize(30)
-        self.tp.adjustPoolsize(20,20)
+        # **** This call works everywhere
+        reactor.suggestThreadPoolSize(20)
+
+        # **** This call is not working on Solaris
+        #self.tp = reactor.getThreadPool()
+        #if config.debug: 
+        #    print 'Actual Thread Pool.'
+        #    self.tp.dumpStats()
+        #self.tp.adjustPoolsize(20,20)
+        #if config.debug: 
+        #    print 'New Thread Pool.'
+        #    self.tp.dumpStats()
 
 
-        if config.debug: 
-            print 'New Thread Pool.'
-            self.tp.dumpStats()
-
-
+        #
+        # Test to build our own threadpool
+        #
         #self.thread_pool = ThreadPool(20,20)
         #self.thread_pool.start()
         #reactor.addSystemEventTrigger('after', 'shutdown', self.thread_pool.stop)
 
+        #
+        # Test to see if the reactor gets
+        # a blocking call
+        #
         #if config.debug: reactor.callLater(.1, self.running_test)
-
-        self.clean = reactor.callLater(10, self.dbclean)
 
 #}}}
 
@@ -395,171 +439,162 @@ class QueryParser(resource.Resource):
         return self
     #}}}
 
-#    def coverage(self, params=None, stations=None):
-#    #{{{
-#
-#        #
-#        #Get list of segments of data for the respective station and channel
-#        #
-#        sta_str  = ''
-#        chan_str = ''
-#        res_data = defaultdict(lambda: defaultdict(defaultdict))
-#
-#        res_data.update( {'type':'coverage'} )
-#        res_data.update( {'format':'cov-bars'} )
-#
-#
-#        #
-#        # Build dictionary to store data
-#        #
-#        #   We need to build this to be clear to the application
-#        #   that some stations may have no data.
-#        for sta in res_data['sta']:
-#
-#            for chan in params['chan']:
-#
-#                if chan in stations.channels(sta):
-#
-#                    res_data[sta][chan] = {}
-#
-#
-#        dbs = self.db()
-#
-#        for dbptr in dbs:
-#
-#            #if config.debug:
-#            #    log.msg("Testing %s" % db)
-#            #    log.msg("\ttimes for db")
-#            #    log.msg("\tdbs[db]['start'] = %s" % dbs[db]['start'])
-#            #    log.msg("\tdbs[db]['end'] = %s" % dbs[db]['end'])
-#            #    log.msg("\ttimes for request")
-#            #    log.msg("\tparams['time_start'] = %s" % params['time_start'])
-#            #    log.msg("\tparams['time_end'] = %s" % params['time_end'])
-#
-#            #if 'time_start' in params:
-#
-#            #    if _isNumber(dbs[db]['end']) < _isNumber(params['time_start']): continue
-#
-#            #if 'time_end' in params:
-#
-#            #    if _isNumber(dbs[db]['start']) > _isNumber(params['time_end']): continue
-#
-#            #if config.debug: log.msg("Database matched query times...")
-#
-#            #
-#            # Start wfdisc query
-#            #
-#            #dbptr = dbs[db]['pointer']
-#
-#            dbptr.lookup( table='wfdisc' )
-#
-#            # Subset wfdisc for stations
-#            if 'sta' in params:
-#
-#                sta_str  = "|".join(str(x) for x in params['sta'])
-#                dbptr.subset("sta =~/%s/" % sta_str)
-#                if config.debug: log.msg("\n\nCoverage subset on sta =~/%s/ " % sta_str)
-#
-#            # Subset wfdisc for channels
-#            if 'chan' in params:
-#
-#                chan_str  = "|".join(str(x) for x in params['chan'])
-#                dbptr.subset("chan =~/%s/" % chan_str)
-#                if config.debug: log.msg("\n\nCoverage subset on chan =~/%s/ " % chan_str)
-#
-#            # Subset wfdisc for start_time
-#            if 'time_start' in params:
-#
-#                res_data.update( {'time_start':params['time_start']} )
-#                dbptr.subset("endtime >= %s" % params['time_start'])
-#                if config.debug: log.msg("\n\nCoverage subset on time >= %s " % params['time_start'])
-#
-#            # Subset wfdisc for end_time
-#            if 'time_end' in params:
-#
-#                res_data.update( {'time_end':params['time_end']} )
-#                dbptr.subset("time <= %s" % params['time_end'])
-#                if config.debug: log.msg("\n\nCoverage subset on time_end <= %s " % params['time_end'])
-#
-#            if not dbptr.query(datascope.dbRECORD_COUNT):
-#
-#                _error('No records for: %s' %  params, res_data)
-#                continue
-#
-#            # If no start time on request... use min in subset
-#            if not 'time_start' in res_data:
-#
-#                min = dbptr.ex_eval('min(time)')
-#
-#                if not res_data['time_start']:
-#
-#                    res_data['time_start'] = min
-#
-#                elif min < res_data['time_start']:
-#
-#                    res_data['time_start'] = min
-#
-#            # If no end time on request... use max in subset
-#            if not 'time_end' in res_data:
-#
-#                max = dbptr.ex_eval('max(endtime)')
-#
-#                if not res_data['time_end']:
-#
-#                    res_data['time_end'] = max
-#
-#                elif max > res_data['time_end']:
-#
-#                    res_data['time_end'] = max
-#
-#
-#            for i in range(dbptr.query(datascope.dbRECORD_COUNT)):
-#
-#                dbptr.record = i
-#
-#                try:
-#
-#                    (this_sta,this_chan,time,endtime) = dbptr.getv('sta','chan','time','endtime')
-#
-#                except Exception,e:
-#
-#                    _error("Eventdata: Problem in getv(): %s" % e)
-#
-#                if not this_sta in res_data['sta']:
-#
-#                    res_data['sta'].append(this_sta)
-#
-#                if not this_chan in res_data['chan']:
-#
-#                    res_data['chan'].append(this_chan)
-#
-#                if config.debug: log.msg("Now with: (%s,%s,%s,%s)" % (this_sta,this_chan,time,endtime) )
-#
-#                if this_sta not in res_data:
-#
-#                    res_data[this_sta] = {}
-#
-#                if this_chan not in res_data[this_sta]:
-#
-#                    res_data[this_sta][this_chan] = {}
-#
-#                if 'data' not in res_data[this_sta][this_chan]:
-#
-#                    res_data[this_sta][this_chan]['data'] = []
-#
-#                try:
-#                    res_data[this_sta][this_chan]['data'].append([time,endtime])
-#                except:
-#                    _error("Eventdata: Problem adding data to dictionary: [%s,%s] %s" % (time,endtime,e))
-#
-#        return res_data
-#    #}}}
-#
+    def coverage(self, station=None, channel=None, start=0, end=0):
+    #{{{
+
+        if config.debug: log.msg("coverage(): %s.%s [%s,%s]" % (station,channel,start,end))
+
+        #
+        #Get list of segments of data for the respective station and channel
+        #
+        sta_str  = ''
+        chan_str = ''
+        res_data = defaultdict(lambda: defaultdict(defaultdict))
+
+        res_data.update( {'type':'coverage'} )
+        res_data.update( {'format':'cov-bars'} )
+        res_data.update( {'sta':[]} )
+        res_data.update( {'chan':[]} )
+
+        #
+        # Build dictionary to store data
+        #
+        #   We need to build this to be clear to the application
+        #   that some stations may have no data.
+        for sta in station:
+
+            for chan in channel: 
+
+                if chan in self.stations(sta):
+
+                    res_data[sta][chan] = {}
+
+        if not start: 
+            dbname = self.db( stock.now() )
+        else: 
+            dbname = self.db(start)
+
+        if config.debug: log.msg("coverage(): db:%s" % dbname)
+
+        try:
+            db = datascope.dbopen( dbname, 'r' )
+            db.lookup( table='wfdisc' )
+
+        except Exception, e:
+            del db
+            log.msg('Loading: %s.wfdisc => [%s]' % (dbname,e) )
+            response_data['error'] = 'Loading: %s.wfdisc => [%s]' % (dbname,e)
+
+        else:
+            config.dbpointers.append(db)
+
+        # Subset wfdisc for stations
+        if station:
+
+            sta_str  = "|".join(str(x) for x in station)
+            db.subset("sta =~/%s/" % sta_str)
+            if config.debug: log.msg("\n\nCoverage subset on sta =~/%s/ " % sta_str)
+
+        # Subset wfdisc for channels
+        if channel:
+
+            chan_str  = "|".join(str(x) for x in channel)
+            db.subset("chan =~/%s/" % chan_str)
+            if config.debug: log.msg("\n\nCoverage subset on chan =~/%s/ " % chan_str)
+
+        # Subset wfdisc for start_time
+        if start:
+
+            res_data.update( {'time_start':start} )
+            db.subset("endtime >= %s" % start)
+            if config.debug: log.msg("\n\nCoverage subset on time >= %s " % start)
+
+        else:
+            # If no start time on request... use min in subset
+            min = db.ex_eval('min(time)')
+
+            if not res_data['time_start']:
+                res_data['time_start'] = min
+
+            elif min < res_data['time_start']:
+                res_data['time_start'] = min
+
+        # Subset wfdisc for end_time
+        if end:
+
+            res_data.update( {'time_end':end} )
+            db.subset("time <= %s" % end)
+            if config.debug: log.msg("\n\nCoverage subset on time_end <= %s " % end)
+
+        else:
+            # If no end time on request... use max in subset
+            max = dbptr.ex_eval('max(endtime)')
+
+            if not res_data['time_end']:
+                res_data['time_end'] = max
+
+            elif max > res_data['time_end']:
+                res_data['time_end'] = max
+
+        try:
+            records = db.query(datascope.dbRECORD_COUNT)
+        except:
+            records = 0
+
+        if not records:
+
+            log.msg('No records for: [%s,%s,%s,%s]' %  (station,channel,start,end))
+            return res_data
+
+        for i in range(records):
+
+            db.record = i
+
+            try:
+
+                (this_sta,this_chan,time,endtime) = db.getv('sta','chan','time','endtime')
+
+            except Exception,e:
+
+               log.msg("coverage(): Problem in getv(): %s" % e)
+
+            else:
+
+                if not this_sta in res_data['sta']:
+
+                    res_data['sta'].append(this_sta)
+
+                if not this_chan in res_data['chan']:
+
+                    res_data['chan'].append(this_chan)
+
+                if config.debug: log.msg("coverage() db.getv: (%s,%s,%s,%s)" % (this_sta,this_chan,time,endtime) )
+
+                #if this_sta not in res_data:
+
+                #    res_data[this_sta] = {}
+
+                #if this_chan not in res_data[this_sta]:
+
+                #    res_data[this_sta][this_chan] = {}
+
+                if 'data' not in res_data[this_sta][this_chan]:
+
+                    res_data[this_sta][this_chan]['data'] = []
+
+                try:
+                    res_data[this_sta][this_chan]['data'].append([time,endtime])
+                except:
+                    log.msg("coverage(): Problem adding data to dictionary: [%s,%s] %s" % (time,endtime,e))
+
+        return res_data
+    #}}}
+
     def get_data(self,station,channel,start,end,filter=None):
         # {{{
-        """
-        Return points or bins of data for query
-        """
+        #
+        # Return points or bins of data for query
+        #
 
         if config.debug: log.msg("get_data(): %s.%s [%s,%s]" % (station,channel,start,end))
 
@@ -603,25 +638,21 @@ class QueryParser(resource.Resource):
         dbname = self.db(start)
         if config.debug: log.msg("get_data(): db:%s" % dbname)
 
-        #if config.debug: log.msg('From get_data(): os.getpid() => [%s]' % os.getpid() )
-
         try:
             db = datascope.dbopen( dbname, 'r' )
             db.lookup( table='wfdisc' )
             records = db.query(datascope.dbRECORD_COUNT)
+
         except Exception, e:
             del db
             log.msg('Loading: %s.wfdisc => [%s]' % (dbname,e) )
             response_data['error'] = 'Loading: %s.wfdisc => [%s]' % (dbname,e)
-        else:
 
-            #
-            # Track pointers in array
-            #
+        else:
             config.dbpointers.append(db)
 
-            if True: log.msg('get_data(): pid:[%s] pntr:[%s,%s,%s,%s]' % (os.getpid(),db.database,db.table,db.field,db.record))
-            log.msg('Data: get_samples(%s,%s,%s,%s,%s,%s)' % (station,channel,start,end,binsize,filter) )
+            if config.debug: log.msg('get_data(): pid:[%s] pntr:[%s,%s,%s,%s]' % (os.getpid(),db.database,db.table,db.field,db.record))
+            if config.debug: log.msg('Data: get_samples(%s,%s,%s,%s,%s,%s)' % (station,channel,start,end,binsize,filter) )
 
             try:
                 if binsize:
@@ -853,6 +884,9 @@ class QueryParser(resource.Resource):
                     Return JSON object of data. For client ajax calls.
                     Use risp to run func on different PID.
                     """
+                    #
+                    # Test to see how many blocking calls we can handle...
+                    #
                     #log.msg('Start sleep(5)')
                     #sleep(5)
                     #log.msg('End sleep(5)')
@@ -860,7 +894,6 @@ class QueryParser(resource.Resource):
 
                     query = self._parse_request(path)
 
-                    #return json.dumps( risp.risp_s(102400,self.get_data,query['sta'],query['chan'],query['start'],query['end'],query['filter']) )
                     return json.dumps( self.get_data(query['sta'],query['chan'],query['start'],query['end'],query['filter']) )
 
                 #}}}
@@ -873,7 +906,7 @@ class QueryParser(resource.Resource):
 
                     query = self._parse_request(path)
 
-                    return json.dumps(self.data.coverage(query,self.stations))
+                    return json.dumps( self.coverage(query['sta'],query['chan'],query['start'],query['end']) )
 
                 #}}}
 
@@ -1022,11 +1055,20 @@ class QueryParser(resource.Resource):
         #
         # Stop processing requests and clean the db pointers
         #
-        if config.verbose: log.msg('Start cleaning.')
+        if config.locked:
+            #
+            # Maybe we have a sub-class building 
+            # or updating the cache data objects...
+            # 
+            if config.debug: log.msg('Deferred cleaning for later.')
+            self.clean = reactor.callLater(10, self.dbclean)
+            return 
+
+        if config.debug: log.msg('Start cleaning.')
         config.locked = True
 
         for db in config.dbpointers:
-            if config.verbose: log.msg('cleaning pntr:[%s,%s,%s,%s]' % (db.database,db.table,db.field,db.record))
+            if config.debug: log.msg('cleaning pntr:[%s,%s,%s,%s]' % (db.database,db.table,db.field,db.record))
             try:
                 db.free()
                 db.close()
@@ -1036,9 +1078,9 @@ class QueryParser(resource.Resource):
         config.dbpointers = []
             
         config.locked = False
-        if config.verbose: log.msg('End cleaning.')
+        if config.debug: log.msg('End cleaning.')
         
-        #self.clean = reactor.callLater(10, self.dbclean)
+        self.clean = reactor.callLater(3600, self.dbclean)
     #}}}
 
 #}}}

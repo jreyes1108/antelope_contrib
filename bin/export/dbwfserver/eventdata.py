@@ -86,8 +86,13 @@ class db_nulls():
 
         try:
             db = datascope.dbopen( dbname , "r" )
+
         except Exception, e:
             sys.exit('\n\nERROR: dbopen(%s)=>(%s)\n\n' % (dbname,e) )
+
+        else:
+            config.dbpointers.append(db)
+
 
 
         if config.debug: log.msg("Class Db_Nulls: db: %s" % db)
@@ -120,11 +125,6 @@ class db_nulls():
 
                     if config.debug: log.msg("\tClass Db_Nulls: table:[%s] field(%s):[%s]" % (table,field,self.null_vals[field]))
 
-        try:
-            db.close()
-        except:
-            pass
-
     #}}}
 
 #}}}
@@ -155,7 +155,7 @@ class Stations():
         self._running_loop = False
         #stachan_loop = LoopingCall(reactor.callInThread,self._inThread)
         stachan_loop = LoopingCall(deferToThread,self._inThread)
-        stachan_loop.start(3600,now=True)
+        stachan_loop.start(120,now=True)
 
     #}}}
 
@@ -165,16 +165,24 @@ class Stations():
             log.msg("Class Stations: Update taking longer than loop restart time...")
             return 
 
+        #
+        # Wait if we are cleaning dbpointers
+        #
+        while config.locked: pass
+
         if config.debug: log.msg("Class Stations: Update class object...")
         self._running_loop = True
+        config.locked = True
 
         try:
-            self.stachan_cache = risp.risp_s(10485760,self._get_stachan_cache)
+            #self.stachan_cache = risp.risp_s(10485760,self._get_stachan_cache)
+            self.stachan_cache = self._get_stachan_cache()
         except Exception, e:
                 print '\nERROR: Events._inThread() => (%s)' % e
 
         if config.debug: log.msg("Class Stations: Done updating class object...")
         self._running_loop = False
+        config.locked = False
         self.loading = False
 
     #}}}
@@ -249,15 +257,16 @@ class Stations():
             # On the first part just get the names and pass them down to the object
             #
             try:
-
                 db = datascope.dbopen( dbname , 'r' )
                 db.lookup( table='wfdisc')
                 db.sort(['sta', 'chan'], unique=True)
                 records = db.query(datascope.dbRECORD_COUNT)
 
             except:
-
                 records = 0
+
+            else:
+                config.dbpointers.append(db)
 
 
             if not records: sys.exit('Stations(): ERROR: No records to work on any  table\n\n')
@@ -358,11 +367,6 @@ class Stations():
                             if config.debug: log.msg("Station(): %s.%s[%s,%s]" % (sta,chan,start_day,end_day))
 
                             stachan_cache[sta][chan]['dates'] = [start_day,end_day]
-
-            try:
-                db.close()
-            except:
-                pass
 
         if config.verbose:
             log.msg("Stations(): Updating cache (%s) stations." % len(stachan_cache.keys()))
@@ -565,7 +569,7 @@ class Events():
         self._running_loop = False
         #ev_loop = LoopingCall(reactor.callInThread,self._inThread)
         ev_loop = LoopingCall(deferToThread,self._inThread)
-        ev_loop.start(3600,now=True)
+        ev_loop.start(120,now=True)
 
     #}}}
 
@@ -575,16 +579,24 @@ class Events():
             log.msg("Class Events: Update taking longer than loop restart time...")
             return
 
+        #
+        # Wait if we are cleaning dbpointers
+        #
+        while config.locked: pass
+
         if config.verbose: log.msg("Class Events: Update class object...")
         self._running_loop = True
+        config.locked = True
 
         try:
-            self.event_cache = risp.risp_s(10485760,self._get_event_cache)
+            #self.event_cache = risp.risp_s(10485760,self._get_event_cache)
+            self.event_cache = self._get_event_cache()
         except Exception, e:
                 print '\nERROR: Events._inThread() => (%s)' % e
 
         if config.verbose: log.msg("Class Events: Done updating class object...")
         self._running_loop = False
+        config.locked = False
         self.loading = False
 
     #}}}
@@ -670,14 +682,17 @@ class Events():
             start = 0
 
             try:
-
                 db = datascope.dbopen( dbname , 'r' )
                 db.lookup( table='wfdisc')
                 records = db.query(datascope.dbRECORD_COUNT)
 
             except:
-
                 records = 0
+
+            else:
+                config.dbpointers.append(db)
+
+
 
             if records:
 
@@ -695,11 +710,6 @@ class Events():
 
                 elif data['end'] < end:
                     data['end'] = end
-
-            try:
-                db.close()
-            except:
-                pass
 
         return data
 
@@ -739,19 +749,24 @@ class Events():
             db.query(datascope.dbTABLE_PRESENT) 
         except Exception,e:
             return _error("Exception on Events() time(%s): Error on db pointer %s [%s]" % (orid_time,db,e))
+        else:
+            config.dbpointers.append(db)
+
 
         db.subset( 'time >= %f' % start )
         db.subset( 'time <= %f' % end )
 
         try:
-
             db = datascope.dbopen( dbname , 'r' )
             db.lookup( table='wfdisc' )
             records = db.query(datascope.dbRECORD_COUNT)
 
         except:
-
             records = 0
+
+        else:
+            config.dbpointers.append(db)
+
         if records:
 
             for i in range(records):
@@ -763,10 +778,6 @@ class Events():
                 orid = _isNumber(orid)
                 time = _isNumber(time)
                 results[orid] = time
-        try:
-            db.close()
-        except:
-            pass
 
         return results
 
@@ -788,14 +799,15 @@ class Events():
                 log.msg("Events(): _get_event_cache  db[%s]" % (dbname) )
 
             try:
-
                 db = datascope.dbopen( dbname , 'r' )
                 db.lookup( table='event')
                 records = db.query(datascope.dbRECORD_COUNT)
 
             except:
-
                 records = 0
+
+            else:
+                config.dbpointers.append(db)
 
             if records:
 
@@ -911,11 +923,6 @@ class Events():
                     event_cache[orid]['magnitude'] = '-'
                     event_cache[orid]['mtype'] = '-'
 
-            try:
-                db.close()
-            except:
-                pass
-
 
         if config.verbose:
             log.msg("Events(): Updating cache. (%s)" % len(event_cache))
@@ -945,13 +952,22 @@ class Events():
             db.lookup( table='arrival' )
             db.join( 'assoc' )
             nrecs = db.query(datascope.dbRECORD_COUNT)
+
         except:
             try:
                 db = datascope.dbopen (dbname , 'r' )
                 db.lookup( table='arrival')
                 nrecs = db.query(datascope.dbRECORD_COUNT)
+
             except Exception,e:
                 return _error("Events: Exception on phases(): %s" % e,phases)
+
+            else:
+                config.dbpointers.append(db)
+
+        else:
+            config.dbpointers.append(db)
+
 
         try: 
             nrecs = db.query(datascope.dbRECORD_COUNT)
@@ -982,11 +998,6 @@ class Events():
 
 
             if config.debug: log.msg("Phases(%s):%s" % (StaChan,Phase))
-
-        try:
-            db.close()
-        except:
-            pass
 
         if config.debug:  log.msg("Events: phases(): t1=%s t2=%s [%s]" % (min,max,phases))
 
