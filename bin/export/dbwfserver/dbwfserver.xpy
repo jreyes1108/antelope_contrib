@@ -2,12 +2,11 @@ import re
 import os
 import sys
 import getopt
-import socket
+#import socket
 import platform
-import pprint
 from string import Template
 from collections import defaultdict 
-from time import gmtime, strftime, sleep
+from time import sleep
 
 
 def system_print():
@@ -55,22 +54,6 @@ def missing_twisted():
     print  
 #}}}
 
-def runApp(config):
-    UnixApplicationRunner(config).run()
-
-def run_reactor():
-
-    id = os.getpid()
-
-    if os.path.isdir('./state'):
-        path = './state'
-    else:
-        path = '/tmp'
-
-    ServerOptions.optParameters[1] = ['pidfile','',path+'/dbwfserver_'+str(id)+'.pid','Name of the pidfile']
-    app.run(runApp, ServerOptions)
-
-
 #
 #Try to import Antelope's Python Interface.
 #
@@ -78,17 +61,18 @@ try:
     import antelope.stock as stock
     import antelope.datascope as datascope
 except Exception,e:
+    system_print()
     print "Problem loading Antelope's Python libraries. (%s)" % e
     sys.exit()
 
 try:
     from twisted.python import log
     from twisted.scripts.twistd import run
-    from twisted.internet import reactor, defer, threads
+    from twisted.internet import reactor, defer
     from twisted.internet.task import LoopingCall
     from twisted.application import app, service, internet
     from twisted.internet.threads import deferToThread
-    from twisted.web import resource, server, static, rewrite
+    from twisted.web import resource, server, static
 except Exception,e:
     system_print()
     print "Problem loading Twisted-Python libraries. (%s)" % e
@@ -152,12 +136,6 @@ except Exception,e:
     print "Problem loading dbwfserver's RESOURCE module from contrib code. (%s)" % e
     sys.exit()
 
-#
-# Run the reactor now
-#
-try:
-    from twisted.scripts._twistd_unix import ServerOptions, UnixApplicationRunner 
-except:
-    run()
-else:
-    run_reactor()
+#reactor.run()
+run()
+
