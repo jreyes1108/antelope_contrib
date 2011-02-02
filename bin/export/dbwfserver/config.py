@@ -177,11 +177,11 @@ def configure():
     argv_remap.append("-y")
     argv_remap.append(os.path.join(os.environ['ANTELOPE'], 'local/data/python/dbwfserver/server.py'))
 
-    argv_remap.append("--pidfile")
     if os.path.isdir('./state'):
         pid_path = './state'
     else:
         pid_path = '/tmp'
-    argv_remap.append( pid_path+'/dbwfserver_'+str(id)+'.pid' )
+    argv_remap.append("--pidfile")
+    argv_remap.append( pid_path+'/dbwfserver_'+str(os.getpid())+'.pid' )
 
     return argv_remap

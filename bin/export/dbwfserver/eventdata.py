@@ -269,7 +269,7 @@ class Stations():
                 config.dbpointers.append(db)
 
 
-            if not records: sys.exit('Stations(): ERROR: No records to work on any  table\n\n')
+            if not records: stock.elog_die('Stations(): ERROR: No records to work on any  table\n\n')
 
             for j in range(records):
 

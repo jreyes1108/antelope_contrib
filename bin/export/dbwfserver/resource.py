@@ -114,7 +114,7 @@ class QueryParser(resource.Resource):
                     if tbl == 'wfdisc': remove.append(db)
 
                 if not records and tbl == 'wfdisc':
-                    print '\nERROR: %s.%s( dbRECORD_COUNT )=>(%s) Empty table!!!!' % (db,tbl,e)
+                    print '\nERROR: %s.%s( dbRECORD_COUNT )=>(%s) Empty table!!!!' % (db,tbl,records)
                     remove.append(db)
                     continue
 
