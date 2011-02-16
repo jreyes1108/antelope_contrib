@@ -32,15 +32,6 @@ antelope        &env(ANTELOPE)
 #jquery_dir &datafilename(www/dbwfserver/static/jquery)
 #static_dir &datafilename(www/dbwfserver/static)
 
-jquery_files &Tbl{
-    /static/jquery/jquery.cookie.js
-    /static/jquery/excanvas.pack.js
-    /static/jquery/jquery.flot.min.js
-    /static/jquery/jquery.flot-selection.min.js
-    /static/jquery/jquery.hotkeys-0.7.8-packed.js
-    /static/jquery/jquery.tablesorter-2.0.3.min.js
-}
-
 display_tracebacks False 
 
 apply_calib True
@@ -48,6 +39,13 @@ apply_calib True
 display_arrivals True
 
 display_points False
+
+jquery_ui_style dark-hive       #options { base, black-tie, blitzer, cupertino, 
+                                #           dark-hive, dot-luv, eggplant, excite-bike
+                                #           flick, hot-sneaks, humanity, le-frog, 
+                                #           mint-choc, overcast, pepper-grinder, redmond,
+                                #           smoothness, south-street, start, sunny, swanky-purse,
+                                #           trontastic, ui-darkness, ui-lightness and vader  }
 
 import_paths &Tbl{
     /opt/antelope/5.0-64/local/data

@@ -478,16 +478,19 @@ class Stations():
         stations = []
         keys = {} 
 
-        while True:
-            try:
-                list.remove('')
-            except:
-                break
+        #while True:
+        #    try:
+        #        list.remove('')
+        #    except:
+        #        break
 
         for test in list:
-            for sta in self.stachan_cache:
-                if re.search(test, sta): 
-                    stations.append(sta)
+
+            if re.search('^\w*$', test): 
+                stations.extend([x for x in self.stachan_cache if x == test])
+
+            else:
+                stations.extend([x for x in self.stachan_cache if re.search(test,x)])
 
         for s in stations: 
             keys[s] = 1 
@@ -509,33 +512,43 @@ class Stations():
     #{{{ get list of stations for the query
 
         channels = []
+        station_list = self.convert_sta(stations)
         keys = {} 
 
-        while True:
-            try:
-                stations.remove('')
-            except:
-                break
+        #while True:
+        #    try:
+        #        stations.remove('')
+        #    except:
+        #        break
 
-        while True:
-            try:
-                list.remove('')
-            except:
-                break
+        #while True:
+        #    try:
+        #        list.remove('')
+        #    except:
+        #        break
+
 
         for test in list:
-            for sta in self.convert_sta(stations):
-                for chan in self.stachan_cache[sta]:
-                    if re.search(test, chan): 
-                        channels.append(chan)
+            for sta in station_list:
+
+                if re.search('^\w*$', test): 
+
+                    channels.extend([x for x in self.stachan_cache[sta] if x == test])
+
+                else:
+
+                    channels.extend([x for x in self.stachan_cache[sta] if re.search(test,x)])
+
 
         for s in channels: 
             keys[s] = 1 
 
-        if config.verbose:
-            log.msg("Stations(): convert_chan(%s,%s) => %s" % (stations,list,keys.keys()))
+        channels = keys.keys()
 
-        return keys.keys()
+        if config.verbose:
+            log.msg("Stations(): convert_chan(%s,%s) => %s" % (stations,list,channels))
+
+        return channels
 
     #}}}
 

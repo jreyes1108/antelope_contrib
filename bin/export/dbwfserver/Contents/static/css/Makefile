@@ -1,7 +1,6 @@
 DATADIR = www/dbwfserver/static/css
 
 DATA = dbwfserver.css \
-		jquery-ui-1.8.5.custom.css
 
 ANTELOPEMAKELOCAL = $(ANTELOPE)/local/include/antelopemake.local
 

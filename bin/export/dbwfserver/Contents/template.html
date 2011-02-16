@@ -9,16 +9,34 @@
 
     <script src="http://www.google.com/jsapi" language="javascript" type="text/javascript"></script>
     <script language="javascript" type="text/javascript">
-    google.load("jquery", "1.4.2" ); // Load jQuery
-    google.load("jqueryui", "1.8.5" ); // Load jQuery UI
+        //google.load("jquery", "1.5.0",{uncompressed:true} ); // Load jQuery
+        //google.load("jqueryui", "1.8.9",{uncompressed:true} ); // Load jQuery UI
+        google.load("jquery", "1.5.0"); // Load jQuery
+        google.load("jqueryui", "1.8.9"); // Load jQuery UI
     </script>
 
-    $jquery_includes
+    <script type="text/javascript" src="/static/jquery/jquery.cookie.js"></script>
+
+    <script type="text/javascript" src="/static/jquery/excanvas.pack.js"></script>
+
+    <script type="text/javascript" src="/static/jquery/jquery.flot.min.js"></script>
+
+    <script type="text/javascript" src="/static/jquery/jquery.flot-selection.min.js"></script>
+
+    <script type="text/javascript" src="/static/jquery/jquery.hotkeys-0.8.js"></script>
+
+    <script type="text/javascript" src="/static/jquery/jquery.tablesorter-2.0.3.min.js"></script>
 
     <script type="text/javascript" src="/static/jquery/dbwfserver.js"></script>
 
     <link rel="stylesheet" type="text/css" href="/static/css/dbwfserver.css">
-    <link rel="stylesheet" type="text/css" href="/static/css/jquery-ui-1.8.5.custom.css">
+
+    <link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.9/themes/$style/jquery-ui.css">
+
+    <style>
+        .ui-widget { font-size: 0.6em; }
+    </style>
+
 
 </head>
 
@@ -28,7 +46,7 @@
 
 <!--{{{ CONTENT -->
 
-    <div id="loading"></div>
+<div id="loading"></div>
 
     <!--{{{ HELP TAB -->
 

@@ -9,6 +9,7 @@ def usage():
 def configure():
 
     global dbpointers
+    global style
     global locked
     global pfname
     global application_name
@@ -31,7 +32,6 @@ def configure():
     global debug
     global daemonize
     global import_paths
-    global jquery_files
     global default_chans
     global default_time_window
     global filters
@@ -41,6 +41,7 @@ def configure():
     dbpointers          = []
     locked              = False
     pfname              = 'dbwfserver'
+    style               = 'cupertino'
     nickname            = ''
     application_name    = ''
     application_title   = ''
@@ -62,7 +63,6 @@ def configure():
     debug               = False
     daemonize           = False
     import_paths        = ()
-    jquery_files        = ()
     default_chans       = ()
     default_time_window = -1
     filters             = {}
@@ -122,6 +122,7 @@ def configure():
     template            = stock.pfget_string( pfname, "template" )
     plot_template       = stock.pfget_string( pfname, "plot_template" )
     local_data          = stock.pfget_string( pfname, "local_data" )
+    style               = stock.pfget_string( pfname, "jquery_ui_style" )
     antelope            = stock.pfget_string( pfname, "antelope" )
     application_name    = stock.pfget_string( pfname, "application_name" )
     application_title   = stock.pfget_string( pfname, "application_title" )
@@ -129,7 +130,6 @@ def configure():
     display_tracebacks  = stock.pfget_boolean( pfname, "display_tracebacks" )
     display_arrivals    = stock.pfget_boolean( pfname, "display_arrivals" )
     display_points      = stock.pfget_boolean( pfname, "display_points" )
-    jquery_files        = stock.pfget_tbl( pfname, "jquery_files" )
     default_chans       = stock.pfget_tbl( pfname, "default_chans" )
     default_time_window = stock.pfget_tbl( pfname, "default_time_window" )
     filters             = stock.pfget_arr( pfname, "filters" )

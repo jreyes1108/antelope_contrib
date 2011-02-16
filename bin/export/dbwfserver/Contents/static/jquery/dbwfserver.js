@@ -247,7 +247,7 @@ function build_dialog_boxes() {
     $("#loading").dialog({ 
         //{{{
         autoOpen: false,
-        dialogClass: "loading", 
+        dialogClass: "ui-state-error", 
         draggable: false, 
         resizable: false,
         //}}}
@@ -259,7 +259,16 @@ function build_dialog_boxes() {
 function waitingDialog(waiting) { 
     //{{{
 
+    //<div class="ui-widget">
+    //<div class="ui-state-error ui-corner-all" style="padding: 0 .7em;"> 
+    //<p><span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;"></span> 
+    //<strong>Alert:</strong> Sample ui-state-error style.</p>
+
+    //</div>
+    //</div>
+
     $("#loading").html(waiting.message && '' != waiting.message ? waiting.message : 'Please wait...'); 
+    //$("#loading").dialog('option', 'title', waiting.title && '' != waiting.title ? waiting.title : 'Loading').prev().addClass('ui-state-error'); 
     $("#loading").dialog('option', 'title', waiting.title && '' != waiting.title ? waiting.title : 'Loading'); 
     $("#loading").dialog('open'); 
     PlotSelect.isPlotting = true;
@@ -1098,11 +1107,11 @@ PlotSelect = {
             if (resp.phases) {
                 PlotSelect.phases = resp['phases'];
             }
-            console.log(PlotSelect.sta);
-            console.log(PlotSelect.chan);
-            console.log(PlotSelect.traces);
-            console.log(PlotSelect.ts);
-            console.log(PlotSelect.te);
+            //console.log(PlotSelect.sta);
+            //console.log(PlotSelect.chan);
+            //console.log(PlotSelect.traces);
+            //console.log(PlotSelect.ts);
+            //console.log(PlotSelect.te);
         //}}}
         }
 
@@ -1257,11 +1266,11 @@ PlotSelect = {
                             success: function(data) {
                                 if (typeof(data[mysta]) == "undefined" ) { 
                                     PlotSelect.activeQueries -= 1; 
-                                    PlotSelect.traces.mysta.mychan = 'False';
+                                    //PlotSelect.traces.mysta.mychan = 'False';
                                 }
                                 else if (typeof(data[mysta][mychan]) == "undefined" ) { 
                                     PlotSelect.activeQueries -= 1; 
-                                    PlotSelect.traces.mysta.mychan = 'False';
+                                    //PlotSelect.traces.mysta.mychan = 'False';
                                 } else { 
                                     PlotSelect.plotData(mysta,mychan,data[mysta][mychan]);
                                 }
@@ -1311,40 +1320,47 @@ PlotSelect = {
 //{{{
 
         var flot_data = [];
-
-        var name = sta + '_' + chan ; // Create the STA_CHAN data arrays from other response items
+        var name = sta + '_' + chan ;
         var wpr = name+"_wrapper";
         var plt = name+"_plot";
         var wrapper = $("<div>").attr("id",wpr ).attr("class","wrapper");
         var plot = $("<div>").attr("id", plt );
+        var segtype = '-';
+        var calib = 1;
+        PlotSelect.flot_ops.points = {show:false};
+        PlotSelect.flot_ops.bars   = {show:false};
+        PlotSelect.flot_ops.lines  = {show:false};
 
 
+        //
+        // If we don't have plot, then we don't have wrapper div. Build one
+        //
         if ( $("#"+plt).length == 0 ){
-
             $("#"+wpr).append(plot);
-
             $("#"+plt).bind("plotselected", PlotSelect.handleSelect);
-
         }
 
+
         if ( typeof(data['data']) == "undefined" ) { 
-        //{{{
+        //{{{  If we don't have ANY data...
             $("#"+plt).attr("class", "plot_cov");
 
             var canvas = $.plot($("#"+plt),[], PlotSelect.flot_ops);
 
             var arrDiv = $("<div>").css(PlotSelect.NameCss);
 
-            arrDiv.css({ color:'red', left:'30%', top:'5%'});
+            arrDiv.css({ color:PlotSelect.canvasLineColor, left:'30%', top:'5%'});
 
             arrDiv.append('No data in time segment: ('+PlotSelect.ts/1000+','+PlotSelect.te/1000+').');
 
             $("#"+plt).append(arrDiv);
         //}}}
         } else {
-        //{{{
-            if ( typeof(data['format']) == "undefined" ) { 
-                //Here we are plotting coverage bars
+        //{{{ We have some data to plot...
+
+            if ( typeof(data['format']) == "undefined" || data['format'] == 'coverage') { 
+            //{{{  Here we are plotting coverage bars
+
                 $.each( data['data'], function(i,arr) {
 
                     var start_time = parseFloat(arr[0],10) *1000;
@@ -1355,7 +1371,6 @@ PlotSelect = {
 
                 // Set FLOT options
                 // for coverage
-                PlotSelect.flot_ops.lines     = {show:false};
                 PlotSelect.flot_ops.yaxis.ticks = 0;
                 PlotSelect.flot_ops.yaxis.min   = 1;
                 PlotSelect.flot_ops.yaxis.max   = 2;
@@ -1371,24 +1386,22 @@ PlotSelect = {
 
                 var canvas = $.plot($("#"+plt),[ flot_data ], PlotSelect.flot_ops);
 
+            //}}}
             } else if( data['format'] == 'bins' ) {
+            //{{{  Plot bins
 
                 if ( typeof(data['metadata']['segtype']) != "undefined" ) { 
                     var segtype = data['metadata']['segtype'];
-                } else {
-                    var segtype = '-';
                 }
+
                 if ( typeof(data['metadata']['calib']) != "undefined" ) { 
                     var calib = data['metadata']['calib'];
-                } else {
-                    var calib = 1;
+                    if ( calib == 0 || isNaN(calib)  ){ calib = 1; }
                 }
 
-                if ( calib == 0 ){
-                    calib = 1;
-                }
 
                 if ( typeof(PlotSelect.datatypes[segtype]) != "undefined") {
+
                     if (segtype == 'A' ) {
 
                         if (PlotSelect.acceleration == 'G') {
@@ -1407,44 +1420,40 @@ PlotSelect = {
 
                 for ( var i=0, len=data['data'].length; i<len; ++i ){
                     temp_data = data['data'][i];
+                    if ( temp_data[1] == temp_data[2] ) { 
+                        flot_data[i] = [temp_data[0]*1000,temp_data[2]*calib]; 
+                    } else { 
+                        flot_data[i] = [temp_data[0]*1000,temp_data[2]*calib,temp_data[1]*calib]; 
+                    }
                     //if (temp_data[1] == temp_data[2]) { temp_data[2] += .1; }
-                    //if (temp_data[1] == temp_data[2]) { flot_data[i] = [temp_data[0]*1000,temp_data[2]*calib; }
-                    //else{ flot_data[i] =  [temp_data[0]*1000,temp_data[2]*calib,temp_data[1]*calib]; }
-                    flot_data[i] =  [temp_data[0]*1000,temp_data[2]*calib,temp_data[1]*calib];
+                    //flot_data[i] =  [temp_data[0]*1000,temp_data[2]*calib,temp_data[1]*calib];
                 }
 
                 // Set FLOT options
                 // for bars
+                PlotSelect.flot_ops.yaxis.ticks = 4;
                 PlotSelect.flot_ops.xaxis.min   = PlotSelect.ts;
                 PlotSelect.flot_ops.xaxis.max   = PlotSelect.te;
-                PlotSelect.flot_ops.points      = {show:false};
-                PlotSelect.flot_ops.lines       = {show:false};
                 PlotSelect.flot_ops.bars        = {show:true,barWidth:0,align:'center'};
-                PlotSelect.flot_ops.yaxis.ticks = 4;
+                PlotSelect.flot_ops.lines       = {show:true,lineWidth:1,shadowSize:0};
 
                 $("#"+plt).attr("class", "plot");
 
                 var canvas = $.plot($("#"+plt),[ flot_data ], PlotSelect.flot_ops);
-                PlotSelect.activeQueries -= 1; 
 
                 var arrDiv = $("<div>").css(PlotSelect.calibCss).append('[ calib:'+calib+',  segtype:'+segtype+' ]');
                 $('#'+plt).append(arrDiv);
-
+            //}}}
             } else {
+            //{{{  Plot lines
 
                 if ( typeof(data['metadata']['segtype']) != "undefined" ) { 
                     var segtype = data['metadata']['segtype'];
-                } else {
-                    var segtype = '-';
-                }
-                if ( typeof(data['metadata']['calib']) != "undefined" ) { 
-                    var calib = data['metadata']['calib'];
-                } else {
-                    var calib = 1;
                 }
 
-                if ( calib == 0 ){
-                    calib = 1;
+                if ( typeof(data['metadata']['calib']) != "undefined" ) { 
+                    var calib = data['metadata']['calib'];
+                    if ( calib == 0 || isNaN(calib)  ){ calib = 1; }
                 }
 
                 if ( typeof(PlotSelect.datatypes[segtype]) != "undefined") {
@@ -1455,9 +1464,7 @@ PlotSelect = {
                             // "1 g = 9.80665 m/s2" 
                             calib = 1/9806;
                         }
-                        else {
-                            segtype = '(A) => ' + PlotSelect.datatypes[segtype];
-                        }
+                        else { segtype = '(A) => ' + PlotSelect.datatypes[segtype]; }
                     }
                     else {
                         segtype = '(' + segtype + ') => ' + PlotSelect.datatypes[segtype];
@@ -1474,12 +1481,9 @@ PlotSelect = {
                 PlotSelect.flot_ops.xaxis.min   = PlotSelect.ts;
                 PlotSelect.flot_ops.xaxis.max   = PlotSelect.te;
                 if ( PlotSelect.show_points ) { 
-                    PlotSelect.flot_ops.points      = {show:true,lineWidth:1,shadowSize:0};
-                } else { 
-                    PlotSelect.flot_ops.points      = {show:false};
-                }
+                    PlotSelect.flot_ops.points  = {show:true,lineWidth:1,shadowSize:0};
+                } 
                 PlotSelect.flot_ops.lines       = {show:true,lineWidth:1,shadowSize:0};
-                PlotSelect.flot_ops.bars        = {show:false};
                 PlotSelect.flot_ops.yaxis.ticks = 4;
                 PlotSelect.flot_ops.yaxis.min   = null;
                 PlotSelect.flot_ops.yaxis.max   = null;
@@ -1487,10 +1491,10 @@ PlotSelect = {
                 $("#"+plt).attr("class", "plot");
 
                 var canvas = $.plot($("#"+plt),[ flot_data ], PlotSelect.flot_ops);
-                PlotSelect.activeQueries -= 1; 
 
                 var arrDiv = $("<div>").css(PlotSelect.calibCss).append('[ calib:'+calib+',  segtype:'+segtype+' ]');
                 $('#'+plt).append(arrDiv);
+            //}}}
             }
 
         //}}}
@@ -1499,10 +1503,14 @@ PlotSelect = {
         PlotSelect.chan_plot_obj[name] = canvas;
 
         var arrDiv = $("<div>").css(PlotSelect.NameCss).append(name);
+
         $('#'+plt).append(arrDiv);
 
         var arrDiv = $("<div>").attr("id","remove_"+name).css(PlotSelect.IconCss).attr("class","icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>");
+
         $('#'+plt).append(arrDiv);
+
+        PlotSelect.activeQueries -= 1; 
 
         $(function() {
             $("#remove_"+name) .click(function() {

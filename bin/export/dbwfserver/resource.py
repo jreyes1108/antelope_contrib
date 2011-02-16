@@ -161,7 +161,6 @@ class QueryParser(resource.Resource):
             "filters":           '<option value="None">None</option>',
             "dbname":            self.dbname,
             "application_title": config.application_title,
-            "jquery_includes":   self._jquery_includes()
         }
 
         for filter in config.filters:
@@ -254,26 +253,6 @@ class QueryParser(resource.Resource):
 
 #}}}
 
-    def _jquery_includes(self):
-        # {{{
-        jquery_includes = ''
-
-        for jqf in config.jquery_files:
-
-            if(re.match(r'^IE\s+', jqf)):
-
-                re.sub(r'^IE\s+', '', jqf)
-                jquery_includes += '\n\t<!--[if IE]>\n'
-                jquery_includes += '\t\t<script language="javascript" type="text/javascript" src="'
-                jquery_includes += jqf + '"></script>\n\t<![endif]-->\n'
-
-            else:
-
-                jquery_includes += '\n\t<script type="text/javascript" src="' + jqf + '"></script>\n'
-
-        return jquery_includes
-        # }}}
-
     def _parse_request(self,args):
         # {{{
 
@@ -281,17 +260,13 @@ class QueryParser(resource.Resource):
         Strict format for uri:
             localhost/
 
-            localhost/sta
+            localhost/wf/sta
 
-            localhost/sta/time
-            localhost/sta/chan
+            localhost/wf/sta/chan
 
-            localhost/sta/time/time
-            localhost/sta/chan/time
+            localhost/wf/sta/chan/time
 
-            localhost/sta/chan/time/time
-
-            localhost/sta/chan/time/time/filter
+            localhost/wf/sta/chan/time/time
 
             localhost/wf/sta/chan/time/time/filter
 
@@ -312,62 +287,39 @@ class QueryParser(resource.Resource):
         if config.debug: log.msg("_parse_request(): Original URI: %s" % str(args) ) 
 
         uri  = defaultdict()
-        temp = defaultdict(lambda: defaultdict(defaultdict))
+        tendemp = defaultdict(lambda: defaultdict(defaultdict))
+        time_window = config.default_time_window
 
         uri.update( { 
             "sta":[],
             "chan":[],
-            "end":False,
+            "end":0,
             "data":False,
-            "start":False,
+            "start":0,
             "filter":None,
             "time_window":False
         } )
 
-        if len(args) > 0:
-            #
-            # Check for special flags
-            #
-            if 'day' in args:
-                uri['time_window'] = 'day'
-                args.remove('day')
-            elif 'week' in args:
-                uri['time_window'] = 'week'
-                args.remove('week')
-            elif 'month' in args:
-                uri['time_window'] = 'month'
-                args.remove('month')
-
-            if args[0] == 'data':
-                uri['data'] = True
-                args.remove('data')
-                if config.verbose: log.msg("_parse_request(): data query.") 
-                return uri
-
+        if 'data' in args:
+            uri['data'] = True
+            args.remove('data')
+            if config.verbose: log.msg("_parse_request(): data query.") 
+            return uri
 
         # localhost/sta
         if len(args) == 2:
             uri['sta'] = self.stations.convert_sta(args[1].split('-'))
 
-        # localhost/sta/time
         # localhost/sta/chan
         elif len(args) == 3:
             uri['sta'] = self.stations.convert_sta(args[1].split('-'))
-            if isNumber( args[2] ):
-                uri['start'] = args[2]
-            else:
-                uri['chan'] = self.stations.convert_chan(uri['sta'],args[2].split('-'))
+            uri['chan'] = self.stations.convert_chan(uri['sta'],args[2].split('-'))
 
-        # localhost/sta/time/time
         # localhost/sta/chan/time
         elif len(args) == 4:
             uri['sta'] = self.stations.convert_sta(args[1].split('-'))
-            if isNumber( args[2] ):
-                uri['start'] = args[2]
-                uri['end'] = args[3]
-            else:
-                uri['chan'] = self.stations.convert_chan(uri['sta'],args[2].split('-'))
-                uri['start'] = args[3]
+            uri['chan'] = self.stations.convert_chan(uri['sta'],args[2].split('-'))
+            uri['start'] = args[3]
 
         # localhost/sta/chan/time/time
         elif len(args) == 5:
@@ -395,40 +347,69 @@ class QueryParser(resource.Resource):
         #
         # Fix stations
         #
-        if uri['sta']:
-            args[1] = '-'.join(uri['sta'])
-
+        #if uri['sta']:
+        #    args[1] = '-'.join(uri['sta'])
 
         #
-        # Fix times
+        # Fix start
         #
-        if uri['start']: uri['start'] = isNumber(uri['start'])
-
-        if uri['end']: uri['end'] = isNumber(uri['end'])
-
-        if uri['end'] and uri['start']:
-            if config.verbose: log.msg("_parse_request(): Converted URI: %s" % str(uri) ) 
-            return uri
-
-        if uri['time_window']:
-            if uri['time_window'] == 'day': 
+        if uri['start']:
+            if re.search('^\d*$',uri['start']):
+                uri['start'] = isNumber(uri['start'])
+            elif uri['start'] == 'hour': 
+                uri['start'] = 0
+                time_window = 3600
+            elif uri['start'] == 'day': 
+                uri['start'] = 0
                 time_window = 86400
-            elif uri['time_window'] == 'week':
+            elif uri['start'] == 'week':
+                uri['start'] = 0
                 time_window = 604800
-            elif uri['time_window'] == 'month':
+            elif uri['start'] == 'month':
+                uri['start'] = 0
                 time_window = 2629743
             else:
-                time_window = config.default_time_window
-        else:
-            time_window = config.default_time_window
+                uri['start'] = 0
 
-        if not uri['start']:
-            uri['start'] = self.stations.max_time(uri['sta']) - time_window
+        #
+        # Fix end
+        #
+        if uri['end']:
+            if re.search('^\d*$',uri['end']):
+                uri['end'] = isNumber(uri['end'])
+            elif uri['end'] == 'hour': 
+                uri['end'] = 0
+                time_window = 3600
+            elif uri['end'] == 'day': 
+                uri['end'] = 0
+                time_window = 86400
+            elif uri['end'] == 'week':
+                uri['end'] = 0
+                time_window = 604800
+            elif uri['end'] == 'month':
+                uri['end'] = 0
+                time_window = 2629743
+            else:
+                uri['end'] = 0
 
-        if not uri['end']:
+        #
+        # Build missing parts
+        #
+        if not uri['start'] and not uri['end']:
+            uri['end'] = self.stations.max_time(uri['sta'])
+            if not uri['end']: uri['end'] = stock.now()
+            uri['start'] = uri['end'] - time_window
+            uri['end']   = isNumber(uri['end'])
+            uri['start'] = isNumber(uri['start'])
+
+        elif not uri['end']:
             uri['end'] = uri['start'] + time_window
 
+        elif not uri['start']:
+            uri['start'] = uri['end'] - time_window
+
         if config.verbose: log.msg("_parse_request(): Converted URI: %s" % str(uri) ) 
+
 
         return uri
         # }}}
@@ -759,6 +740,7 @@ class QueryParser(resource.Resource):
             "key":               '&mdash;',
             "error":             'false',
             "setupUI":           'false',
+            "style":             config.style,
             "meta_query":        'false'
         } )
 
