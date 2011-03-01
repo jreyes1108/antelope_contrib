@@ -478,18 +478,16 @@ class Stations():
         stations = []
         keys = {} 
 
-        #while True:
-        #    try:
-        #        list.remove('')
-        #    except:
-        #        break
-
         for test in list:
 
             if re.search('^\w*$', test): 
                 stations.extend([x for x in self.stachan_cache if x == test])
 
             else:
+
+                if not re.search('^\^', test): test = '^'+test 
+                if not re.search('\$$', test): test = test+'$'
+
                 stations.extend([x for x in self.stachan_cache if re.search(test,x)])
 
         for s in stations: 
@@ -497,10 +495,6 @@ class Stations():
 
         stations = keys.keys()
         
-        # Limit stations to 4
-        #if len(stations) > 3: 
-        #    stations = stations[:4]
-
         if config.verbose:
             log.msg("Stations(): convert_sta(%s) => %s" % (list,stations))
 
@@ -508,25 +502,12 @@ class Stations():
 
     #}}}
 
-    def convert_chan(self, stations=['.*'], list=['.*']):
+    def convert_chan(self, list=['.*'], stations=['.*']):
     #{{{ get list of stations for the query
 
         channels = []
         station_list = self.convert_sta(stations)
         keys = {} 
-
-        #while True:
-        #    try:
-        #        stations.remove('')
-        #    except:
-        #        break
-
-        #while True:
-        #    try:
-        #        list.remove('')
-        #    except:
-        #        break
-
 
         for test in list:
             for sta in station_list:
@@ -536,6 +517,9 @@ class Stations():
                     channels.extend([x for x in self.stachan_cache[sta] if x == test])
 
                 else:
+
+                    if not re.search('^\^', test): test = '^'+test 
+                    if not re.search('\$$', test): test = test+'$'
 
                     channels.extend([x for x in self.stachan_cache[sta] if re.search(test,x)])
 
@@ -552,7 +536,7 @@ class Stations():
 
     #}}}
 
-    def list(self):
+    def lis(self):
             return self.stachan_cache.keys()
 #}}}
 

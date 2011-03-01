@@ -1,92 +1,17 @@
-html { font-family: Helvetica,Arial,font-size:0.6em;sans-serif;margin:0;padding:0; }
-
-body { margin:0;padding:0;background-color:#DFDFDF; }
-
-/* 
- * 
- * Flot Styles
- * 
- * */
-.wrapper { width:100%;}
-.plot { width:100%;height:200px;cursor:e-resize; }
-.plot_cov { width:100%;height:50px;cursor:e-resize; }
-.tickLabel { font-size:8px;overflow:visible;min-width:30px; }
-.controls { padding:2px;margin:10px; }
-
-
-/* 
- * 
- * Help Tab
- *
- */
-#toppanel { position:absolute;width:100%;z-index:500; }
-
-#helppanel { display:none;background:none repeat scroll 0 0 #333; color:#FFF;font-size:0.85em;padding:25px;padding-top:10px;text-align:left;}
-#helppanel h2 { color:#666;font-size:160%;text-align:center; }
-#helppanel h1 { color:#666;padding:10px;font-size:120%; }
-
-#tab { background: url("/static/images/config_bkgrd.png") repeat-x scroll 0 0 transparent; height:42px;}
-#tab ul { color:#FFF;float:right;font-size:80%;font-weight:bold;line-height:42px;margin:0;}
-#tab ul li {list-style-type:none;float:left;height:42px;}
-#tab ul li.left { background: url("/static/images/config_bkgrd_left.png") no-repeat scroll left 0 transparent;width:30px; }
-#tab ul li.center { background: url("/static/images/config_bkgrd_center.png") repeat-x scroll 0 0 transparent;text-align:left; }
-#tab ul li.right { background: url("/static/images/config_bkgrd_right.png") no-repeat scroll left 0 transparent;width:30px; }
-#tab ul li a {text-decoration:underline; }
-#tab ul li a:hover { color:#C9C9EE; }
-
-
-/* 
- *
- * Config Dialog Box
- *
- */
-#configpanel { display:false;text-align:left;padding:15px; }
-
-#name_path {float:left;width:100%;padding-left:15px;}
-
-
-/* 
- *
- * Buttons in top bar
- *
- */
-#control_bar {padding:5px; float:left;border-bottom: 1px solid #7F7F7F; background-color:#FFF;width:100%;}
-
-
-/* 
- *
- * Plotting area / Gui area for URL creation
- *
- */
-div#subnav { float:left; margin:10px; padding:10px; text-align:left;}
-
-div#subnav ul li { display:inline;padding:5px;margin:0 5px 5px 0;list-style-type:none;float:left;text-align:center; }
-div#subnavcontent {padding:10px;margin:20px;display:none;}
-
-div#event_list { display:none;float:left;width:100%; }
-
-div#wforms { display:none;float:right;width:100%; }
-
-/* Subnavcontent */
-
 /* Select station channels */
 #list .ui-selecting { background: #FECA40; }
 #list .ui-selected { background: #F39814; color: white; }
-#list { float:left;list-style:none; list-style-type:none;margin: 0; padding: 0; }
+#list { list-style-type: none; margin: 0; padding: 0;} 
 #list li { margin: 3px; padding: 1px; list-style:none; list-style-type:none; float: left; min-width: 50px; min-height: 40px; font-size: 1em; text-align: center; }
 
 
-/* Text formatting */
-div#interact p { text-align:center;color:#696969;margin:14px; }
-span#dbname { font-family: Courier, "Courier New", monospace }
-
 /* Event metadata layout */
-div#subnav div#event table#eventTable { font-weight:normal;color:#000;font-size:10px;border:1px solid #C9C9EE;background-color:#FFF; }
-div#subnav div#event table#eventTable tr { background-color:#CDCDEF;padding:3px; }
-div#subnav div#event table#eventTable td { background-color:#CCC;padding:3px; }
+table#eventTable { font-weight:normal;color:#000;font-size:10px;border:1px solid #C9C9EE;background-color:#FFF; }
+table#eventTable tr { background-color:#CDCDEF;padding:3px; }
+table#eventTable td { background-color:#CCC;padding:3px; }
 
-div#subnav table.evListTable { font-weight:normal;color:#000;border:1px solid #C9C9EE;background-color:#FFF;text-transform:capitalize; }
-div#subnav table.evListTable tr { background-color:#CDCDEF;padding:5px; }
-div#subnav table.evListTable td { background-color:#CCC;padding:5px; }
+table.evListTable { font-weight:normal;color:#000;border:1px solid #C9C9EE;background-color:#FFF;text-transform:capitalize; }
+table.evListTable tr { background-color:#CDCDEF;padding:5px; }
+table.evListTable td { background-color:#CCC;padding:5px; }
 
 div#xlabel { text-align:center;margin:20px 0px 20px 40px; }

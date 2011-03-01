@@ -2,6 +2,10 @@ from __main__ import *
 
 for port,db  in config.run_server.items():
 
+    #reverseProxy = proxy.ReverseProxyResource('localhost',int(port),'/test/path/')
+    #root = vhost.NameVirtualHost()
+    #root. addHost( 'localhost', reverseProxy)
+
     root = resource.QueryParser(db)
 
     root.putChild('static', static.File(config.static_dir))
@@ -13,7 +17,7 @@ for port,db  in config.run_server.items():
                                     defaultType='image/vnd.microsoft.icon')
     root.putChild('favicon.ico', favicon)
 
-    site = server.Site(root, logPath=None, timeout=5)
+    site = server.Site(root)
 
     site.displayTracebacks = config.display_tracebacks
 

@@ -2,7 +2,7 @@ import re
 import os
 import sys
 import getopt
-#import socket
+import socket
 import platform
 from string import Template
 from collections import defaultdict 
@@ -72,7 +72,7 @@ try:
     from twisted.internet.task import LoopingCall
     from twisted.application import app, service, internet
     from twisted.internet.threads import deferToThread
-    from twisted.web import resource, server, static
+    from twisted.web import resource, server, static, proxy, vhost
 except Exception,e:
     system_print()
     print "Problem loading Twisted-Python libraries. (%s)" % e

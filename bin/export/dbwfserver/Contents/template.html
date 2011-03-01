@@ -7,31 +7,54 @@
 
     <title>$application_title</title>
 
+    <!--
+
+    Google Libraries API
+        google.load("jqueryui", "1.8.9");
+        google.load("jqueryui", "1.8.9", {uncompressed:true});
+        A truncated version (such as google.load("jqueryui", "1")
+        which loads the most recent version in that branch (in this case, 1.8.2). 
+
+    Using Google jsapi loader to load a css stylesheet
+        google.loader.writeLoadTag(a,b,c)
+            a, can be "script" or "css"
+            b, is the resource href
+            c, is the method used to "include" the link element.
+    -->
+
     <script src="http://www.google.com/jsapi" language="javascript" type="text/javascript"></script>
     <script language="javascript" type="text/javascript">
-        //google.load("jquery", "1.5.0",{uncompressed:true} ); // Load jQuery
-        //google.load("jqueryui", "1.8.9",{uncompressed:true} ); // Load jQuery UI
-        google.load("jquery", "1.5.0"); // Load jQuery
-        google.load("jqueryui", "1.8.9"); // Load jQuery UI
+        google.load("jquery", "1");
+        google.load("jqueryui", "1");
+        google.loader.writeLoadTag("css","http://ajax.googleapis.com/ajax/libs/jqueryui/1/themes/$style/jquery-ui.css", true);
     </script>
+    <!--
 
-    <script type="text/javascript" src="/static/jquery/jquery.cookie.js"></script>
+    Microsoft Ajax CDN (Content Delivery Network)
 
-    <script type="text/javascript" src="/static/jquery/excanvas.pack.js"></script>
+    <script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.5.min.js"></script>  
+    <script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jquery.ui/1.8.8/jquery-ui.min.js"></script>  
+    <link type="text/css" rel="Stylesheet" href="http://ajax.aspnetcdn.com/ajax/jquery.ui/1.8.8/themes/redmond/jquery-ui.css" />
 
-    <script type="text/javascript" src="/static/jquery/jquery.flot.min.js"></script>
+    -->
 
-    <script type="text/javascript" src="/static/jquery/jquery.flot-selection.min.js"></script>
+    <script type="text/javascript" src="$proxy_url/static/jquery/jquery.cookie.js"></script>
 
-    <script type="text/javascript" src="/static/jquery/jquery.hotkeys-0.8.js"></script>
+    <script type="text/javascript" src="$proxy_url/static/jquery/excanvas.pack.js"></script>
 
-    <script type="text/javascript" src="/static/jquery/jquery.tablesorter-2.0.3.min.js"></script>
+    <script type="text/javascript" src="$proxy_url/static/jquery/jquery.flot.min.js"></script>
 
-    <script type="text/javascript" src="/static/jquery/dbwfserver.js"></script>
+    <script type="text/javascript" src="$proxy_url/static/jquery/jquery.flot-selection.min.js"></script>
 
-    <link rel="stylesheet" type="text/css" href="/static/css/dbwfserver.css">
+    <script type="text/javascript" src="$proxy_url/static/jquery/jquery.hotkeys-0.8.js"></script>
 
-    <link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.9/themes/$style/jquery-ui.css">
+    <script type="text/javascript" src="$proxy_url/static/jquery/jquery.tablesorter-2.0.3.min.js"></script>
+
+    <script type="text/javascript" src="$proxy_url/static/jquery/dbwfserver.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="$proxy_url/static/css/dbwfserver.css">
+
+
 
     <style>
         .ui-widget { font-size: 0.6em; }
@@ -46,39 +69,27 @@
 
 <!--{{{ CONTENT -->
 
-<div id="loading"></div>
+    <div id="loading"></div>
+    <div id="list"></div>
+    <div id="event_list"></div>
+
 
     <!--{{{ HELP TAB -->
 
-    <div id="toppanel">
+    <div id="helppanel">
 
-        <div id="helppanel">
-
-            <h2>DBWFSERVER:</h2>
-            <h1>General:</h1>
-            <p>
-            This application visualizes time series data as waveforms. It allows users to interactively explore data collected by a seismic network using the BRTT Antelope Environmental Monitoring System.
-            </p>
-            <h1>Key Interactions:</h1>
-            <p>
-                [zoom in: click-drag]
-                [zoom out: shift-click-drag]
-                [scroll left: left arrow]
-                [scroll right: right arrow] |
-                [reset: click 'r']
-            </p>
-        </div>
-
-        <div id="tab">
-            <ul>
-                <li class="left"></li>
-                <li class="center">
-                    <a class="openhelp" id="help_open">Show Help</a>
-                </li>
-                <li class="right"></li>
-            </ul>
-        </div>
-
+        <h1>General:</h1>
+        <p>
+        This application visualizes time series data as waveforms. It allows users to interactively explore data collected by a seismic network using the BRTT Antelope Environmental Monitoring System.
+        </p>
+        <h1>Key Interactions:</h1>
+        <p>
+            [zoom in: click-drag]
+            [zoom out: shift-click-drag]
+            [scroll left: left arrow]
+            [scroll right: right arrow] |
+            [reset: click 'r']
+        </p>
     </div>
 
     <!--}}} HELP TAB -->
@@ -89,149 +100,307 @@
 
         <h1>Current database:</h1>
         <p>$dbname</p>
-        <!-- Gets contents from javascript -->
 
         <h1>Traces:</h1>
-        <div id="plot_type_wrapper">
-            <!-- Gets contents from javascript -->
+        <div id="plot_size_wrapper">
+            <div class="controls" id="plot_size"> 
+                <input type="radio" id="big" name="wf_size" value="big"/>
+                <label for="big">Big</label> 
+                <input type="radio" id="medium" name="wf_size" value="medium"/>
+                <label for="medium">Medium</label>
+                <input type="radio" id="small" name="wf_size" value="small"/>
+                <label for="small">Small</label>
+            </div>
         </div>
+
+        <br/>
+
+        <div id="plot_type_wrapper">
+            <div class="controls" id="plot_type"> 
+                <input type="radio" id="waveform" name="wf_type" value="waveform"/>
+                <label for="waveform">Waveforms</label> 
+                <input type="radio" id="coverage" name="wf_type" value="coverage"/>
+                <label for="coverage">Coverage</label>
+            </div>
+        </div>
+
+        <br/>
 
         <div class='controls'>
             <label for="phases">Show Phases</label>
             <input type="checkbox" name="phases" id="phases" $display_arrivals />
-            <!-- Gets contents from javascript -->
         </div>
+
+        <br/>
 
         <div class='controls'>
             <label for="points">Show Points</label>
             <input type="checkbox" name="points" id="points" $display_points />
-            <!-- Gets contents from javascript -->
         </div>
 
         <h2>Filters:</h2>
         <div class='controls'>
             <select  name="filter" id="filter">
-            <!-- Gets contents from javascript -->
                 $filters
             </select>
         </div>
 
-        <h2>Color Scheme:</h2>
-        <div class='controls'>
-            <select  id="cs" name="cs">
-                <option value="def">Default</option>
-                <option value="yb">yellow on blue</option>
-                <option value="bw">black on white</option>
-                <option value="yg">yellow on green</option>
-                <option value="wb">white on black</option>
-                <option value="yp">yellow on purple</option>
-                <option value="ob">orange on black</option>
-            </select>
-        </div>
 
         <h2>Timezone:</h2>
         <div id="time_zone_wrapper">
-            <!-- Gets contents from javascript -->
+            <div id="time_zone"> 
+                <input type="radio" id="utc" name="timezone" value="UTC"/>
+                <label for="utc">UTC</label> 
+                <input type="radio" id="local" name="timezone" value="local"/>
+                <label for="local">Local</label>
+            </div>
         </div>
 
         <h2>Acceleration Units:</h2>
         <div id="acceleration">
-            <!-- Gets contents from javascript -->
+            <div class="controls" id="acceleration_type"> 
+                <input type="radio" id="G" name="accel_type" value="G"/>
+                <label for="G">G</label> 
+                <input type="radio" id="SI" name="accel_type" value="SI"/>
+                <label for="SI">nm/sec/sec</label>
+            </div>
+        </div>
+
+
+        <hr/>
+        <h2>Colors:</h2>
+
+        <h3>Background Top Color:</h3>
+        <div class='controls'>
+            <select  id="bg_top_color" name="bg_top_color">
+                <option value="#000000" style="background-color: Black;color: #FFFFFF;">Black</option>
+                <option value="#808080" style="background-color: Gray;">Gray</option>
+                <option value="#A9A9A9" style="background-color: DarkGray;">DarkGray</option>
+                <option value="#D3D3D3" style="background-color: LightGrey;">LightGray</option>
+                <option value="#FFFFFF" style="background-color: White;">White</option>
+                <option value="#7FFFD4" style="background-color: Aquamarine;">Aquamarine</option>
+                <option value="#0000FF" style="background-color: Blue;">Blue</option>
+                <option value="#000080" style="background-color: Navy;color: #FFFFFF;">Navy</option>
+                <option value="#800080" style="background-color: Purple;color: #FFFFFF;">Purple</option>
+                <option value="#FF1493" style="background-color: DeepPink;">DeepPink</option>
+                <option value="#EE82EE" style="background-color: Violet;">Violet</option>
+                <option value="#FFC0CB" style="background-color: Pink;">Pink</option>
+                <option value="#006400" style="background-color: DarkGreen;color: #FFFFFF;">DarkGreen</option>
+                <option value="#008000" style="background-color: Green;color: #FFFFFF;">Green</option>
+                <option value="#9ACD32" style="background-color: YellowGreen;">YellowGreen</option>
+                <option value="#FFFF00" style="background-color: Yellow;">Yellow</option>
+                <option value="#FFA500" style="background-color: Orange;">Orange</option>
+                <option value="#FF0000" style="background-color: Red;">Red</option>
+                <option value="#A52A2A" style="background-color: Brown;">Brown</option>
+                <option value="#DEB887" style="background-color: BurlyWood;">BurlyWood</option>
+                <option value="#F5F5DC" style="background-color: Beige;">Beige</option>
+            </select>
+        </div>
+
+        <h3>Background Bottom Color:</h3>
+        <div class='controls'>
+            <select  id="bg_bottom_color" name="bg_bottom_color">
+                <option value="#000000" style="background-color: Black;color: #FFFFFF;">Black</option>
+                <option value="#808080" style="background-color: Gray;">Gray</option>
+                <option value="#A9A9A9" style="background-color: DarkGray;">DarkGray</option>
+                <option value="#D3D3D3" style="background-color: LightGrey;">LightGray</option>
+                <option value="#FFFFFF" style="background-color: White;">White</option>
+                <option value="#7FFFD4" style="background-color: Aquamarine;">Aquamarine</option>
+                <option value="#0000FF" style="background-color: Blue;">Blue</option>
+                <option value="#000080" style="background-color: Navy;color: #FFFFFF;">Navy</option>
+                <option value="#800080" style="background-color: Purple;color: #FFFFFF;">Purple</option>
+                <option value="#FF1493" style="background-color: DeepPink;">DeepPink</option>
+                <option value="#EE82EE" style="background-color: Violet;">Violet</option>
+                <option value="#FFC0CB" style="background-color: Pink;">Pink</option>
+                <option value="#006400" style="background-color: DarkGreen;color: #FFFFFF;">DarkGreen</option>
+                <option value="#008000" style="background-color: Green;color: #FFFFFF;">Green</option>
+                <option value="#9ACD32" style="background-color: YellowGreen;">YellowGreen</option>
+                <option value="#FFFF00" style="background-color: Yellow;">Yellow</option>
+                <option value="#FFA500" style="background-color: Orange;">Orange</option>
+                <option value="#FF0000" style="background-color: Red;">Red</option>
+                <option value="#A52A2A" style="background-color: Brown;">Brown</option>
+                <option value="#DEB887" style="background-color: BurlyWood;">BurlyWood</option>
+                <option value="#F5F5DC" style="background-color: Beige;">Beige</option>
+            </select>
+        </div>
+
+        <h3>Tick Color:</h3>
+        <div class='controls'>
+            <select  id="tick_color" name="tick_color">
+                <option value="#000000" style="background-color: Black;color: #FFFFFF;">Black</option>
+                <option value="#808080" style="background-color: Gray;">Gray</option>
+                <option value="#A9A9A9" style="background-color: DarkGray;">DarkGray</option>
+                <option value="#D3D3D3" style="background-color: LightGrey;">LightGray</option>
+                <option value="#FFFFFF" style="background-color: White;">White</option>
+                <option value="#7FFFD4" style="background-color: Aquamarine;">Aquamarine</option>
+                <option value="#0000FF" style="background-color: Blue;">Blue</option>
+                <option value="#000080" style="background-color: Navy;color: #FFFFFF;">Navy</option>
+                <option value="#800080" style="background-color: Purple;color: #FFFFFF;">Purple</option>
+                <option value="#FF1493" style="background-color: DeepPink;">DeepPink</option>
+                <option value="#EE82EE" style="background-color: Violet;">Violet</option>
+                <option value="#FFC0CB" style="background-color: Pink;">Pink</option>
+                <option value="#006400" style="background-color: DarkGreen;color: #FFFFFF;">DarkGreen</option>
+                <option value="#008000" style="background-color: Green;color: #FFFFFF;">Green</option>
+                <option value="#9ACD32" style="background-color: YellowGreen;">YellowGreen</option>
+                <option value="#FFFF00" style="background-color: Yellow;">Yellow</option>
+                <option value="#FFA500" style="background-color: Orange;">Orange</option>
+                <option value="#FF0000" style="background-color: Red;">Red</option>
+                <option value="#A52A2A" style="background-color: Brown;">Brown</option>
+                <option value="#DEB887" style="background-color: BurlyWood;">BurlyWood</option>
+                <option value="#F5F5DC" style="background-color: Beige;">Beige</option>
+            </select>
+        </div>
+
+        <h3>Text Color:</h3>
+        <div class='controls'>
+            <select  id="text_color" name="text_color">
+                <option value="#000000" style="background-color: Black;color: #FFFFFF;">Black</option>
+                <option value="#808080" style="background-color: Gray;">Gray</option>
+                <option value="#A9A9A9" style="background-color: DarkGray;">DarkGray</option>
+                <option value="#D3D3D3" style="background-color: LightGrey;">LightGray</option>
+                <option value="#FFFFFF" style="background-color: White;">White</option>
+                <option value="#7FFFD4" style="background-color: Aquamarine;">Aquamarine</option>
+                <option value="#0000FF" style="background-color: Blue;">Blue</option>
+                <option value="#000080" style="background-color: Navy;color: #FFFFFF;">Navy</option>
+                <option value="#800080" style="background-color: Purple;color: #FFFFFF;">Purple</option>
+                <option value="#FF1493" style="background-color: DeepPink;">DeepPink</option>
+                <option value="#EE82EE" style="background-color: Violet;">Violet</option>
+                <option value="#FFC0CB" style="background-color: Pink;">Pink</option>
+                <option value="#006400" style="background-color: DarkGreen;color: #FFFFFF;">DarkGreen</option>
+                <option value="#008000" style="background-color: Green;color: #FFFFFF;">Green</option>
+                <option value="#9ACD32" style="background-color: YellowGreen;">YellowGreen</option>
+                <option value="#FFFF00" style="background-color: Yellow;">Yellow</option>
+                <option value="#FFA500" style="background-color: Orange;">Orange</option>
+                <option value="#FF0000" style="background-color: Red;">Red</option>
+                <option value="#A52A2A" style="background-color: Brown;">Brown</option>
+                <option value="#DEB887" style="background-color: BurlyWood;">BurlyWood</option>
+                <option value="#F5F5DC" style="background-color: Beige;">Beige</option>
+            </select>
+        </div>
+
+        <h3>Data Color:</h3>
+        <div class='controls'>
+            <select  id="data_color" name="data_color">
+                <option value="#000000" style="background-color: Black;color: #FFFFFF;">Black</option>
+                <option value="#808080" style="background-color: Gray;">Gray</option>
+                <option value="#A9A9A9" style="background-color: DarkGray;">DarkGray</option>
+                <option value="#D3D3D3" style="background-color: LightGrey;">LightGray</option>
+                <option value="#FFFFFF" style="background-color: White;">White</option>
+                <option value="#7FFFD4" style="background-color: Aquamarine;">Aquamarine</option>
+                <option value="#0000FF" style="background-color: Blue;">Blue</option>
+                <option value="#000080" style="background-color: Navy;color: #FFFFFF;">Navy</option>
+                <option value="#800080" style="background-color: Purple;color: #FFFFFF;">Purple</option>
+                <option value="#FF1493" style="background-color: DeepPink;">DeepPink</option>
+                <option value="#EE82EE" style="background-color: Violet;">Violet</option>
+                <option value="#FFC0CB" style="background-color: Pink;">Pink</option>
+                <option value="#006400" style="background-color: DarkGreen;color: #FFFFFF;">DarkGreen</option>
+                <option value="#008000" style="background-color: Green;color: #FFFFFF;">Green</option>
+                <option value="#9ACD32" style="background-color: YellowGreen;">YellowGreen</option>
+                <option value="#FFFF00" style="background-color: Yellow;">Yellow</option>
+                <option value="#FFA500" style="background-color: Orange;">Orange</option>
+                <option value="#FF0000" style="background-color: Red;">Red</option>
+                <option value="#A52A2A" style="background-color: Brown;">Brown</option>
+                <option value="#DEB887" style="background-color: BurlyWood;">BurlyWood</option>
+                <option value="#F5F5DC" style="background-color: Beige;">Beige</option>
+            </select>
         </div>
 
     </div>
 
     <!-- }}} PANEL -->
 
-    <div id="name_path" class='ui-widget-header'>
+    <div id="name_path" class='ui-corner-all ui-widget-header'>
 
         <h2>$application_title / $dir / $key</h2>
 
     </div>
 
-    <div id="control_bar"> 
+    <div id="control_bar" class='ui-state-highlight ui-corner-all' style="padding: 5px; margin-top: 5px; margin-bottom: 5px"> 
 
-        <button id='home'>Home</button>
-        <button id='openconfig'>Config</button>
+        <button id='home'><span class="ui-icon ui-icon-home" style="float: left; margin-right: 0.3em;"></span>Home</button>
+        <button id='openconfig'><span class="ui-icon ui-icon-gear" style="float: left; margin-right: 0.3em;"></span>Config</button>
+        <button id='openhelp'class='ui-state-error'><span class="ui-icon ui-icon-alert" style="float: left; margin-right: 0.3em;"></span>Help</button>
 
     </div>
                 
-    <div id="subnav">
-
-        <!--{{{ SUB NAV-->
-
-        <div id="list"></div>
-
-        <div id="event_metadata"></div>
-
-        <div id="subnavcontent" class="ui-state-highlight ui-corner-all">
-
-            <div id="station_panel">
-                <h2>Stations:</h2>
-                <input type="text" name="station_string" id="station_string" size="50" value=".*" />
-                <input type="submit" id="load_stas" class="controls" value="Load"/>
-            </div>
-
-            <div id="channel_panel">
-                <h2>Channels:</h2>
-                <input type="text" name="channel_string" id="channel_string" size="50" value=".*" />
-                <input type="submit" id="load_chans" class="controls" value="Load"/>
-            </div>
-
-            <div id="time_panel">
-                <h2>Time Segment:</h2>
-                <label for="start_time">Start time:(epoch)</label>
-                <input type="text" name="start_time" id="start_time" class="datepicker" size="25"/>
-                <label for="end_time">End time:(epoch)</label>
-                <input type="text" name="end_time" id="end_time" class="datepicker" size="25"/>
-            </div>
-
-            <div class="controls">
-                $event_controls
-            </div>
-
-            <div class="controls">
-                <input type="submit" id="plot" value="Plot"/>
-                <input type="submit" id="clear" value="Clear"/>
-            </div>
-
+    <div id="errors" style='margin-top:5px;margin-bottom:5px' class="ui-helper-hidden ui-widget-content ui-corner-all ui-state-error">
+        <div id="remove_error" style="cursor:pointer;position:absolute" class="icons ui-state-dfault ui-corner-all">
+            <span class='ui-icon ui-icon-close'></span>
         </div>
-
-        <div id="event_list"></div>
-
-        <!--}}} SUB NAV-->
-
+        <br />
     </div>
 
-    <div id="wforms"></div>
+    <div id="subnav" class="ui-helper-hidden ui-state-highlight ui-corner-all" style='padding: 10px'>
+    <!--{{{ SUB NAV-->
+
+        <div id="station_panel">
+            <h2>Stations:</h2>
+            <input type="text" name="station_string" id="station_string" size="50" value=".*" />
+            <input type="submit" id="load_stas" class="controls" value="Load"/>
+        </div>
+
+        <div id="channel_panel">
+            <h2>Channels:</h2>
+            <input type="text" name="channel_string" id="channel_string" size="50" value=".*" />
+            <input type="submit" id="load_chans" class="controls" value="Load"/>
+        </div>
+
+        <div id="time_panel">
+            <h2>Time Segment:</h2>
+            <label for="start_time">Start time:</label>
+            <input type="text" name="start_time" id="start_time" class="pickdate" size="25"/>
+            <label for="end_time">End time:</label>
+            <input type="text" name="end_time" id="end_time" class="pickdate" size="25"/>
+        </div>
+
+        <div class="controls">
+            $event_controls
+        </div>
+
+        <div class="controls">
+        <div class='controls ui-state-highlight ui-corner-all' style="padding: 5px; margin: 5px"> 
+            <input type="submit" id="plot" value="Plot"/>
+            <input type="submit" id="clear" value="Clear"/>
+        </div>
+
+    <!--}}} SUB NAV-->
+    </div>
 
 <!--}}} CONTENT -->
 
 </div>
 
+<div id="wforms" class="ui-helper-hidden ui-widget-content ui-corner-all"></div>
+
+
 <script type="text/javascript">
 
-    $(document).ready( PlotSelect.init);
+    $(document).ready( function(){
 
-    $(function(){
+        init();
 
-        var setupUI    =  $setupUI ;
+        var setup_ui    =  $setupUI ;
         var meta_query =  $meta_query ;
         var error      =  $error ;
+        var proxy      =  $proxy;
 
-        if (setupUI) {
-             PlotSelect.setupUI(setupUI);
+        if (proxy ) {
+             build_calendars();
+        }
+
+        if (setup_ui) {
+             setupUI(setup_ui);
         }
 
         if (error) {
-             PlotSelect.errorResponse('parsererror',error);
+             errorResponse('parsererror',error);
         }
 
         if (meta_query) {
-             PlotSelect.setData(meta_query);
+             setData(meta_query);
         }
         else {
-            $("#subnavcontent").show('slow');
+            openSubnav();
         }
 
     });

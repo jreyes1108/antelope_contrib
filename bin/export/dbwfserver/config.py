@@ -37,6 +37,7 @@ def configure():
     global filters
     global run_server
     global nickname
+    global proxy_url
 
     dbpointers          = []
     locked              = False
@@ -52,6 +53,7 @@ def configure():
     local_data          = ''
     antelope            = ''
     dbname              = ''
+    proxy_url           = 'false'
     port                = -1
     binning_threshold   = -1
     canvas_size_default = -1
@@ -126,6 +128,7 @@ def configure():
     antelope            = stock.pfget_string( pfname, "antelope" )
     application_name    = stock.pfget_string( pfname, "application_name" )
     application_title   = stock.pfget_string( pfname, "application_title" )
+    proxy_url           = stock.pfget_string( pfname, "proxy_url" )
     apply_calib         = stock.pfget_boolean( pfname, "apply_calib" )
     display_tracebacks  = stock.pfget_boolean( pfname, "display_tracebacks" )
     display_arrivals    = stock.pfget_boolean( pfname, "display_arrivals" )

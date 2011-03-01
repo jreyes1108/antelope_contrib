@@ -313,25 +313,25 @@ class QueryParser(resource.Resource):
         # localhost/sta/chan
         elif len(args) == 3:
             uri['sta'] = self.stations.convert_sta(args[1].split('-'))
-            uri['chan'] = self.stations.convert_chan(uri['sta'],args[2].split('-'))
+            uri['chan'] = self.stations.convert_chan(args[2].split('-'),uri['sta'])
 
         # localhost/sta/chan/time
         elif len(args) == 4:
             uri['sta'] = self.stations.convert_sta(args[1].split('-'))
-            uri['chan'] = self.stations.convert_chan(uri['sta'],args[2].split('-'))
+            uri['chan'] = self.stations.convert_chan(args[2].split('-'),uri['sta'])
             uri['start'] = args[3]
 
         # localhost/sta/chan/time/time
         elif len(args) == 5:
             uri['sta'] = self.stations.convert_sta(args[1].split('-'))
-            uri['chan'] = self.stations.convert_chan(uri['sta'],args[2].split('-'))
+            uri['chan'] = self.stations.convert_chan(args[2].split('-'),uri['sta'])
             uri['start'] = args[3]
             uri['end'] = args[4]
 
         # localhost/sta/chan/time/time/filter
         elif len(args) == 6:
             uri['sta'] = self.stations.convert_sta(args[1].split('-'))
-            uri['chan'] = self.stations.convert_chan(uri['sta'],args[2].split('-'))
+            uri['chan'] = self.stations.convert_chan(args[2].split('-'),uri['sta'])
             uri['start'] = args[3]
             uri['end'] = args[4]
             uri['filter'] = args[5]
@@ -350,11 +350,12 @@ class QueryParser(resource.Resource):
         #if uri['sta']:
         #    args[1] = '-'.join(uri['sta'])
 
+        log.msg("_parse_request(): test %s %s %s %s" % (uri['sta'], uri['chan'], uri['start'], uri['end']) ) 
         #
         # Fix start
         #
         if uri['start']:
-            if re.search('^\d*$',uri['start']):
+            if isNumber(uri['start']):
                 uri['start'] = isNumber(uri['start'])
             elif uri['start'] == 'hour': 
                 uri['start'] = 0
@@ -375,7 +376,7 @@ class QueryParser(resource.Resource):
         # Fix end
         #
         if uri['end']:
-            if re.search('^\d*$',uri['end']):
+            if isNumber(uri['end']):
                 uri['end'] = isNumber(uri['end'])
             elif uri['end'] == 'hour': 
                 uri['end'] = 0
@@ -486,36 +487,24 @@ class QueryParser(resource.Resource):
         # Subset wfdisc for start_time
         if start:
 
-            res_data.update( {'time_start':start} )
-            db.subset("endtime >= %s" % start)
+            res_data['time_start'] = start
+            db.subset("endtime > %s" % start)
             if config.debug: log.msg("\n\nCoverage subset on time >= %s " % start)
 
         else:
             # If no start time on request... use min in subset
-            min = db.ex_eval('min(time)')
-
-            if not res_data['time_start']:
-                res_data['time_start'] = min
-
-            elif min < res_data['time_start']:
-                res_data['time_start'] = min
+            res_data['time_start'] = db.ex_eval('min(time)')
 
         # Subset wfdisc for end_time
         if end:
 
-            res_data.update( {'time_end':end} )
+            res_data['time_end'] = end
             db.subset("time <= %s" % end)
             if config.debug: log.msg("\n\nCoverage subset on time_end <= %s " % end)
 
         else:
             # If no end time on request... use max in subset
-            max = dbptr.ex_eval('max(endtime)')
-
-            if not res_data['time_end']:
-                res_data['time_end'] = max
-
-            elif max > res_data['time_end']:
-                res_data['time_end'] = max
+            res_data['time_end'] = dbptr.ex_eval('max(endtime)')
 
         try:
             records = db.query(datascope.dbRECORD_COUNT)
@@ -541,6 +530,11 @@ class QueryParser(resource.Resource):
 
             else:
 
+                if config.debug: log.msg("coverage() db.getv: (%s,%s,%s,%s)" % (this_sta,this_chan,time,endtime) )
+
+                if time < start: time = start
+                if end < endtime: endtime = end
+
                 if not this_sta in res_data['sta']:
 
                     res_data['sta'].append(this_sta)
@@ -548,16 +542,6 @@ class QueryParser(resource.Resource):
                 if not this_chan in res_data['chan']:
 
                     res_data['chan'].append(this_chan)
-
-                if config.debug: log.msg("coverage() db.getv: (%s,%s,%s,%s)" % (this_sta,this_chan,time,endtime) )
-
-                #if this_sta not in res_data:
-
-                #    res_data[this_sta] = {}
-
-                #if this_chan not in res_data[this_sta]:
-
-                #    res_data[this_sta][this_chan] = {}
 
                 if 'data' not in res_data[this_sta][this_chan]:
 
@@ -578,6 +562,11 @@ class QueryParser(resource.Resource):
         #
 
         if config.debug: log.msg("get_data(): %s.%s [%s,%s]" % (station,channel,start,end))
+
+        if not station or not channel:
+            log.msg("%s.%s not valid station-channel set" % (station,channel))
+            response_data['error'] = "%s.%s not valid station-channel set" % (station,channel)
+            return response_data
 
         if type(station)==type(list()):
             station = station[0]
@@ -678,8 +667,9 @@ class QueryParser(resource.Resource):
 
         #if config.debug: log.msg('QUERY: %s ' % uri)
 
-        #if config.verbose: (host,port) = uri.getHeader('host').split(':', 1)
-        #if config.verbose: log.msg('Hostname => [%s:%s]'% (host,port))
+        #(host,port) = uri.getHeader('host').split(':', 1)
+        #log.msg('QUERY: %s ' % uri)
+        #log.msg('Hostname => [%s:%s]'% (host,port))
         #log.msg('Host=> [%s]'% uri.host)
         #log.msg('socket.gethostname() => [%s]'% socket.gethostname())
         #log.msg('socket.getsockname() => [%s]'% uri.host.getsockname())
@@ -715,6 +705,8 @@ class QueryParser(resource.Resource):
         d.addErrback( lambda x: uri.finish() )
         reactor.callInThread(d.callback, uri)
 
+        reactor.callLater(30, lambda: uri.finish())
+
         if config.debug: log.msg("Done with defer call. now return server.NOT_DONE_YET")
 
         return server.NOT_DONE_YET
@@ -740,9 +732,13 @@ class QueryParser(resource.Resource):
             "key":               '&mdash;',
             "error":             'false',
             "setupUI":           'false',
+            "proxy":             "''",
+            "proxy_url":         config.proxy_url,
             "style":             config.style,
             "meta_query":        'false'
         } )
+
+        if config.proxy_url: response_meta['proxy'] = "'" + config.proxy_url + "'"
 
         if config.debug:
             log.msg('New query:')
@@ -831,17 +827,19 @@ class QueryParser(resource.Resource):
                     Called with argument return dictionary
                     """
 
-                    if len(path) == 2:
+                    if len(path) == 2: 
+                        return json.dumps( self.stations.convert_sta(path[1].split('-')) )
 
-                        query['sta'] = self.stations.convert_sta(path[1].split('-'))
-
-                        for sta in query['sta']:
-                            response_data[sta] = self.stations(sta)
+                    if len(path) == 3: 
+                        for sta in self.stations.convert_sta(path[1].split('-')):
+                            for chan in self.stations.convert_chan(path[2].split('-')):
+                                if sta not in response_data: response_data[sta] = []
+                                response_data[sta].extend(self.stations.convert_chan([chan],[sta]))
 
                         return json.dumps(response_data)
 
-                    else:
-                        return json.dumps(self.stations.list())
+
+                    return json.dumps(self.stations.convert_sta())
                 #}}}
 
                 elif path[0] == 'channels':
@@ -849,7 +847,10 @@ class QueryParser(resource.Resource):
                     """
                     Return channels list as JSON objects. For client ajax calls.
                     """
-                    return json.dumps(self.stations.channels())
+                    if len(path) == 2:
+                        return json.dumps( self.stations.convert_chan(path[1].split('-')) )
+
+                    return json.dumps(self.stations.convert_chan())
                 #}}}
 
                 elif path[0] == 'filters':
@@ -942,16 +943,20 @@ class QueryParser(resource.Resource):
 
                 response_meta['meta_query'] = defaultdict(lambda: defaultdict(defaultdict))
 
+                response_meta['meta_query']['traces'] = {};
+
                 for sta in query['sta']:
                     temp_dic = self.stations(sta)
-                    if not temp_dic: continue
 
                     for chan in query['chan']:
                         if not chan in temp_dic: continue
-                        #response_meta['meta_query'][sta][chan] = temp_dic[chan]
-                        response_meta['meta_query']['traces'][sta][chan] = 'True'
+
+                        if sta not in response_meta['meta_query']['traces']: response_meta['meta_query']['traces'][sta] = []
+                        response_meta['meta_query']['traces'][sta].extend([chan])
 
 
+                response_meta['meta_query']['sta'] = query['sta']
+                response_meta['meta_query']['chan'] = query['chan']
                 response_meta['meta_query']['time_start'] = query['start']
                 response_meta['meta_query']['time_end'] = query['end']
                 response_meta['meta_query'] = json.dumps( response_meta['meta_query'] )
