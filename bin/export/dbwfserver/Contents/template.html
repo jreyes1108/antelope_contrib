@@ -385,8 +385,10 @@
         var proxy      =  $proxy;
 
         if (proxy ) {
-             build_calendars();
+	     window.proxy = proxy
         }
+
+        build_calendars();
 
         if (setup_ui) {
              setupUI(setup_ui);

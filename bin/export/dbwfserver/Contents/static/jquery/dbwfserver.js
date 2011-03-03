@@ -115,7 +115,7 @@ function init(){
 
     set_click_responses();
 
-    build_calendars();
+    //build_calendars();
 
     varSet();
 
