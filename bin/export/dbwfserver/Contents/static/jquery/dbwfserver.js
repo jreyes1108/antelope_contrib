@@ -973,7 +973,7 @@ function errorResponse(x,e) {
     if(x.status==0){
 
         //alert('You are offline!!\n Please Check Your Network.' + '\n\n' + e);
-        $('#errors').append('<p>You are offline!! Please Check Your Network.' + e +'</p>');
+        $('#errors').append('<p>Problem in query. Reload browser.' + e +'</p>');
 
     }else if(x.status==404){
 
@@ -1072,6 +1072,8 @@ function buildWrappers(){
     // Build each plot wrapper in order
     //
 
+    //errorResponse('buildWrappers(): ','TEST ERROR STRING');
+
     var sta_array = [];
     var numerals = false;
 
@@ -1116,17 +1118,19 @@ function buildWrappers(){
                 $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
             }
 
+            $("#"+wpr).empty();
             $("#"+wpr).width( $('#name_path').width() );
+            $("#"+wpr).html(' <div class="ui-state-highlight ui-corner-all" style="width:100%;height:100%;margin:5px"><p><span class="ui-icon ui-icon-info" style="float:left"></span><strong>Loading plot ['+s_val+'_'+c_val+']</strong></p></div>');
 
-            if ( type == 'coverage') { 
-                $("#"+wpr).height( 50 );
-            } else if (size == 'big') {
-                $("#"+wpr).height( 200 );
-            } else if (size == 'medium') {
-                $("#"+wpr).height( 150 );
-            } else {
-                $("#"+wpr).height( 100 );
-            }
+            //if ( type == 'coverage') { 
+            //    $("#"+wpr).height( 50 );
+            //} else if (size == 'big') {
+            //    $("#"+wpr).height( 200 );
+            //} else if (size == 'medium') {
+            //    $("#"+wpr).height( 150 );
+            //} else {
+            //    $("#"+wpr).height( 100 );
+            //}
         }
     }
 
@@ -1322,11 +1326,24 @@ function plotData(r_data){
             var calib = 1;
 
             if (document.getElementById(wpr) == null) {
-                errorResponse('plotData(): ','No wrapper div for ['+sta+':'+chan+']');
-                continue;
+                errorResponse('plotData(): ','No wrapper div for ['+sta+':'+chan+']. Appending at bottom.');
+                $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
             }
 
-            $('#'+plt).remove();
+            $("#"+wpr).width( $('#name_path').width() );
+
+            $("#"+wpr).empty();
+
+            if ( type == 'coverage') { 
+                $("#"+wpr).height( 50 );
+            } else if (size == 'big') {
+                $("#"+wpr).height( 200 );
+            } else if (size == 'medium') {
+                $("#"+wpr).height( 150 );
+            } else {
+                $("#"+wpr).height( 100 );
+            }
+
             $("#"+wpr).append(plot);
             $("#"+plt).width( '100%' );
             $("#"+plt).height( '100%' );
