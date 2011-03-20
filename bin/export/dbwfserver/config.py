@@ -4,13 +4,12 @@ global sys
 
 def usage():
 
-    print "Usage: dbwfserver [-dvV] [-n nickname] [-p pfname] [-P port] [dbname]\n"
+    print "Usage: dbwfserver [-dsvV] [-n nickname] [-p pfname] [-P port] [dbname]\n"
 
 def configure():
 
-    global dbpointers
+    global simple
     global style
-    global locked
     global pfname
     global application_name
     global application_title
@@ -39,8 +38,7 @@ def configure():
     global nickname
     global proxy_url
 
-    dbpointers          = []
-    locked              = False
+    simple              = False
     pfname              = 'dbwfserver'
     style               = 'cupertino'
     nickname            = ''
@@ -85,6 +83,9 @@ def configure():
 
 
     for option, value in opts:
+
+        if '-s' in option:
+            simple = True
 
         if '-p' in option:
             pfname = str(value)

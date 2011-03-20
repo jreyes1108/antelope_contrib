@@ -90,10 +90,6 @@ class db_nulls():
         except Exception, e:
             sys.exit('\n\nERROR: dbopen(%s)=>(%s)\n\n' % (dbname,e) )
 
-        else:
-            config.dbpointers.append(db)
-
-
 
         if config.debug: log.msg("Class Db_Nulls: db: %s" % db)
         if config.debug: log.msg("Class Db_Nulls: Looking for tables:%s" % self.tables)
@@ -129,6 +125,286 @@ class db_nulls():
 
 #}}}
 
+def Update_Stations(dbcentral,first,debug):
+    #{{{ private function to load data
+
+    if debug: print "\n\nUpdate Stations()...\n\n"
+
+    stachan_cache = defaultdict(dict)
+
+    for dbname in dbcentral.list():
+
+        #
+        # On the first part just get the names and pass them down to the object
+        #
+        if debug: print "\n\nUpdate Stations()...try db: %s\n\n" % dbname
+        try:
+            db = datascope.dbopen( dbname , 'r' )
+            db.lookup( table='wfdisc')
+            db.sort(['sta', 'chan'], unique=True)
+            records = db.query(datascope.dbRECORD_COUNT)
+
+        except:
+            records = 0
+
+
+
+        if not records: stock.elog_die('Stations(): ERROR: No records to work on any  table\n\n')
+
+        for j in range(records):
+
+            db.record = j
+            try:
+                sta, chan,  srate, calib, segtype = db.getv('sta','chan','samprate','calib','segtype')
+            except Exception, e:
+                print 'Station(): ERROR extracting data db.getv(sta,chan,samprate,calib,segtype). (%s=>%s)' % (Exception,e)
+
+
+            #if srate == nulls('samprate'):
+            #    srate = '-'
+
+            #if calib == nulls('calib'):
+            #    calib = '-'
+
+            #if segtype == nulls('segtype'):
+            #    segtype = '-'
+
+            if not sta in stachan_cache: stachan_cache[sta] = defaultdict(dict)
+            stachan_cache[sta][chan]['calib']    = calib
+            stachan_cache[sta][chan]['segtype']  = segtype
+            stachan_cache[sta][chan]['samprate'] = srate
+
+            if debug: print "Station(): (simple loop) %s.%s[%s,%s,%s]" % (sta,chan,calib,segtype,srate)
+
+
+        if first:
+            #
+            #  Simple time selection
+            #
+
+            if debug: print "\n\nUpdate Stations()...first loop\n\n"
+            try:
+                db.lookup( table='wfdisc')
+                records = db.query(datascope.dbRECORD_COUNT)
+
+            except:
+                pass
+
+            else:
+                try:
+                    start = db.ex_eval('min(time)')
+                    end   = db.ex_eval('max(endtime)')
+                except Exception,e:
+                    print 'Station(): ERROR extracting max and min times. (%s=>%s)' % (Exception,e)
+
+                for sta in stachan_cache:
+
+                    for chan in stachan_cache[sta]:
+
+                        stachan_cache[sta][chan]['start'] = start
+
+                        stachan_cache[sta][chan]['end'] = end
+
+                        start_day = stock.str2epoch(stock.epoch2str(start,'%D'))
+                        end_day = stock.str2epoch(stock.epoch2str(end,'%D'))
+
+                        if debug: print "Station(): %s.%s[%s,%s]" % (sta,chan,start_day,end_day)
+
+                        stachan_cache[sta][chan]['dates'] = [start_day,end_day]
+
+        else:
+            #
+            #  Now lets get the times. 
+            #
+            if debug: print "\n\nUpdate Stations()...not first loop\n\n"
+            for sta in stachan_cache:
+
+                try:
+                    db.lookup( table='wfdisc')
+                    db.subset( "sta == '%s'" % sta )
+                    records = db.query(datascope.dbRECORD_COUNT)
+
+                except:
+                    records = 0
+
+                else:
+                    try:
+                        start = db.ex_eval('min(time)')
+                        end   = db.ex_eval('max(endtime)')
+                    except Exception,e:
+                        print 'Station(): ERROR extracting max and min times. (%s=>%s)' % (Exception,e)
+                        continue
+
+                    for chan in stachan_cache[sta]:
+
+                        stachan_cache[sta][chan]['start'] = start
+
+                        stachan_cache[sta][chan]['end'] = end
+
+                        start_day = stock.str2epoch(stock.epoch2str(start,'%D'))
+                        end_day = stock.str2epoch(stock.epoch2str(end,'%D'))
+
+                        if debug: print "Station(): %s.%s[%s,%s]" % (sta,chan,start_day,end_day)
+
+                        stachan_cache[sta][chan]['dates'] = [start_day,end_day]
+
+        try:
+            db.close()
+        except:
+            pass
+
+    if debug:
+        print "Stations(): Updating cache (%s) stations." % len(stachan_cache.keys())
+
+    print "\n\nUpdate Stations()...done\n\n"
+    return stachan_cache
+
+    #}}}
+
+def Update_Events(dbcentral,first,times,debug):
+    #{{{ private function to load the data from the tables
+
+    if debug: print "Events(): update cache."
+
+    for dbname in dbcentral.list():
+
+        event_cache = defaultdict(dict)
+
+        if debug: print "Events(): _get_event_cache  db[%s]" % (dbname)
+
+        try:
+            db = datascope.dbopen( dbname , 'r' )
+            db.lookup( table='event')
+            records = db.query(datascope.dbRECORD_COUNT)
+
+        except:
+            records = 0
+
+
+        if records:
+
+            try:
+                db.join( 'origin' )
+                db.subset( 'orid == prefor' )
+            except:
+                pass
+
+        else:
+
+            try:
+                db.lookup( table='origin' )
+            except:
+                pass
+
+
+        try:
+            records = db.query(datascope.dbRECORD_COUNT)
+        except:
+            records = 0
+
+
+        if not records: 
+            print 'Events(): ERROR: No records to work on any table\n\n'
+            return event_cache
+
+        if debug: 
+            print "Events(): origin db_pointer: [%s,%s,%s,%s]" % (db['database'],db['table'],db['field'],db['record'])
+
+        if 'start' in times:
+
+            db.subset("time > %f" % float(times['start']))
+
+        if 'end' in times:
+
+            db.subset("time < %f" % float(times['end']))
+
+        try:
+            records = db.query(datascope.dbRECORD_COUNT)
+        except:
+            records = 0
+
+        if not records: 
+            print 'Events(): ERROR: No records after time subset\n\n'
+            return
+
+        for i in range(records):
+
+            db.record = i
+
+            (orid,time,lat,lon,depth,auth,mb,ml,ms,nass) = db.getv('orid','time','lat','lon','depth','auth','mb','ml','ms','nass')
+
+            #if auth == self.nulls('auth'):
+            #    auth = '-'
+
+            #if orid == self.nulls('orid'):
+            #    orid = '-'
+
+            #if time == self.nulls('time'):
+            #    time = '-'
+            #else:
+            #    time = "%0.2f" % time
+
+            #if lat == self.nulls('lat'):
+            #    lat = '-'
+            #else:
+            #    lat = "%0.2f" % lat
+
+            #if lon == self.nulls('lon'):
+            #    lon = '-'
+            #else:
+            #    lon = "%0.2f" % lon
+
+            #if depth == self.nulls('depth'):
+            #    depth = '-'
+            #else:
+            #    depth = "%0.2f" % depth
+
+            #if mb == self.nulls('mb'):
+            #    mb = '-'
+            #else:
+            #    mb = "%0.1f" % mb
+
+            #if ms == self.nulls('ms'):
+            #    ms = '-'
+            #else:
+            #    ms = "%0.1f" % ms
+
+            #if ml == self.nulls('ml'):
+            #    ml = '-'
+            #else:
+            #    ml = "%0.1f" % ml
+
+            #if nass == self.nulls('nass'):
+            #    nass = '-'
+            #else:
+            #    nass = "%d" % nass
+
+
+            event_cache[orid] = {'time':time, 'lat':lat, 'lon':lon, 'depth':depth, 'auth':auth, 'mb':mb, 'ms':ms, 'ml':ml, 'nass':nass}
+
+            if mb > 0:
+                event_cache[orid]['magnitude'] = mb
+                event_cache[orid]['mtype'] = 'Mb'
+            elif ms > 0:
+                event_cache[orid]['magnitude'] = ms
+                event_cache[orid]['mtype'] = 'Ms'
+            elif ml > 0:
+                event_cache[orid]['magnitude'] = ml
+                event_cache[orid]['mtype'] = 'Ml'
+            else:
+                event_cache[orid]['magnitude'] = '-'
+                event_cache[orid]['mtype'] = '-'
+
+        try:
+            db.close()
+        except:
+           pass
+
+    if debug: print "Events(): Updating cache. (%s)" % len(event_cache)
+
+    return event_cache
+#}}}
+
 class Stations():
 #{{{ Class to load information about stations
     """
@@ -153,37 +429,27 @@ class Stations():
         # Run update in loop call
         #
         self._running_loop = False
-        #stachan_loop = LoopingCall(reactor.callInThread,self._inThread)
         stachan_loop = LoopingCall(deferToThread,self._inThread)
+        #stachan_loop = LoopingCall(self._inThread)
         stachan_loop.start(120,now=True)
+
+    #}}}
+
+    def _cb(self,result):
+    #{{{
+
+        #log.msg("Class Stations: got result from thread: %s" % result)
+        self.stachan_cache = result
+        self.first = False
+        self.loading = False
 
     #}}}
 
     def _inThread(self):
     #{{{
-        if self._running_loop:
-            log.msg("Class Stations: Update taking longer than loop restart time...")
-            return 
 
-        #
-        # Wait if we are cleaning dbpointers
-        #
-        while config.locked: pass
-
-        if config.debug: log.msg("Class Stations: Update class object...")
-        self._running_loop = True
-        config.locked = True
-
-        try:
-            #self.stachan_cache = risp.risp_s(10485760,self._get_stachan_cache)
-            self.stachan_cache = self._get_stachan_cache()
-        except Exception, e:
-                print '\nERROR: Events._inThread() => (%s)' % e
-
-        if config.debug: log.msg("Class Stations: Done updating class object...")
-        self._running_loop = False
-        config.locked = False
-        self.loading = False
+        result = pool.apply_async(Update_Stations,(self.dbcentral,self.first,config.debug),callback=self._cb)
+        #return result.get()
 
     #}}}
 
@@ -264,9 +530,6 @@ class Stations():
 
             except:
                 records = 0
-
-            else:
-                config.dbpointers.append(db)
 
 
             if not records: stock.elog_die('Stations(): ERROR: No records to work on any  table\n\n')
@@ -564,37 +827,26 @@ class Events():
         # Get data from tables
         #
         self._running_loop = False
-        #ev_loop = LoopingCall(reactor.callInThread,self._inThread)
-        ev_loop = LoopingCall(deferToThread,self._inThread)
+        ev_loop = LoopingCall(reactor.callInThread,self._inThread)
+        #ev_loop = LoopingCall(self._inThread)
         ev_loop.start(120,now=True)
+
+    #}}}
+
+    def _cb(self,result):
+    #{{{
+
+        #log.msg("Class Events: got result from thread: %s" % result)
+        self.event_cache = result
+        self.first = False
+        self.loading = False
 
     #}}}
 
     def _inThread(self):
     #{{{
-        if self._running_loop:
-            log.msg("Class Events: Update taking longer than loop restart time...")
-            return
-
-        #
-        # Wait if we are cleaning dbpointers
-        #
-        while config.locked: pass
-
-        if config.verbose: log.msg("Class Events: Update class object...")
-        self._running_loop = True
-        config.locked = True
-
-        try:
-            #self.event_cache = risp.risp_s(10485760,self._get_event_cache)
-            self.event_cache = self._get_event_cache()
-        except Exception, e:
-                print '\nERROR: Events._inThread() => (%s)' % e
-
-        if config.verbose: log.msg("Class Events: Done updating class object...")
-        self._running_loop = False
-        config.locked = False
-        self.loading = False
+        result = pool.apply_async(Update_Events,(self.dbcentral,self.first,self._times(),config.debug),callback=self._cb)
+        #return result.get()
 
     #}}}
 
@@ -686,10 +938,6 @@ class Events():
             except:
                 records = 0
 
-            else:
-                config.dbpointers.append(db)
-
-
 
             if records:
 
@@ -746,9 +994,6 @@ class Events():
             db.query(datascope.dbTABLE_PRESENT) 
         except Exception,e:
             return _error("Exception on Events() time(%s): Error on db pointer %s [%s]" % (orid_time,db,e))
-        else:
-            config.dbpointers.append(db)
-
 
         db.subset( 'time >= %f' % start )
         db.subset( 'time <= %f' % end )
@@ -760,9 +1005,6 @@ class Events():
 
         except:
             records = 0
-
-        else:
-            config.dbpointers.append(db)
 
         if records:
 
@@ -802,9 +1044,6 @@ class Events():
 
             except:
                 records = 0
-
-            else:
-                config.dbpointers.append(db)
 
             if records:
 
@@ -958,12 +1197,6 @@ class Events():
 
             except Exception,e:
                 return _error("Events: Exception on phases(): %s" % e,phases)
-
-            else:
-                config.dbpointers.append(db)
-
-        else:
-            config.dbpointers.append(db)
 
 
         try: 

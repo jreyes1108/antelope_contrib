@@ -7,6 +7,8 @@ import platform
 from string import Template
 from collections import defaultdict 
 from time import sleep
+from multiprocessing import Pool
+
 
 
 def system_print():
@@ -102,6 +104,13 @@ else:
         sys.exit()
 
 try:
+    pool = Pool(None)
+except Exception,e:
+    print "Problem with process pool object on lib 'multiprocessing' class:Pool. (%s)" % e
+    sys.exit()
+
+
+try:
     import dbwfserver.risp as risp 
 except Exception,e:
     print "Problem loading dbwfserver's RISP module from contrib code. (%s)" % e
@@ -137,5 +146,10 @@ except Exception,e:
     sys.exit()
 
 #reactor.run()
-run()
+try:
+    run()
+except:
+    print "Exiting."
+    pool.terminate()
+    reactor.stop()
 

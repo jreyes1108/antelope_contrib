@@ -10,7 +10,6 @@ DATA = __init__.py \
        resource.py \
        eventdata.py \
        dbcentral.py \
-       risp.py \
        config.py 
 
 CLEAN = *.pyc
