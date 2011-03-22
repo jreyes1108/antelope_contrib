@@ -6,7 +6,7 @@ for port,db  in config.run_server.items():
     #root = vhost.NameVirtualHost()
     #root. addHost( 'localhost', reverseProxy)
 
-    root = resource.QueryParser(db)
+    root = resource.QueryParser(db,config)
 
     root.putChild('static', static.File(config.static_dir))
 

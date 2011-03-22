@@ -103,6 +103,7 @@ else:
         print "Problem loading Python's simplejson library. (%s)" % e
         sys.exit()
 
+
 try:
     pool = Pool(None)
 except Exception,e:
@@ -111,21 +112,10 @@ except Exception,e:
 
 
 try:
-    import dbwfserver.risp as risp 
-except Exception,e:
-    print "Problem loading dbwfserver's RISP module from contrib code. (%s)" % e
-    sys.exit()
-
-try:
-    import dbwfserver.config as config
+    import dbwfserver.config as configuration
 except Exception,e:
     print "Problem loading dbwfserver's CONFIG module from contrib code. (%s)" % e
     sys.exit()
-
-#
-#Configure system with command-line flags and pf file values.
-#
-sys.argv = config.configure()
 
 try:
     import dbwfserver.dbcentral as dbcentral 
@@ -134,16 +124,16 @@ except Exception,e:
     sys.exit()
 
 try:
-    import dbwfserver.eventdata as evdata 
-except Exception,e:
-    print "Problem loading dbwfserver's EVDATA module from contrib code. (%s)" % e
-    sys.exit()
-
-try:
     import dbwfserver.resource as resource
 except Exception,e:
     print "Problem loading dbwfserver's RESOURCE module from contrib code. (%s)" % e
     sys.exit()
+#
+#Configure system with command-line flags and pf file values.
+#
+config = configuration.Config_Server()
+sys.argv = config.configure()
+
 
 #reactor.run()
 try:

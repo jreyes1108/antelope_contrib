@@ -1,191 +1,206 @@
 from __main__ import *
 
-global sys
+class Config_Server():
+    def __init__(self):
+#{{{
+        self.simple              = False
+        self.pfname              = 'dbwfserver'
+        self.style               = 'cupertino'
+        self.nickname            = ''
+        self.application_name    = ''
+        self.application_title   = ''
+        self.static_dir          = ''
+        self.jquery_dir          = ''
+        self.template            = ''
+        self.plot_template       = ''
+        self.local_data          = ''
+        self.antelope            = ''
+        self.dbname              = ''
+        self.proxy_url           = 'false'
+        self.port                = -1
+        self.binning_threshold   = -1
+        self.canvas_size_default = -1
+        self.apply_calib         = False
+        self.display_tracebacks  = False
+        self.display_arrivals    = True
+        self.display_points      = False
+        self.verbose             = False
+        self.debug               = False
+        self.daemonize           = False
+        self.import_paths        = ()
+        self.default_chans       = ()
+        self.default_time_window = -1
+        self.filters             = {}
+        self.run_server          = {}
+#}}}
 
-def usage():
-
-    print "Usage: dbwfserver [-dsvV] [-n nickname] [-p pfname] [-P port] [dbname]\n"
-
-def configure():
-
-    global simple
-    global style
-    global pfname
-    global application_name
-    global application_title
-    global static_dir
-    global jquery_dir
-    global template
-    global plot_template
-    global local_data
-    global antelope
-    global dbname
-    global port
-    global binning_threshold
-    global canvas_size_default
-    global apply_calib
-    global display_tracebacks
-    global display_arrivals
-    global display_points
-    global verbose
-    global debug
-    global daemonize
-    global import_paths
-    global default_chans
-    global default_time_window
-    global filters
-    global run_server
-    global nickname
-    global proxy_url
-
-    simple              = False
-    pfname              = 'dbwfserver'
-    style               = 'cupertino'
-    nickname            = ''
-    application_name    = ''
-    application_title   = ''
-    static_dir          = ''
-    jquery_dir          = ''
-    template            = ''
-    plot_template       = ''
-    local_data          = ''
-    antelope            = ''
-    dbname              = ''
-    proxy_url           = 'false'
-    port                = -1
-    binning_threshold   = -1
-    canvas_size_default = -1
-    apply_calib         = False
-    display_tracebacks  = False
-    display_arrivals    = True
-    display_points      = False
-    verbose             = False
-    debug               = False
-    daemonize           = False
-    import_paths        = ()
-    default_chans       = ()
-    default_time_window = -1
-    filters             = {}
-    run_server          = {}
-
-    try:
-
-        opts, pargs = getopt.getopt(sys.argv[1:], 'dp:P:vVsn:')
-
-    except getopt.GetoptError:
-
-        usage()
-        sys.exit(-1)
-    
-    if( len(pargs) == 1):
-
-        dbname = pargs[0]
+    def configure(self):
+#{{{
+        try:
+            opts, pargs = getopt.getopt(sys.argv[1:], 'dp:P:vVsn:')
+        except getopt.GetoptError:
+            self.usage()
+            sys.exit(-1)
 
 
-    for option, value in opts:
+        if( len(pargs) == 1):
 
-        if '-s' in option:
-            simple = True
-
-        if '-p' in option:
-            pfname = str(value)
-
-        if '-d' in option:
-            daemonize = True
-
-        if '-V' in option:
-            debug = True
-            verbose = True
-
-        if '-v' in option:
-            verbose = True
-
-        if '-P' in option:
-            port = int(value)
-
-        if '-n' in option:
-            nickname = str(value)
-
-    #
-    # Get values from pf file
-    #
-    if port == -1:
-        port = stock.pfget_int( pfname, "port" )
-
-    if not dbname:
-        dbname = stock.pfget_arr( pfname, "db" )
-
-    if nickname == '':
-        nickname = stock.pfget_arr( pfname, "nickname" )
-
-    binning_threshold   = stock.pfget_int( pfname, "binning_threshold" )
-    canvas_size_default = stock.pfget_int( pfname, "canvas_size_default" )
-    jquery_dir          = stock.pfget_string( pfname, "jquery_dir" )
-    static_dir          = stock.pfget_string( pfname, "static_dir" )
-    template            = stock.pfget_string( pfname, "template" )
-    plot_template       = stock.pfget_string( pfname, "plot_template" )
-    local_data          = stock.pfget_string( pfname, "local_data" )
-    style               = stock.pfget_string( pfname, "jquery_ui_style" )
-    antelope            = stock.pfget_string( pfname, "antelope" )
-    application_name    = stock.pfget_string( pfname, "application_name" )
-    application_title   = stock.pfget_string( pfname, "application_title" )
-    proxy_url           = stock.pfget_string( pfname, "proxy_url" )
-    apply_calib         = stock.pfget_boolean( pfname, "apply_calib" )
-    display_tracebacks  = stock.pfget_boolean( pfname, "display_tracebacks" )
-    display_arrivals    = stock.pfget_boolean( pfname, "display_arrivals" )
-    display_points      = stock.pfget_boolean( pfname, "display_points" )
-    default_chans       = stock.pfget_tbl( pfname, "default_chans" )
-    default_time_window = stock.pfget_tbl( pfname, "default_time_window" )
-    filters             = stock.pfget_arr( pfname, "filters" )
-    import_paths        = stock.pfget_tbl( pfname, "import_paths" )
-
-    # 
-    # Expand paths
-    #
-    for p in import_paths:
-        log.msg('Expnding path: %s' % p)
-        sys.path.insert(0, p)
-    # 
-    # Fix paths
-    #
-    template = ("%s/%s/%s" % (antelope,local_data,template))
-    plot_template = ("%s/%s/%s" % (antelope,local_data,plot_template))
-    jquery_dir = ("%s/%s/%s" % (antelope,local_data,jquery_dir))
-    static_dir = ("%s/%s/%s" % (antelope,local_data,static_dir))
-
-    # 
-    # Sanity check
-    #
-    if not os.path.isfile(template):
-        sys.exit('\n\nERROR: No template found (%s)\n'% template)
+            self.dbname = pargs[0]
 
 
-    # Build dictionary of servers we want to run 
-    if dbname and port:
+        for option, value in opts:
 
-        # only one for now
-        run_server = { int(port):str(dbname) }
+            if '-s' in option:
+                self.simple = True
 
-    else:
+            if '-p' in option:
+                self.pfname = str(value)
 
-        usage()
-        sys.exit('\n\nERROR: Not a valid db:port setup. (%s,%s)\n' % (dbname,port))
+            if '-d' in option:
+                self.daemonize = True
+
+            if '-V' in option:
+                self.debug = True
+                self.verbose = True
+
+            if '-v' in option:
+                self.verbose = True
+
+            if '-P' in option:
+                self.port = int(value)
+
+            if '-n' in option:
+                self.nickname = str(value)
+
+        #
+        # Get values from pf file
+        #
+        if self.port == -1:
+            self.port = stock.pfget_int( self.pfname, "port" )
+
+        if not self.dbname:
+            self.dbname = stock.pfget_arr( self.pfname, "db" )
+
+        if self.nickname == '':
+            self.nickname = stock.pfget_arr( self.pfname, "nickname" )
+
+        self.binning_threshold   = stock.pfget_int( self.pfname, "binning_threshold" )
+        self.canvas_size_default = stock.pfget_int( self.pfname, "canvas_size_default" )
+        self.jquery_dir          = stock.pfget_string( self.pfname, "jquery_dir" )
+        self.static_dir          = stock.pfget_string( self.pfname, "static_dir" )
+        self.template            = stock.pfget_string( self.pfname, "template" )
+        self.plot_template       = stock.pfget_string( self.pfname, "plot_template" )
+        self.local_data          = stock.pfget_string( self.pfname, "local_data" )
+        self.style               = stock.pfget_string( self.pfname, "jquery_ui_style" )
+        self.antelope            = stock.pfget_string( self.pfname, "antelope" )
+        self.application_name    = stock.pfget_string( self.pfname, "application_name" )
+        self.application_title   = stock.pfget_string( self.pfname, "application_title" )
+        self.proxy_url           = stock.pfget_string( self.pfname, "proxy_url" )
+        self.apply_calib         = stock.pfget_boolean( self.pfname, "apply_calib" )
+        self.display_tracebacks  = stock.pfget_boolean( self.pfname, "display_tracebacks" )
+        self.display_arrivals    = stock.pfget_boolean( self.pfname, "display_arrivals" )
+        self.display_points      = stock.pfget_boolean( self.pfname, "display_points" )
+        self.default_chans       = stock.pfget_tbl( self.pfname, "default_chans" )
+        self.default_time_window = stock.pfget_tbl( self.pfname, "default_time_window" )
+        self.filters             = stock.pfget_arr( self.pfname, "filters" )
+        self.import_paths        = stock.pfget_tbl( self.pfname, "import_paths" )
+
+        # 
+        # Expand paths
+        #
+        for p in self.import_paths:
+            log.msg('Expnding path: %s' % p)
+            sys.path.insert(0, p)
+
+        # 
+        # Fix paths
+        #
+        self.template = ("%s/%s/%s" % (self.antelope,self.local_data,self.template))
+        self.plot_template = ("%s/%s/%s" % (self.antelope,self.local_data,self.plot_template))
+        self.jquery_dir = ("%s/%s/%s" % (self.antelope,self.local_data,self.jquery_dir))
+        self.static_dir = ("%s/%s/%s" % (self.antelope,self.local_data,self.static_dir))
+
+        # 
+        # Sanity check
+        #
+        if not os.path.isfile(self.template):
+            sys.exit('\n\nERROR: No template found (%s)\n'% self.template)
 
 
-    argv_remap = list()
-    argv_remap.append(sys.argv[0])
+        # Build dictionary of servers we want to run 
+        if self.dbname and self.port:
 
-    if(not daemonize):
-        argv_remap.append("-n")
+            # only one for now
+            self.run_server = { int(self.port):str(self.dbname) }
 
-    argv_remap.append("-y")
-    argv_remap.append(os.path.join(os.environ['ANTELOPE'], 'local/data/python/dbwfserver/server.py'))
+        else:
 
-    if os.path.isdir('./state'):
-        pid_path = './state'
-    else:
-        pid_path = '/tmp'
-    argv_remap.append("--pidfile")
-    argv_remap.append( pid_path+'/dbwfserver_'+str(os.getpid())+'.pid' )
+            self.usage()
+            sys.exit('\n\nERROR: Not a valid db:port setup. (%s,%s)\n' % (self.dbname,self.port))
 
-    return argv_remap
+
+        argv_remap = list()
+        argv_remap.append(sys.argv[0])
+
+        if(not self.daemonize):
+            argv_remap.append("-n")
+
+        argv_remap.append("-y")
+        argv_remap.append(os.path.join(os.environ['ANTELOPE'], 'local/data/python/dbwfserver/server.py'))
+
+        if os.path.isdir('./state'):
+            pid_path = './state'
+        else:
+            pid_path = '/tmp'
+        argv_remap.append("--pidfile")
+        argv_remap.append( pid_path+'/dbwfserver_'+str(os.getpid())+'.pid' )
+
+        return argv_remap
+#}}}
+    def usage():
+
+        print "Usage: dbwfserver [-dsvV] [-n nickname] [-p pfname] [-P port] [dbname]\n"
+
+    def __getattr__(self,attrname):
+#{{{
+        if attrname == "simple": return self.simple
+        if attrname == "pfname": return self.pfname
+        if attrname == "nickname": return self.nickname
+        if attrname == "style": return self.style
+        if attrname == "application_name": return self.application_name
+        if attrname == "application_title": return self.application_title
+        if attrname == "static_dir": return self.static_dir
+        if attrname == "jquery_dir": return self.jquery_dir
+        if attrname == "template": return self.template
+        if attrname == "plot_template": return self.plot_template
+        if attrname == "local_data": return self.local_data
+        if attrname == "antelope": return self.antelope
+        if attrname == "proxy_url": return self.proxy_url
+        if attrname == "port": return self.port
+        if attrname == "binnig_threshold": return self.binnig_threshold
+        if attrname == "canvas_size_default": return self.canvas_size_default
+        if attrname == "apply_calib": return self.apply_calib
+        if attrname == "display_tracebacks": return self.display_tracebacks
+        if attrname == "display_arrivals": return self.display_arrivals
+        if attrname == "display_points": return self.display_points
+        if attrname == "verbose": return self.verbose
+        if attrname == "debug": return self.debug
+        if attrname == "daemonize": return self.daemonize
+        if attrname == "import_paths": return self.import_paths
+        if attrname == "default_chans": return self.default_chans
+        if attrname == "default_time_window": return self.time_window
+        if attrname == "filters": return self.filters
+        if attrname == "run_server": return self.run_server
+
+        raise AttributeError, attrname
+#}}}
+
+    def __setattr__(self,attr,value):
+
+        try:
+            self.__dict__[attr] = value
+        except:
+            raise AttributeError, attr + ' not allowed'
+
+
+

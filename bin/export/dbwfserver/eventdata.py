@@ -418,7 +418,6 @@ class Stations():
         self.dbcentral = db
         self.stachan_cache = defaultdict(lambda: defaultdict(defaultdict))
         self.offset = -1
-        self.loading = True
 
         #
         # Load null class
@@ -441,7 +440,6 @@ class Stations():
         #log.msg("Class Stations: got result from thread: %s" % result)
         self.stachan_cache = result
         self.first = False
-        self.loading = False
 
     #}}}
 
@@ -816,7 +814,6 @@ class Events():
         self.dbcentral = db
         self.event_cache = defaultdict(list)
         self.offset = -1 
-        self.loading = True
 
         #
         # Load null class
@@ -839,7 +836,6 @@ class Events():
         #log.msg("Class Events: got result from thread: %s" % result)
         self.event_cache = result
         self.first = False
-        self.loading = False
 
     #}}}
 

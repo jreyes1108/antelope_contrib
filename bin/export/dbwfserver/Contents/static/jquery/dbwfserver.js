@@ -1155,15 +1155,25 @@ function setData(resp) {
             return;
         }
 
-        if (resp.traces) traces = resp['traces'];
+        if (typeof(resp['sta']) != "undefined" ) { sta = resp['sta']; }
 
-        if (resp.time_start) ts = resp['time_start'];
+        if (typeof(resp['chan']) != "undefined" ) { chan = resp['chan']; }
 
-        if (resp.time_end) te = resp['time_end'];
+        if (typeof(resp['traces']) != "undefined" ) { traces = resp['traces']; }
 
-        if (resp.sta) sta = resp['sta'];
+        if (typeof(resp['time_start']) != "undefined" ) { time_start = resp['time_start']; }
 
-        if (resp.chan) chan = resp['chan'];
+        if (typeof(resp['time_end']) != "undefined" ) { time_end = resp['time_end']; }
+
+        //if (resp.traces) traces = resp['traces'];
+
+        //if (resp.time_start) ts = resp['time_start'];
+
+        //if (resp.time_end) te = resp['time_end'];
+
+        //if (resp.sta) sta = resp['sta'];
+
+        //if (resp.chan) chan = resp['chan'];
 
     //}}}
     }
