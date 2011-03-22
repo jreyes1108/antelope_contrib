@@ -42,117 +42,48 @@ def isNumber(test):
 
 #}}}
 
-def get_data(db,config,station_obj,station,channel,start,end,filter=None):
+def get_data(dbname,debug,sta,chan,start,end,binsize,filter=None):
     # {{{
     #
     # Return points or bins of data for query
     #
 
-    #debug = config['debug']
-    #verbose = config['verbose']
-    #canvas_size_default = config['canvas_size_default']
-    #binning_threshold = config['binning_threshold']
-    #debug = config['debug']
-    #verbose = config['verbose']
-
+    if debug: print "get_data(): Get data for %s.%s [%s,%s]" % (sta,chan,start,end)
 
     response_data = defaultdict(dict)
 
-    if config.debug: print "get_data(): Get data for %s.%s [%s,%s]" % (station,channel,start,end)
+    try:
+        temp_db = datascope.dbopen( dbname, 'r' )
+        temp_db.lookup( table='wfdisc' )
+        records = temp_db.query(datascope.dbRECORD_COUNT)
 
-    stations = station_obj.convert_sta(station)
-    channels = station_obj.convert_chan(channel,stations)
+    except Exception, e:
+        print 'get_data(): ERROR: Loading: %s.wfdisc => [%s]' % (dbname,e)
+        response_data['error'] = 'Loading: %s.wfdisc => [%s]' % (dbname,e)
 
-    if config.debug: print "get_data(): convert stations => %s" % stations
-    if config.debug: print "get_data(): convert channels => %s" % channels
+    else:
 
-    if not stations:
-        response_data['error'] = "[%s] not valid station value" % station
-        print response_data['error']
-        return response_data
+        if debug: print 'get_data(): pid:[%s] pntr:[%s,%s,%s,%s]' % (os.getpid(),temp_db.database,temp_db.table,temp_db.field,temp_db.record)
+        if debug: print '\t\tget_data(): get_samples(%s,%s,%s,%s,%s,%s)' % (sta,chan,start,end,binsize,filter)
 
-    if not channels:
-        response_data['error'] = "[%s] not valid channel [%s]" % (channel,station)
-        print response_data['error']
-        return response_data
-
-    if config.debug: print "get_data(): prepare vars for [%s].[%s] " % (stations,channels)
-
-    start = isNumber(start)
-    end   = isNumber(end)
-
-    for sta in stations:
-        temp_dic = station_obj(sta)
-        for chan in channels:
-
-            if not start: start = temp_dic[chan]['end'] - config.default_time_window
-
-            if not start: start = stock.now()
-
-            if not end: end = start + config.default_time_window
-
-            if config.debug: print "\t\tget_data(): extract [%s][%s][%s][%s] " % (sta,chan,start,end)
-            response_data[sta][chan] = defaultdict(dict)
-            response_data[sta][chan]['end']      = end
-            response_data[sta][chan]['start']    = start
-            response_data[sta][chan]['metadata'] = temp_dic[chan]
-            points = 0
-
-
-            if temp_dic[chan]['samprate']: points = int( (end-start) * temp_dic[chan]['samprate'] )
-
-            if config.debug: print "\t\tget_data(): points:%s canvas:%s threshold:%s" % (points,config.canvas_size_default,config.binning_threshold)
-
-            if points >  (config.binning_threshold * config.canvas_size_default):
-                binsize = points/config.canvas_size_default
+        try:
+            if binsize:
+                response_data['data']   = temp_db.samplebins(start,end,sta,chan,binsize,False,filter)
+                response_data['format'] = 'bins'
             else:
-                binsize = 0
+                response_data['data']   = temp_db.sample(start,end,sta,chan,False,filter)
+                response_data['format'] = 'lines'
 
-            if config.debug: print "\t\tget_data(): binsize:%s " % binsize
+        except Exception,e:
+            print "get_dat(): ERROR: Exception [%s] on temp_db.sample/samplebins: %s" % (Exception,e)
+            response_data['error'] = "get_dat(): ERROR: Exception [%s] on temp_db.sample/samplebins: %s" % (Exception,e)
+            response_data['data']   = []
+            response_data['format'] = 'lines'
 
-            if config.debug: print "\t\tget_data(): get dbname for db(%s) " % start
-            try:
-                dbname = db(start)
-            except Exception,e:
-                print '\n\nget_data(): ERROR: Cannot get db for this time %s [%s][%s]\n\n' % (start,Exception,e)
-
-
-            if config.debug: print "\t\tget_data(): dbname for db(%s) => %s " % (start,dbname)
-
-            if not dbname: continue
-
-            try:
-                temp_db = datascope.dbopen( dbname, 'r' )
-                temp_db.lookup( table='wfdisc' )
-                records = temp_db.query(datascope.dbRECORD_COUNT)
-
-            except Exception, e:
-                print 'get_data(): ERROR: Loading: %s.wfdisc => [%s]' % (dbname,e)
-                response_data['error'] = 'Loading: %s.wfdisc => [%s]' % (dbname,e)
-
-            else:
-
-                if config.debug: print 'get_data(): pid:[%s] pntr:[%s,%s,%s,%s]' % (os.getpid(),temp_db.database,temp_db.table,temp_db.field,temp_db.record)
-                if config.debug: print '\t\tget_data(): get_samples(%s,%s,%s,%s,%s,%s)' % (sta,chan,start,end,binsize,filter)
-
-                try:
-                    if binsize:
-                        response_data[sta][chan]['data']   = temp_db.samplebins(start,end,sta,chan,binsize,False,filter)
-                        response_data[sta][chan]['format'] = 'bins'
-                    else:
-                        response_data[sta][chan]['data']   = temp_db.sample(start,end,sta,chan,False,filter)
-                        response_data[sta][chan]['format'] = 'lines'
-
-                except Exception,e:
-                    print "get_dat(): ERROR: Exception [%s] on temp_db.sample/samplebins: %s" % (Exception,e)
-                    response_data['error'] = "get_dat(): ERROR: Exception [%s] on temp_db.sample/samplebins: %s" % (Exception,e)
-                    response_data[sta][chan]['data']   = []
-                    response_data[sta][chan]['format'] = 'lines'
-
-            #try:
-            #    temp_db.close()
-            #except:
-            #    pass
+    #try:
+    #    temp_db.close()
+    #except:
+    #    pass
 
     return response_data
 
@@ -1939,9 +1870,81 @@ class QueryParser(resource.Resource):
 
                     query = self._parse_request(path)
 
-                    return json.dumps( get_data(self.db,self.config,self.stations,query['sta'],query['chan'],query['start'],query['end'],query['filter']) )
-                    #return json.dumps( pool.apply_async(get_data(self.db,self.config,self.stations,query['sta'],query['chan'],query['start'],query['end'],query['filter']) ) )
-        #result = pool.apply_async(Update_Events,(self.dbcentral,self.first,self._times(),True),callback=self._cb)
+                    #return json.dumps( get_data(self.db,self.config,self.stations,query['sta'],query['chan'],query['start'],query['end'],query['filter']) )
+
+                    stations = self.stations.convert_sta(query['sta'])
+                    channels = self.stations.convert_chan(query['chan'],stations)
+
+                    if self.config.debug: print "QueryParser(): render_uri(): path == wf(): Get data for %s.%s" % (query['sta'],query['chan'])
+
+                    if self.config.debug: print "QueryParser(): render_uri(): path == wf(): convert stations => %s" % stations
+                    if self.config.debug: print "QueryParser(): render_uri(): path == wf(): convert channels => %s" % channels
+
+                    if not stations:
+                        response_data['error'] = "[%s] not valid station value" % query['sta']
+                        print response_data['error']
+                        return json.dumps( response_data )
+
+                    if not channels:
+                        response_data['error'] = "[%s] not valid channel [%s]" % (channel,station)
+                        print response_data['error']
+                        return json.dumps( response_data )
+
+                    if self.config.debug: print "QueryParser(): render_uri(): path == wf(): prepare vars for [%s].[%s] " % (stations,channels)
+
+                    start = isNumber(query['start'])
+                    end   = isNumber(query['end'])
+
+                    for sta in stations:
+                        temp_dic = self.stations(sta)
+                        for chan in channels:
+
+                            if not start: start = temp_dic[chan]['end'] - self.config.default_time_window
+
+                            if not start: start = stock.now()
+
+                            if not end: end = start + self.config.default_time_window
+
+                            if self.config.debug: print "\tQueryParser(): render_uri(): path == wf(): extract [%s][%s][%s][%s] " % (sta,chan,start,end)
+                            response_data[sta][chan] = defaultdict(dict)
+                            response_data[sta][chan]['end']      = end
+                            response_data[sta][chan]['start']    = start
+                            response_data[sta][chan]['metadata'] = temp_dic[chan]
+                            points = 0
+
+
+                            if temp_dic[chan]['samprate']: points = int( (end-start) * temp_dic[chan]['samprate'] )
+
+                            if self.config.debug: print "\tQueryParser(): render_uri(): path == wf(): points:%s canvas:%s threshold:%s" % (points,self.config.canvas_size_default,self.config.binning_threshold)
+
+                            if points >  (self.config.binning_threshold * self.config.canvas_size_default):
+                                binsize = points/self.config.canvas_size_default
+                            else:
+                                binsize = 0
+
+                            if self.config.debug: print "\tQueryParser(): render_uri(): path == wf(): binsize:%s " % binsize
+
+                            if self.config.debug: print "\tQueryParser(): render_uri(): path == wf(): get dbname for db(%s) " % start
+                            try:
+                                dbname = self.db(start)
+                            except Exception,e:
+                                print '\n\nget_data(): ERROR: Cannot get db for this time %s [%s][%s]\n\n' % (start,Exception,e)
+
+
+                            if self.config.debug: print "\tQueryParser(): render_uri(): path == wf(): dbname for db(%s) => %s " % (start,dbname)
+
+                            if not dbname: continue
+
+                            try:
+                                res = pool.apply_async( get_data, (dbname,self.config.debug,sta,chan,start,end,binsize,query['filter']) )
+                                response_data[sta][chan].update( res.get() )
+                            except Exception,e:
+                                response_data['error'] = "QueryParser(): render_uri(): ERROR in pool.apply_async(get_data) %s %s " % (Exception,e)
+                                print response_data['error']
+                                return json.dumps( response_data )
+
+
+                    return json.dumps( response_data )
 
                 #}}}
 
