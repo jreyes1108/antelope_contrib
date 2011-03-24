@@ -59,7 +59,7 @@ datatypes = {
     'Y': 'waveform power (power)',
     'a': 'azimuth (degrees)',
     'b': 'bit rate (bits/second)',
-    'c': 'dimesionless integer(counts)',
+    'c': 'dimensionless integer(counts)',
     'd': 'depth or height(meters)',
     'f': 'photoactive radiation flux (micromoles/s/m/m)',
     'h': 'hydrogen ion concentration (pH)',
@@ -379,7 +379,7 @@ function build_dialog_boxes() {
 function waitingDialog(waiting) { 
     //{{{
 
-    $("#loading").html( (waiting.message && '' != waiting.message) ? waiting.message : 'Please wait...'); 
+    $("#loading").html( (waiting.message && '' != waiting.message) ? '<p>'+waiting.message+'</p>' : '<p>Please wait...</p>'); 
     $("#loading").dialog('option', 'title', (waiting.title && '' != waiting.title) ? waiting.title : 'Loading'); 
     $("#loading").dialog('open'); 
 
@@ -889,7 +889,7 @@ function varSet(){
 
         //$('#errors').append('<p>Epoch:'+val+" date:"+ newDate + " diff:"+ diff + "</p>");
         //$('#errors').removeClass('ui-helper-hidden');
-        return newDate.getFullYear()+'-'+newDate.getMonth()+'-'+newDate.getDate()+' '+newDate.getHours()+':'+newDate.getMinutes()+':'+newDate.getSeconds()+' '+lbl
+        return newDate.getFullYear()+'-'+(newDate.getMonth()+1)+'-'+newDate.getDate()+' '+newDate.getHours()+':'+newDate.getMinutes()+':'+newDate.getSeconds()+' '+lbl
 
         //}}}
     };
@@ -1155,25 +1155,15 @@ function setData(resp) {
             return;
         }
 
-        if (typeof(resp['sta']) != "undefined" ) { sta = resp['sta']; }
+        if (resp.traces) traces = resp['traces'];
 
-        if (typeof(resp['chan']) != "undefined" ) { chan = resp['chan']; }
+        if (resp.time_start) ts = resp['time_start'];
 
-        if (typeof(resp['traces']) != "undefined" ) { traces = resp['traces']; }
+        if (resp.time_end) te = resp['time_end'];
 
-        if (typeof(resp['time_start']) != "undefined" ) { time_start = resp['time_start']; }
+        if (resp.sta) sta = resp['sta'];
 
-        if (typeof(resp['time_end']) != "undefined" ) { time_end = resp['time_end']; }
-
-        //if (resp.traces) traces = resp['traces'];
-
-        //if (resp.time_start) ts = resp['time_start'];
-
-        //if (resp.time_end) te = resp['time_end'];
-
-        //if (resp.sta) sta = resp['sta'];
-
-        //if (resp.chan) chan = resp['chan'];
+        if (resp.chan) chan = resp['chan'];
 
     //}}}
     }
@@ -1208,6 +1198,8 @@ function setData(resp) {
         });
     //}}}
     };
+
+    $("#loading").html('<p>Query for : ['+sta+']-['+chan+']</p>'+$("#loading").html()); 
 
     //
     // Build each plot wrapper in order
@@ -1293,11 +1285,12 @@ function setData(resp) {
 
                 activeQueries += 1; 
 
+                $("#loading").html('<p>AJAX Query: '+url+'</p>'+$("#loading").html()); 
                 $.ajax({
 
                     url:url,
                     dataType:'json',
-                    success: function(data) { plotData(data); }
+                    success: function(data) { plotData(data,mysta,mychan); }
 
                 });
 
@@ -1319,18 +1312,27 @@ function setData(resp) {
 //}}}
 }
 
-function plotData(r_data){
+function plotData(r_data,mysta,mychan){
 //{{{
 
+    $("#loading").html('<p>Plotting: '+mysta+'-'+mychan+'</p>'+$("#loading").html()); 
+
+    var temp_name = mysta + '_' + mychan ;
+    var wpr = name+"_wrapper";
+    //if ( typeof(r_data) == "string" ) {
+    //        var name = mysta + '_' + mychan ;
+    //        var wpr = name+"_wrapper";
+    //        $("#"+wpr).remove();
+    //}
     for (var sta in r_data) {
         for (var chan in r_data[sta]) {
 
-            var temp_flot_ops = flot_ops;
-            var flot_data = [];
-            var data = r_data[sta][chan];
             var name = sta + '_' + chan ;
             var wpr = name+"_wrapper";
             var plt = name+"_plot";
+            var temp_flot_ops = flot_ops;
+            var flot_data = [];
+            var data = r_data[sta][chan];
             var plot = $("<div>").attr("id", plt );
             var segtype = '-';
             var calib = 1;
@@ -1367,16 +1369,25 @@ function plotData(r_data){
             if ( typeof(data['data']) == "undefined" ) { 
             //{{{  If we don't have ANY data...
 
-                $("#"+wpr).height( 50 );
+                $("#loading").html('<p>ERROR: '+mysta+'-'+mychan+' NO DATA!!!!!</p>'+$("#loading").html()); 
+                $("#"+wpr).remove();
+                //$("#"+wpr).height( 50 );
 
-                var canvas = $.plot($("#"+plt),[], temp_flot_ops);
-                var arrDiv = $("<div>").css(NameCss);
+                //var canvas = $.plot($("#"+plt),[], temp_flot_ops);
+                //var arrDiv = $("<div>").css(NameCss);
 
-                arrDiv.css({ color:text_color, left:'30%', top:'5%'});
+                //arrDiv.css({ color:text_color, left:'30%', top:'5%'});
 
-                arrDiv.append('No data in time segment: ('+ts+','+te+').');
+                //arrDiv.append('No data in time segment: ('+ts+','+te+').');
 
-                $("#"+plt).append(arrDiv);
+                //$("#"+plt).append(arrDiv);
+
+            //}}}
+            } else if ( typeof(data['error']) != "undefined" ) { 
+            //{{{  If we don't have ANY data...
+
+                $("#loading").html('<p>ERROR: '+mysta+'-'+mychan+' '+data['error']+'</p>'+$("#loading").html()); 
+                $("#"+wpr).remove();
 
             //}}}
             } else if ( data['format'] == 'coverage') { 
@@ -1518,7 +1529,7 @@ function plotData(r_data){
             //}}}
             }
 
-            $(".tickLabel").css({'font-size':'5px'});
+            $(".tickLabel").css({'font-size':'10px'});
 
             $(".tickLabel").each(function(i,ele) {
                 ele = $(ele);

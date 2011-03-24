@@ -633,8 +633,7 @@ class Stations():
         #
         self._running_loop = False
         stachan_loop = LoopingCall(deferToThread,self._inThread)
-        #stachan_loop = LoopingCall(self._inThread)
-        stachan_loop.start(120,now=True)
+        stachan_loop.start(600,now=True)
 
     #}}}
 
@@ -1038,9 +1037,10 @@ class Events():
         # Get data from tables
         #
         self._running_loop = False
-        ev_loop = LoopingCall(reactor.callInThread,self._inThread)
+        ev_loop = LoopingCall(deferToThread,self._inThread)
+        #ev_loop = LoopingCall(reactor.callInThread,self._inThread)
         #ev_loop = LoopingCall(self._inThread)
-        ev_loop.start(120,now=True)
+        ev_loop.start(600,now=True)
 
     #}}}
 
@@ -1629,8 +1629,12 @@ class QueryParser(resource.Resource):
         d = deferToThread(Stations, self.db, self.config)
         d.addCallback(self._cb_init_Station)
 
-        d = deferToThread(Events, self.db, self.config)
-        d.addCallback(self._cb_init_Event)
+        if not self.config.simple:
+            d = deferToThread(Events, self.db, self.config)
+            d.addCallback(self._cb_init_Event)
+        else:
+            if self.config.debug: log.msg("QueryParser(): Don't init event class. Running simple mode now!" )
+            self.loading_events = False
 
         #pool.apply_async(Stations,(self.db,self.config),callback=self._cb_init_Station)
         #pool.apply_async(Events,(self.db,self.config),callback=self._cb_init_Event)
@@ -1787,6 +1791,7 @@ class QueryParser(resource.Resource):
                     """
 
                     if self.config.debug: log.msg('QueryParser(): render_uri() query => data => events')
+                    if self.config.simple: return json.dumps({})
 
                     elif len(path) == 3:
                         return json.dumps(self.events.phases(path[1],path[2]))
@@ -1970,7 +1975,7 @@ class QueryParser(resource.Resource):
 
                     query = self._parse_request(path)
 
-                    if 'start' in query: 
+                    if 'start' in query and not self.config.simple: 
 
                         response_meta['phases'] = self.events.time(query['start'],20)
 

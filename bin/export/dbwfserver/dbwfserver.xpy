@@ -105,7 +105,7 @@ else:
 
 
 try:
-    pool = Pool(None)
+    pool = Pool(10)
 except Exception,e:
     print "Problem with process pool object on lib 'multiprocessing' class:Pool. (%s)" % e
     sys.exit()
