@@ -107,7 +107,7 @@ function init(){
     $.ajaxSetup({
         type: 'get',
         dataType: 'json',
-        timeout: 120000,
+        timeout: 30000,
         error:errorResponse
     });
 
@@ -365,7 +365,8 @@ function build_dialog_boxes() {
     $("#loading").dialog({ 
         //{{{
         autoOpen: false,
-        dialogClass: "ui-state-error", 
+        //dialogClass: "ui-state-error", 
+        dialogClass: "ui-widget-overlay", 
         draggable: false, 
         resizable: false,
         open: function(event, ui) { isPlotting = true; },
@@ -696,8 +697,11 @@ function set_click_responses() {
     $('#plot').click( function(){
         //{{{
 
-        sta = ( $('#station_string').val() ) ? $("#station_string").val().split('-') : ['.*'];
-        chan = ( $('#channel_string').val() ) ? $("#channel_string").val().split('-') : ['.*'];
+        sta = ( $('#station_string').val() ) ? $("#station_string").val().replace(' ','-') : '.*';
+        chan = ( $('#channel_string').val() ) ? $("#channel_string").val().replace(' ','-') : '.*';
+
+        sta = ( sta ) ? sta.split('-') : ['.*'];
+        chan = ( chan ) ? chan.split('-') : ['.*'];
 
         start = ( $('#start_time').val() ) ? $("#start_time").val() : null;
 
@@ -820,49 +824,51 @@ function keyBinds(){
         $(document).unbind('keydown');
 
         $(document).keydown(function(e) {
-            if (e.keyCode == '38') {
-                // Up key
-                e.preventDefault();
-            } else if (e.keyCode == '40') {
-                // Down key
-                e.preventDefault();
-            } else if (e.keyCode == '37') {
-                // Left key
-                e.preventDefault();
-            } else if (e.keyCode == '39') {
-                // Right key
-                e.preventDefault();
-            } else if (e.keyCode == '82') {
-                // r for reset plot
-                e.preventDefault();
-            } else if(e.which == 16) {
+            //if (e.keyCode == '38') {
+            //    // Up key
+            //    e.preventDefault();
+            //} else if (e.keyCode == '40') {
+            //    // Down key
+            //    e.preventDefault();
+            //} else if (e.keyCode == '37') {
+            //    // Left key
+            //    e.preventDefault();
+            //} else if (e.keyCode == '39') {
+            //    // Right key
+            //    e.preventDefault();
+            //} else if (e.keyCode == '82') {
+            //    // r for reset plot
+            //    e.preventDefault();
+            //} else if(e.which == 16) {
+            if(e.which == 16) {
                 // Shift key
                 isShiftPressed = true;
             }
         });
 
         $(document).keyup(function(e) {
-            if (e.keyCode == '38') {
-                // Up key
-                e.preventDefault();
-                shiftPlot('I');
-            } else if (e.keyCode == '40') {
-                // Down key
-                e.preventDefault();
-                shiftPlot('O');
-            } else if (e.keyCode == '37') {
-                // Left key
-                e.preventDefault();
-                shiftPlot('L');
-            } else if (e.keyCode == '39') {
-                // Right key
-                e.preventDefault();
-                shiftPlot('R');
-            } else if (e.keyCode == '82') {
-                // r for reset plot
-                e.preventDefault();
-                location.reload(true);
-            } else if(e.which == 16) {
+            //if (e.keyCode == '38') {
+            //    // Up key
+            //    e.preventDefault();
+            //    shiftPlot('I');
+            //} else if (e.keyCode == '40') {
+            //    // Down key
+            //    e.preventDefault();
+            //    shiftPlot('O');
+            //} else if (e.keyCode == '37') {
+            //    // Left key
+            //    e.preventDefault();
+            //    shiftPlot('L');
+            //} else if (e.keyCode == '39') {
+            //    // Right key
+            //    e.preventDefault();
+            //    shiftPlot('R');
+            //} else if (e.keyCode == '82') {
+            //    // r for reset plot
+            //    e.preventDefault();
+            //    location.reload(true);
+            //} else if(e.which == 16) {
+            if(e.which == 16) {
                 // Shift key
                 isShiftPressed = false;
             }
@@ -903,18 +909,25 @@ function varSet(){
             return 0
         } 
 
-        if (range < 100) {
-            return val.toPrecision(2);
-        }
-        if (range < 1000) {
-            return val.toPrecision(3);
+        if (Math.abs(val) < 0.001) {
+            return val.toFixed(4);
         }
 
-        if (Math.abs(val) > 0.01) {
-            return val.toFixed(1);
-        } else {
-            return val.toPrecision(1);
+        if (Math.abs(val) < 0.1) {
+            return val.toFixed(2);
         }
+
+        if (Math.abs(val) < 1) {
+            return val.toFixed(1);
+        }
+
+        if (range < 100) {
+            return val.toPrecision(3);
+        }
+        if (range < 1000) {
+            return val.toPrecision(4);
+        }
+
         //}}}
     };
 
@@ -926,9 +939,11 @@ function varSet(){
         clickable: false,
         colors: [data_color], 
         selection: {mode:"x", color:text_color}, 
-        grid: {hoverable:false,clickable:false, borderColor:tick_color, color:tick_color, tickColor:tick_color, backgroundColor:canvasBgColor},
-        xaxis: {tickFormatter:x_formatter, ticks:5, mode:"time", timeformat:"%y-%m-%d %H:%M:%S UTC",labelWidth:130,labelHeight:0},
-        yaxis: {tickFormatter:y_formatter, ticks:4, min:null, max:null ,labelWidth:0,labelHeight:0},
+        //grid: {hoverable:false,clickable:false, borderColor:tick_color, color:tick_color, tickColor:tick_color, backgroundColor:canvasBgColor},
+        grid: {hoverable:false,clickable:false, borderColor:tick_color, color:text_color, tickColor:tick_color, backgroundColor:canvasBgColor},
+        xaxis: {tickFormatter:x_formatter, ticks:4, mode:"time", timeformat:"%y-%m-%d %H:%M:%S UTC",labelWidth:200,labelHeight:0},
+        //yaxis: {tickFormatter:y_formatter, ticks:3, min:null, max:null ,labelWidth:0,labelHeight:0},
+        yaxis: {ticks:3, min:null, max:null ,labelWidth:0,labelHeight:0},
         points: {show:false},
         bars:  {show:false},
         lines: {show:false}
@@ -1122,15 +1137,15 @@ function buildWrappers(){
             $("#"+wpr).width( $('#name_path').width() );
             $("#"+wpr).html(' <div class="ui-state-highlight ui-corner-all" style="width:100%;height:100%;margin:5px"><p><span class="ui-icon ui-icon-info" style="float:left"></span><strong>Loading plot ['+s_val+'_'+c_val+']</strong></p></div>');
 
-            //if ( type == 'coverage') { 
-            //    $("#"+wpr).height( 50 );
-            //} else if (size == 'big') {
-            //    $("#"+wpr).height( 200 );
-            //} else if (size == 'medium') {
-            //    $("#"+wpr).height( 150 );
-            //} else {
-            //    $("#"+wpr).height( 100 );
-            //}
+            if ( type == 'coverage') { 
+                $("#"+wpr).height( 50 );
+            } else if (size == 'big') {
+                $("#"+wpr).height( 200 );
+            } else if (size == 'medium') {
+                $("#"+wpr).height( 150 );
+            } else {
+                $("#"+wpr).height( 100 );
+            }
         }
     }
 
@@ -1139,7 +1154,7 @@ function buildWrappers(){
 
 function setData(resp) {
 //{{{
-    waitingDialog({title: "Waveform Explorer:", message: "Plotting data."});
+    waitingDialog({title: "Waveform Explorer:", message: "Query SERVER for data."});
 
     getCookie();
 
@@ -1152,18 +1167,29 @@ function setData(resp) {
         // is define globally for app
         if (resp.error) {
             errorResponse('setData(): ',resp['error']);
+            closeWaitingDialog();
             return;
         }
+
+        if (typeof(resp['sta']) == "undefined" || ! resp.sta.length) { 
+            errorResponse('plotData(): ','Wrong value for station: '+resp['o_sta']);
+            closeWaitingDialog();
+            return
+        }
+        sta = resp['sta'];
+
+        if (typeof(resp['chan']) == "undefined" || ! resp.chan.length) { 
+            errorResponse('plotData(): ','Wrong value for channel: '+resp['o_chan']);
+            closeWaitingDialog();
+            return
+        }
+        chan = resp['chan'];
 
         if (resp.traces) traces = resp['traces'];
 
         if (resp.time_start) ts = resp['time_start'];
 
         if (resp.time_end) te = resp['time_end'];
-
-        if (resp.sta) sta = resp['sta'];
-
-        if (resp.chan) chan = resp['chan'];
 
     //}}}
     }
@@ -1176,10 +1202,16 @@ function setData(resp) {
     closeSubnav();
     $('#wforms').removeClass('ui-helper-hidden');
 
+
+    if ( sta.length > 4 ) {
+        sta = sta.slice(0,4);
+        errorResponse('plotData(): ','Hard limit on stations to 4: '+sta);
+    }
+
     //
     // If we don't have traces defined, get them from server...
     //
-    if ( traces.length == undefined ) {
+    if ( ! traces.length ) {
     //{{{
         var sta_string = '.*';
         for (var i in sta ) {
@@ -1194,7 +1226,14 @@ function setData(resp) {
         $.ajax({
             url: proxy + '/data/stations/' + sta_string + '/' + chan_string ,
             async: false,
-            success: function(data) { traces = data; }
+            error:function(error) { errorResponse('setData(): ','Error in query: '+url); },
+            success: function(data) { 
+                if (typeof(data) == "undefined" || data.length == 0) { 
+                    errorResponse('setData(): ','Error in query for sta: '+sta_string+' chan: '+chan_string); 
+                } else {
+                    traces = data;
+                }
+            }
         });
     //}}}
     };
@@ -1232,6 +1271,7 @@ function setData(resp) {
         activeQueries += 1; 
         $.ajax({ 
             url:url, 
+            error:function(error) { errorResponse('setData(): ','Error in query: '+url); },
             success: function(data){
             //{{{
                 if (data['error']) {
@@ -1271,9 +1311,22 @@ function setData(resp) {
     //}}}
     } else if (type == 'waveform'){
     //{{{
+        var count = 0;
+        var remove = Array;
         for (var mysta in traces ) {
+            count = count + 1;
             for (var k in traces[mysta] ) {
+
                 mychan = traces[mysta][k];
+
+                // Hard limit on stations
+                if (count > 4) {
+                    remove.push(mysta);
+                    var name = mysta + '_' + mychan ;
+                    var wpr = name+"_wrapper";
+                    $("#"+wpr).remove();
+                    continue;
+                }
 
                 var url = proxy + '/data/wf/' + mysta + '/' + mychan ;
 
@@ -1290,7 +1343,14 @@ function setData(resp) {
 
                     url:url,
                     dataType:'json',
-                    success: function(data) { plotData(data,mysta,mychan); }
+                    error:function(error) { errorResponse('setData(): ','Error in query: '+url); },
+                    success: function(data) { 
+                        if (typeof(data) == "undefined" || ! data.length == 0) { 
+                            errorResponse('setData(): ','Error in query for sta: '+mysta+' chan: '+mychan); 
+                        } else {
+                            plotData(data,mysta,mychan); 
+                        }
+                    }
 
                 });
 
@@ -1308,6 +1368,12 @@ function setData(resp) {
     //}}}
     }
 
+    if (count > 3) errorResponse('plotData(): ','Hard limit on stations to 4.');
+
+    for (var s in remove) {
+        delete traces[v];
+    }
+
     closeWaitingDialog();
 //}}}
 }
@@ -1315,10 +1381,21 @@ function setData(resp) {
 function plotData(r_data,mysta,mychan){
 //{{{
 
-    $("#loading").html('<p>Plotting: '+mysta+'-'+mychan+'</p>'+$("#loading").html()); 
-
     var temp_name = mysta + '_' + mychan ;
     var wpr = name+"_wrapper";
+
+    if ( typeof(r_data['error']) != "undefined" ) { 
+    //{{{  
+
+        $("#"+wpr).remove();
+        $("#loading").html('<p>ERROR: '+mysta+'-'+mychan+' '+r_data['error']+'</p>'+$("#loading").html()); 
+        errorResponse('plotData(): ','['+mysta+':'+mychan+'] '+r_data['error']);
+        activeQueries -= 1; 
+        return;
+
+    //}}}
+    }
+
     //if ( typeof(r_data) == "string" ) {
     //        var name = mysta + '_' + mychan ;
     //        var wpr = name+"_wrapper";
@@ -1326,6 +1403,8 @@ function plotData(r_data,mysta,mychan){
     //}
     for (var sta in r_data) {
         for (var chan in r_data[sta]) {
+
+            $("#loading").html('<p>Plotting: '+sta+'-'+chan+'</p>'+$("#loading").html()); 
 
             var name = sta + '_' + chan ;
             var wpr = name+"_wrapper";
@@ -1338,7 +1417,7 @@ function plotData(r_data,mysta,mychan){
             var calib = 1;
 
             if (document.getElementById(wpr) == null) {
-                errorResponse('plotData(): ','No wrapper div for ['+sta+':'+chan+']. Appending at bottom.');
+                errorResponse('plotData(): ','No wrapper div for ['+sta+':'+chan+']. Appending new at bottom.');
                 $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
             }
 
@@ -1369,8 +1448,9 @@ function plotData(r_data,mysta,mychan){
             if ( typeof(data['data']) == "undefined" ) { 
             //{{{  If we don't have ANY data...
 
-                $("#loading").html('<p>ERROR: '+mysta+'-'+mychan+' NO DATA!!!!!</p>'+$("#loading").html()); 
                 $("#"+wpr).remove();
+                $("#loading").html('<p>ERROR: '+mysta+'-'+mychan+' NO DATA!!!!!</p>'+$("#loading").html()); 
+                errorResponse('plotData(): ','No data for ['+mysta+':'+mychan+'].');
                 //$("#"+wpr).height( 50 );
 
                 //var canvas = $.plot($("#"+plt),[], temp_flot_ops);
@@ -1386,8 +1466,9 @@ function plotData(r_data,mysta,mychan){
             } else if ( typeof(data['error']) != "undefined" ) { 
             //{{{  If we don't have ANY data...
 
-                $("#loading").html('<p>ERROR: '+mysta+'-'+mychan+' '+data['error']+'</p>'+$("#loading").html()); 
                 $("#"+wpr).remove();
+                $("#loading").html('<p>ERROR: '+mysta+'-'+mychan+' '+data['error']+'</p>'+$("#loading").html()); 
+                errorResponse('plotData(): ','['+mysta+':'+mychan+'] '+data['error']);
 
             //}}}
             } else if ( data['format'] == 'coverage') { 
@@ -1424,16 +1505,21 @@ function plotData(r_data,mysta,mychan){
             } else if( data['format'] == 'bins' ) {
             //{{{  Plot bins
 
+                //if ( typeof(data['metadata']['calib']) != "undefined" ) { 
+                //    var calib = data['metadata']['calib'];
+                //    if ( calib == 0 || isNaN(calib)  ){ calib = 1; }
+                //}
+
+                temp_flot_ops.bars = {show:true,barWidth:0,align:'center'};
+                temp_flot_ops.points  = {show:false};
+                temp_flot_ops.lines = {show:true};
+
                 if ( typeof(data['metadata']['segtype']) != "undefined" ) { 
                     var segtype = data['metadata']['segtype'];
                 }
 
-                if ( typeof(data['metadata']['calib']) != "undefined" ) { 
-                    var calib = data['metadata']['calib'];
-                    if ( calib == 0 || isNaN(calib)  ){ calib = 1; }
-                }
 
-
+                calib = 1;
                 if ( typeof(datatypes[segtype]) != "undefined") {
 
                     if (segtype == 'A' ) {
@@ -1442,25 +1528,33 @@ function plotData(r_data,mysta,mychan){
                             segtype = '(A) => acceleration (G)';
                             // "1 g = 9.80665 m/s2" 
                             calib = 1/9806;
-                        }
-                        else {
+                        } else {
                             segtype = '(A) => ' + datatypes[segtype];
                         }
-                    }
-                    else {
+                    } else {
                         segtype = '(' + segtype + ') => ' + datatypes[segtype];
                     }
                 }
 
-                for ( var i=0, len=data['data'].length; i<len; ++i ){
-                    temp_data = data['data'][i];
-                    if (temp_data[1] == temp_data[2]) { temp_data[2] += .1; }
-                    flot_data[i] =  [temp_data[0]*1000,temp_data[2]*calib,temp_data[1]*calib];
-                }
+                //for ( var i=0, len=data['data'].length; i<len; ++i ){
+                //    temp_data = data['data'][i];
+                //    if (temp_data[1] == temp_data[2]) { temp_data[2] += .1; }
+                //    flot_data[i] =  [temp_data[0]*1000,temp_data[2]*calib,temp_data[1]*calib];
+                //}
 
-                temp_flot_ops.bars = {show:true,barWidth:0,align:'center'};
-                temp_flot_ops.points  = {show:false};
-                temp_flot_ops.lines = {show:false};
+                if ( typeof(data['start']) != "undefined" ) s_temp = data['start'];
+                if ( typeof(data['end']) != "undefined"   ) e_temp = data['end'];
+
+                time_step = (e_temp - s_temp) / data['data'].length;
+
+                for ( var i=0, len=data['data'].length; i<len; ++i ){
+                    if (data['data'][i][0] == data['data'][i][1]) { 
+                        flot_data[i] =  [s_temp*1000,data['data'][i][0]*calib+0.0001,data['data'][i][0]*calib];
+                    } else {
+                        flot_data[i] =  [s_temp*1000,data['data'][i][1]*calib,data['data'][i][0]*calib];
+                    }
+                    s_temp= s_temp + time_step;
+                }
 
                 var canvas = $.plot($("#"+plt),[ flot_data ], temp_flot_ops);
 
@@ -1470,15 +1564,16 @@ function plotData(r_data,mysta,mychan){
             //{{{  Plot lines
                 //alert('Plot data:' + plt );
 
+                //if ( typeof(data['metadata']['calib']) != "undefined" ) { 
+                //    var calib = data['metadata']['calib'];
+                //    if ( calib == 0 || isNaN(calib)  ){ calib = 1; }
+                //}
+
                 if ( typeof(data['metadata']['segtype']) != "undefined" ) { 
                     var segtype = data['metadata']['segtype'];
                 }
 
-                if ( typeof(data['metadata']['calib']) != "undefined" ) { 
-                    var calib = data['metadata']['calib'];
-                    if ( calib == 0 || isNaN(calib)  ){ calib = 1; }
-                }
-
+                calib = 1;
                 if ( typeof(datatypes[segtype]) != "undefined") {
                     if (segtype == 'A' ) {
 
@@ -1486,17 +1581,27 @@ function plotData(r_data,mysta,mychan){
                             segtype = '(A) => acceleration (G)';
                             // "1 g = 9.80665 m/s2" 
                             calib = 1/9806;
+                        } else { 
+                            segtype = '(A) => ' + datatypes[segtype]; 
                         }
-                        else { segtype = '(A) => ' + datatypes[segtype]; }
                     }
                     else {
                         segtype = '(' + segtype + ') => ' + datatypes[segtype];
                     }
                 }
 
+                //for ( var i=0, len=data['data'].length; i<len; ++i ){
+                //    temp_data = data['data'][i];
+                //    flot_data[i] =  [temp_data[0]*1000,temp_data[1]*calib];
+                //}
+                if ( typeof(data['start']) != "undefined" ) s_temp = data['start'];
+                if ( typeof(data['end']) != "undefined"   ) e_temp = data['end'];
+
+                time_step = (e_temp - s_temp) / data['data'].length;
+
                 for ( var i=0, len=data['data'].length; i<len; ++i ){
-                    temp_data = data['data'][i];
-                    flot_data[i] =  [temp_data[0]*1000,temp_data[1]*calib];
+                    flot_data[i] =  [s_temp*1000,data['data'][i]*calib];
+                    s_temp= s_temp + time_step;
                 }
 
                 if ( show_points ) 
@@ -1529,7 +1634,7 @@ function plotData(r_data,mysta,mychan){
             //}}}
             }
 
-            $(".tickLabel").css({'font-size':'10px'});
+            $(".tickLabel").css({'font-size':'15px'});
 
             $(".tickLabel").each(function(i,ele) {
                 ele = $(ele);
@@ -1538,6 +1643,8 @@ function plotData(r_data,mysta,mychan){
                     ele.css("top", ''); //move them up over graph
                 } else {  //y-axis
                     ele.css("left", '1%'); //move them right over graph
+                    ele.css("width", '50px');
+                    ele.css("text-align",'left');
                 }
             });
 
@@ -1565,6 +1672,7 @@ function plotData(r_data,mysta,mychan){
 
 
 //}}}
+//
 }
 
 function setPhases(){

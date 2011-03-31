@@ -65,20 +65,19 @@ class dbcentral:
         """
         end-user/application display of content using print() or log.msg()
         """
-        return ''.join(["\n\t%s: %s" % (value,self.dbs[value]) for value in sorted(self.dbs.keys())])
+        return ''.join(["\n*dbcentral*:\t%s: %s" % (value,self.dbs[value]) for value in sorted(self.dbs.keys())])
 
 #}}}
 
     def info(self):
         #{{{
 
-        print "dbcentral:"
-        print "\tdbcentral.nickname() => %s" % self.nickname
-        print "\tdbcentral.type() => %s" % self.type
-        print "\tdbcentral.path() => %s" % self.path
-        print "\tdbcentral.list() => %s" % self.list()
+        print "*dbcentral*:\tdbcentral.nickname() => %s" % self.nickname
+        print "*dbcentral*:\tdbcentral.type() => %s" % self.type
+        print "*dbcentral*:\tdbcentral.path() => %s" % self.path
+        print "*dbcentral*:\tdbcentral.list() => %s" % self.list()
         for element in sorted(self.dbs):
-            print "\t%s => %s" % (element,self.dbs[element]['times'])
+            print "*dbcentral*:\t%s => %s" % (element,self.dbs[element]['times'])
 
         #}}}
 
@@ -154,7 +153,7 @@ class dbcentral:
             self.type = 'masquerade'
             self.nickname = None
             self.dbs[self.path] = {'times': [-10000000000.0,10000000000.0]}
-            if self.debug: print "Not a dbcentral database. Openning single database."
+            if self.debug: print "*dbcentral*: Not a dbcentral database. Openning single database."
             return 
 
         else:
@@ -419,11 +418,14 @@ class dbcentral:
     def list(self):
         #{{{ return values to the user
 
-        return self.dbs.keys()
+        try:
+            return self.dbs.keys()
+        except:
+            raise dbcentralException('*dbcentral*: ERROR=> Cannot check content of list!')
 
         #}}}
 
-    def purge(self,tbl=0):
+    def purge(self,tbl=None):
         #{{{ remove a database from the list
 
         """
@@ -432,12 +434,14 @@ class dbcentral:
         if not tbl:
             raise dbcentralException('*dbcentral*: dbcentral.purge() => No db')
 
-        try: 
-            del self.dbs[tbl]
-        except :
-            raise dbcentralException('*dbcentral*: dbcentral.purge() => Missing from self.dbs [%s]' % tbl)
+        print '*dbcentral*: dbcentral.purge() => %s' % tbl
 
-        return 1
+        try: 
+            del self.dbs[tbl] 
+        except :
+            pass
+
+        self.info()
 
         #}}}
 

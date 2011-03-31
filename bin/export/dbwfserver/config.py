@@ -3,7 +3,7 @@ from __main__ import *
 class Config_Server():
     def __init__(self):
 #{{{
-        self.simple              = False
+        self.event               = False
         self.pfname              = 'dbwfserver'
         self.style               = 'cupertino'
         self.nickname            = ''
@@ -32,26 +32,28 @@ class Config_Server():
         self.default_time_window = -1
         self.filters             = {}
         self.run_server          = {}
-#}}}
 
-    def configure(self):
-#{{{
         try:
-            opts, pargs = getopt.getopt(sys.argv[1:], 'dp:P:vVsn:')
+            import antelope.stock as stock
+        except Exception,e:
+            system_print()
+            print "Problem loading Antelope's Python libraries. (%s)" % e
+            sys.exit()
+
+        try:
+            opts, pargs = getopt.getopt(sys.argv[1:], 'dp:P:vVen:')
         except getopt.GetoptError:
             self.usage()
             sys.exit(-1)
-
 
         if( len(pargs) == 1):
 
             self.dbname = pargs[0]
 
-
         for option, value in opts:
 
-            if '-s' in option:
-                self.simple = True
+            if '-e' in option:
+                self.event = True
 
             if '-p' in option:
                 self.pfname = str(value)
@@ -76,13 +78,7 @@ class Config_Server():
         # Get values from pf file
         #
         if self.port == -1:
-            self.port = stock.pfget_int( self.pfname, "port" )
-
-        if not self.dbname:
-            self.dbname = stock.pfget_arr( self.pfname, "db" )
-
-        if self.nickname == '':
-            self.nickname = stock.pfget_arr( self.pfname, "nickname" )
+            self.port = stock.pfget_int( self.pfname, "default_port" )
 
         self.binning_threshold   = stock.pfget_int( self.pfname, "binning_threshold" )
         self.canvas_size_default = stock.pfget_int( self.pfname, "canvas_size_default" )
@@ -105,6 +101,10 @@ class Config_Server():
         self.filters             = stock.pfget_arr( self.pfname, "filters" )
         self.import_paths        = stock.pfget_tbl( self.pfname, "import_paths" )
 
+#}}}
+
+    def configure(self):
+#{{{
         # 
         # Expand paths
         #
@@ -157,13 +157,13 @@ class Config_Server():
 
         return argv_remap
 #}}}
-    def usage():
+    def usage(self):
 
-        print "Usage: dbwfserver [-dsvV] [-n nickname] [-p pfname] [-P port] [dbname]\n"
+        print "\n\tUsage: dbwfserver [-devV] [-n nickname] [-p pfname] [-P port] [dbname]\n"
 
     def __getattr__(self,attrname):
 #{{{
-        if attrname == "simple": return self.simple
+        if attrname == "event": return self.event
         if attrname == "pfname": return self.pfname
         if attrname == "nickname": return self.nickname
         if attrname == "style": return self.style

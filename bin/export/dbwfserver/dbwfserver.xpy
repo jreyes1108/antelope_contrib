@@ -1,6 +1,7 @@
 import re
 import os
 import sys
+import random
 import getopt
 import socket
 import platform
@@ -56,16 +57,6 @@ def missing_twisted():
     print  
 #}}}
 
-#
-#Try to import Antelope's Python Interface.
-#
-try:
-    import antelope.stock as stock
-    import antelope.datascope as datascope
-except Exception,e:
-    system_print()
-    print "Problem loading Antelope's Python libraries. (%s)" % e
-    sys.exit()
 
 try:
     from twisted.python import log
@@ -103,13 +94,11 @@ else:
         print "Problem loading Python's simplejson library. (%s)" % e
         sys.exit()
 
-
 try:
     pool = Pool(10)
 except Exception,e:
     print "Problem with process pool object on lib 'multiprocessing' class:Pool. (%s)" % e
     sys.exit()
-
 
 try:
     import dbwfserver.config as configuration
@@ -131,15 +120,19 @@ except Exception,e:
 #
 #Configure system with command-line flags and pf file values.
 #
-config = configuration.Config_Server()
+#config = configuration.Config_Server()
+config = pool.apply(configuration.Config_Server)
 sys.argv = config.configure()
 
 
-#reactor.run()
 try:
     run()
 except:
     print "Exiting."
-    pool.terminate()
-    reactor.stop()
+    try:
+        pool.close()
+        pool.terminate()
+        reactor.stop()
+    except:
+        pass
 

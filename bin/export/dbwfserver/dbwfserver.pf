@@ -1,14 +1,10 @@
 application_title Waveform Explorer
 application_name waveform_explorer
 
-port 8008                               # default port to use for http requests
+default_port 8008                               # default port to use for http requests
 
 #proxy_url /dbwf/ice9                    # for reverse proxy installations
 proxy_url
-
-db /opt/antelope/data/db/demo/demo      # default database to load in server
-
-nickname usarray                        # if using a dbcentral database, use this as matching clustername
 
 default_chans &Tbl{
 # list of values or regex
