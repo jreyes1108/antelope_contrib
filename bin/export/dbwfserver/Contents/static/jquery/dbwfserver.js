@@ -12,8 +12,12 @@ var original_ts = null;
 var original_te = null;
 var sta = ['.*'];
 var chan = ['.*'];
+var page = null;
+var last_page = null;
+var load_all = false;
 
 var filter = 'None';
+var calibrate = true;
 var timezone = 'UTC';
 var type = 'waveform';
 var size = 'medium';
@@ -33,14 +37,10 @@ var chan_plot_obj = {};
 
 var dates_allowed = [];
 
-var traces = {};
-//var sta_array = [];
-//var chan_array = [];
-
 // Set data conversion table
 //{{{
 datatypes = {
-    'A': 'acceleration (nm/sec/sec)',
+    'A': 'accel (Nm/sec/sec)',
     'B': 'UV (sunburn) index NOAA (25*nw/m/m)',
     'D': 'displacement (nm)',
     'H': 'hydroacoustic (pascal)',
@@ -94,6 +94,7 @@ function init(){
             clearTimeout(TO);
         }
         if (window_active && ! $('#wforms').hasClass("ui-helper-hidden") && ! isPlotting ) {
+            load_all = true;
             TO = setTimeout('setData();', 2000);
         }
     });
@@ -107,379 +108,19 @@ function init(){
     $.ajaxSetup({
         type: 'get',
         dataType: 'json',
-        timeout: 30000,
+        timeout: 90000,
         error:errorResponse
     });
 
     getCookie();
 
-    set_click_responses();
+    $('#load_next').live('click', function() { setData(); });
 
-    //build_calendars();
+    $('#link').live('click', function() { makeLink(); });
 
-    varSet();
+    $('#clean').live('click', function() { $(".remove").remove(); });
 
-    keyBinds();
-
-    $("button, input:submit, input:checkbox").button();
-
-    closeWaitingDialog();
-
-    // }}} Set defaults
-}
-
-function openSubnav() {
-    // {{{ open subnav div
-
-    waitingDialog({title: "Waveform Explorer:", message: "Initializing..."});
-
-    var selection = '';
-    for (var i in sta ) {
-        selection = (selection == '') ? sta[i] : selection+'-'+sta[i];
-    }
-    $("#station_string").val(selection);
-
-    var selection = '';
-    for (var i in chan ) {
-        selection = (selection == '') ? chan[i] : selection+'-'+chan[i];
-    }
-    $("#channel_string").val(selection);
-
-    $("#start_time").val(ts);
-    $("#end_time").val(te);
-
-    $('#subnav').removeClass('ui-helper-hidden');
-
-    closeWaitingDialog();
-
-    // }}}
-}
-function closeSubnav() {
-    // {{{ close subnav div
-
-    $('#subnav').addClass('ui-helper-hidden');
-
-    // }}}
-}
-function getCookie() {
-    //{{{ Get cookie values
-        //
-        // Look for cookie values and update elements
-        //
-        show_phases = ($.cookie('dbwfserver_phases') == 'true') ? true : false;
-
-        show_points = ($.cookie('dbwfserver_points') == 'true') ? true : false;
-
-        timezone = ($.cookie('dbwfserver_time_zone') == 'local') ? 'local' : 'UTC';
-
-        type = ($.cookie('dbwfserver_type') == 'coverage') ? 'coverage' : 'waveform';
-
-        acceleration = ($.cookie('dbwfserver_acceleration') == 'SI') ? 'SI' : 'G';
-
-        if ($.cookie('dbwfserver_size')) size  =  $.cookie('dbwfserver_size');
-
-        if ($.cookie('dbwfserver_bg_top_color')) bg_top_color  =  $.cookie('dbwfserver_bg_top_color');
-
-        if ($.cookie('dbwfserver_bg_bottom_color')) bg_bottom_color  =  $.cookie('dbwfserver_bg_bottom_color');
-
-        if ($.cookie('dbwfserver_tick_color')) tick_color  =  $.cookie('dbwfserver_tick_color');
-
-        if ($.cookie('dbwfserver_data_color')) data_color  =  $.cookie('dbwfserver_data_color');
-
-        if ($.cookie('dbwfserver_text_color')) text_color  =  $.cookie('dbwfserver_text_color');
-
-        if ($.cookie('dbwfserver_filter')) filter  =  $.cookie('dbwfserver_filter');
-
-    //}}} Get cookie values
-}
-
-function setCookie() {
-    //{{{ Set cookie
-
-        // Set COOKIE global options
-        COOKIE_OPTS = { path: '/', expiresAt: 99 };
-
-        $.cookie('dbwfserver_time_zone', timezone, COOKIE_OPTS);
-
-        $.cookie('dbwfserver_type', type, COOKIE_OPTS);
-
-        $.cookie('dbwfserver_size', size, COOKIE_OPTS);
-
-        $.cookie('dbwfserver_acceleration', acceleration, COOKIE_OPTS);
-
-        $.cookie('dbwfserver_bg_top_color', bg_top_color, COOKIE_OPTS);
-
-        $.cookie('dbwfserver_bg_bottom_color', bg_bottom_color, COOKIE_OPTS);
-
-        $.cookie('dbwfserver_tick_color', tick_color, COOKIE_OPTS);
-
-        $.cookie('dbwfserver_text_color', text_color, COOKIE_OPTS);
-
-        $.cookie('dbwfserver_data_color', data_color, COOKIE_OPTS);
-
-        $.cookie('dbwfserver_filter', filter, COOKIE_OPTS);
-
-        $.cookie('dbwfserver_phases', show_phases, COOKIE_OPTS);
-
-        $.cookie('dbwfserver_points', show_points, COOKIE_OPTS);
-
-        //$.cookie('dbwfserver_stime', ts , COOKIE_OPTS);
-
-        //$.cookie('dbwfserver_etime', te , COOKIE_OPTS);
-
-        //$.cookie('dbwfserver_sta', stations , COOKIE_OPTS);
-
-        //$.cookie('dbwfserver_chan', channels , COOKIE_OPTS);
-
-    //}}} Set cookie
-}
-
-function build_dialog_boxes() {
-    //{{{
-
-    //Set station and channel dialog boxes
-    $("#list").dialog({ 
-        //{{{
-        height: 'auto',
-        width: 'auto',
-        autoOpen: false,
-        draggable: true, 
-        resizable: true,
-        buttons: {
-            OK: function() {
-
-                var target;
-                var selection = '';
-                var type_opt = $( this ).dialog('option', 'title'); 
-
-
-                if (type_opt == 'Select Channels:') {
-                    target = $("#channel_string");
-                }
-                else if (type_opt == 'Select Stations:') {
-                    target = $("#station_string");
-                }
-                else { 
-                    alert( 'ERROR: '+ type_opt );
-                    $( this ).dialog( "close" );
-                    return;
-                }
-
-                target.val('.*');
-
-                $(".ui-selected").each(function(){
-                    if ( ! selection ) {
-                        selection = $( this ).text();
-                    }
-                    else { 
-                        selection = selection+'-'+$( this ).text();
-                    }
-                });
-
-                if ( selection ) target.val(selection);
-
-                $( this ).dialog( "close" );
-
-            },
-            Cancel: function() {
-                $( this ).dialog( "close" );
-            }
-        }
-        //}}}
-    }); // end of dialog 
-
-    //Set loading dialog box
-    $("#event_list").dialog({ 
-        //{{{
-        autoOpen: false,
-        draggable: true, 
-        resizable: true,
-        minWidth:  600, 
-        //}}}
-    }); // end of dialog 
-
-    //Set loading dialog box
-    $("#configpanel").dialog({ 
-        //{{{
-        autoOpen: false,
-        draggable: true, 
-        resizable: true,
-        buttons: {
-            OK: function() {
-
-                timezone = $("input[name='timezone']:checked").val();
-
-                type = $("input[name='wf_type']:checked").val();
-
-                size = $("input[name='wf_size']:checked").val();
-
-                acceleration = $("input[name='accel_type']:checked").val();
-
-                bg_top_color = $("#bg_top_color").val();
-
-                bg_bottom_color = $("#bg_bottom_color").val();
-
-                tick_color = $("#tick_color").val();
-
-                text_color = $("#text_color").val();
-
-                data_color = $("#data_color").val();
-
-                filter = $("#filter").val(); 
-
-                show_phases = $('#phases').is(':checked') ? true : false; 
-
-                show_points = $('#points').is(':checked') ? true : false;
-
-                setCookie();
-
-                varSet();
-
-                $( this ).dialog( "close" );
-
-                if (! $("#subnav").is(":visible") ) { setData(); }
-
-            },
-            Cancel: function() {
-                $( this ).dialog( "close" );
-            }
-        },
-        //}}}
-    }); // end of dialog 
-
-    //Set loading dialog box
-    $("#helppanel").dialog({ 
-        //{{{
-        autoOpen: false,
-        draggable: true, 
-        resizable: true,
-        buttons: {
-            OK: function() {
-                $( this ).dialog( "close" );
-            }
-        }
-        //}}}
-    }); // end of dialog 
-
-    //Set loading dialog box
-    $("#loading").dialog({ 
-        //{{{
-        autoOpen: false,
-        //dialogClass: "ui-state-error", 
-        dialogClass: "ui-widget-overlay", 
-        draggable: false, 
-        resizable: false,
-        open: function(event, ui) { isPlotting = true; },
-        close: function(event, ui) { isPlotting = false; }
-        //}}}
-    }); // end of dialog 
-
-    //}}}
-}
-
-function waitingDialog(waiting) { 
-    //{{{
-
-    $("#loading").html( (waiting.message && '' != waiting.message) ? '<p>'+waiting.message+'</p>' : '<p>Please wait...</p>'); 
-    $("#loading").dialog('option', 'title', (waiting.title && '' != waiting.title) ? waiting.title : 'Loading'); 
-    $("#loading").dialog('open'); 
-
-    //}}}
-}
-
-function closeWaitingDialog() { 
-    //{{{
-
-    if (activeQueries > 0) {
-        setTimeout(closeWaitingDialog,100);
-    }
-    else {
-
-        if (! $('#wforms').hasClass("ui-helper-hidden") ) setPhases();
-
-        $("#loading").dialog('close'); 
-        $("#loading").empty(); 
-    }
-
-    //}}}
-}
-
-function build_calendars() { 
-    //{{{
-
-    // Build DATEPICKER
-    $(".pickdate").datepicker({
-        dateFormat: '@',
-        beforeShowDay: function(test_date) { 
-
-            diff = test_date.getTimezoneOffset();
-
-            var found = true;
-
-            //$.each(dates_allowed, function(key,value) {
-
-            //    var option = new Date((value + (diff*60)) * 1000 );
-
-            //    if (test_date.getTime() == option.getTime()) { found = true; }
-
-            //});
-
-            return found ? [true,'','Valid'] : [false,'','Not valid.']; 
-
-        },
-        onSelect: function(dateText, inst) {
-            if (this.id == "end_time"){
-                var old = $(".pickdate").not(this).val();
-                $(".pickdate").not(this).datepicker("option", 'maxDate', dateText );
-                $(".pickdate").not(this).val( old );
-                $("#end_time").val( (dateText / 1000) + 86399 );
-            } else {
-                var old = $(".pickdate").not(this).val();
-                $(".pickdate").not(this).datepicker("option", "minDate", dateText);
-                $(".pickdate").not(this).val( old );
-                $("#start_time").val( dateText / 1000 );
-            }
-        }
-    });
-
-    //
-    // Set the max and min on datepicker to 
-    // database max and min times on wfdisc
-    //
-
-    $.ajax({
-        url: proxy + "/data/dates",
-        success: function(json) {
-
-            var max = 0;
-            var min = 999999999999;
-
-            if ( typeof(json) != "undefined" ) {
-
-                $.each(json, function(key,value) {
-
-                    if ( value[0] < min) { min = value[0]; }
-                    if ( value[1] > max) { max = value[1]; }
-
-                });
-
-                $(".pickdate").datepicker("option", 'minDate', min*1000+''); 
-                $(".pickdate").datepicker("option", 'maxDate', max*1000+''); 
-
-                dates_allowed = json;
-
-            }
-
-        }
-    });
-
-    //}}}
-}
-
-function set_click_responses() { 
-    //{{{
-
-    $('#home').click( function(){ 
+    $('#home').live('click', function() {
         //{{{
         closeSubnav();
 
@@ -492,7 +133,7 @@ function set_click_responses() {
         //}}}
     });
 
-    $('#openconfig').click( function(){ 
+    $('#openconfig').live('click', function() {
     //{{{ Get cookie values
         //
         // Look for cookie values and update elements
@@ -595,14 +236,14 @@ function set_click_responses() {
     //}}} Get cookie values
     });
 
-    $('#openhelp').click( function(){ 
+    $('#openhelp').live('click', function() {
     //{{{
         $("#helppanel").dialog('option', 'title','HELP:'); 
         $("#helppanel").dialog('open'); 
     //}}}
     });
 
-    $('#load_events').click( function(){ 
+    $('#load_events').live('click', function() {
     //{{{
         $('#event_list').empty();
         $.ajax({
@@ -671,7 +312,7 @@ function set_click_responses() {
     //}}}
     });
 
-    $('#clear').click( function(){
+    $('#clear').live('click', function() {
         //{{{
         ts = null;
         te = null;
@@ -694,18 +335,17 @@ function set_click_responses() {
         //}}}
     });
 
-    $('#plot').click( function(){
+    $('#plot').live('click', function() {
         //{{{
 
-        sta = ( $('#station_string').val() ) ? $("#station_string").val().replace(' ','-') : '.*';
-        chan = ( $('#channel_string').val() ) ? $("#channel_string").val().replace(' ','-') : '.*';
+        sta = ( $('#station_string').val() ) ? $("#station_string").val() : '.*';
+        chan = ( $('#channel_string').val() ) ? $("#channel_string").val() : '.*';
 
-        sta = ( sta ) ? sta.split('-') : ['.*'];
-        chan = ( chan ) ? chan.split('-') : ['.*'];
+        ts = ( $('#start_time').val() > 0 ) ? $("#start_time").val()*1000 : null;
+        te = ( $('#end_time').val()  > 0) ? $("#end_time").val()*1000 : null;
 
-        start = ( $('#start_time').val() ) ? $("#start_time").val() : null;
-
-        end = ( $('#end_time').val() ) ? $("#end_time").val() : null;
+        ts = parseInt(ts);
+        te = parseInt(te);
 
         $('#list').empty();
         $('#event_list').empty();
@@ -717,7 +357,7 @@ function set_click_responses() {
         //}}}
     });
 
-    $('#load_stas').click( function($e){
+    $('#load_stas').live('click', function() {
     //{{{
         $('#list').empty();
         $("#list").html("<ol></ol>");
@@ -741,7 +381,7 @@ function set_click_responses() {
         //}}}
     });
 
-    $('#load_chans').click( function($e){
+    $('#load_chans').live('click', function() {
         //{{{
 
         $('#list').empty();
@@ -766,7 +406,7 @@ function set_click_responses() {
         //}}}
     });
 
-    $("#remove_error") .click(function() {
+    $('#remove_error').live('click', function() {
         $("#errors p").remove();
         $('#errors').addClass('ui-helper-hidden');
     })
@@ -776,6 +416,379 @@ function set_click_responses() {
     $('#remove_error').mouseleave(function() {
         $(this).removeClass("ui-state-hover");
     });
+    
+
+    varSet();
+
+    keyBinds();
+
+    $("button, input:submit, input:checkbox").button();
+
+    closeWaitingDialog();
+
+    // }}} Set defaults
+}
+
+// For App GUI
+function openSubnav() {
+    // {{{ open subnav div
+
+    waitingDialog({title: "Waveform Explorer:", message: "Initializing..."});
+
+    $("#station_string").val(sta);
+
+    $("#channel_string").val(chan);
+
+    temp = ( ts > 0 ) ? ts/1000 : null;
+    $("#start_time").val(temp);
+    temp = ( te > 0 ) ? te/1000 : null;
+    $("#end_time").val(temp);
+
+    $('#link').hide();
+    $('#clean').hide();
+    $('#load_bar').empty();
+    $('#load_bar').addClass('ui-helper-hidden');
+    $('#subnav').removeClass('ui-helper-hidden');
+
+    closeWaitingDialog();
+
+    // }}}
+}
+// For App GUI
+function closeSubnav() {
+    // {{{ close subnav div
+
+    $('#subnav').addClass('ui-helper-hidden');
+
+    // }}}
+}
+
+function makeLink(){
+//{{{
+    var path = String(window.location).split('/')
+    var url = path[0] + '//' + path[2] + '/' + proxy + '/wf/' + sta + '/' + chan ;
+    url += ( ts ) ? '/'+ts/1000 : '/-'; 
+    url += ( te ) ? '/'+te/1000 : '/-'; 
+    url += ( filter ) ? '/'+filter : '/-'; 
+    url += ( calibrate ) ? '/True' : '/False'; 
+    url += '/'+page ; 
+    alert(url);
+//}}}
+}
+
+function getCookie() {
+    //{{{ Get cookie values
+        //
+        // Look for cookie values and update elements
+        //
+        show_phases = ($.cookie('dbwfserver_phases') == 'true') ? true : false;
+
+        show_points = ($.cookie('dbwfserver_points') == 'true') ? true : false;
+
+        timezone = ($.cookie('dbwfserver_time_zone') == 'local') ? 'local' : 'UTC';
+
+        type = ($.cookie('dbwfserver_type') == 'coverage') ? 'coverage' : 'waveform';
+
+        acceleration = ($.cookie('dbwfserver_acceleration') == 'SI') ? 'SI' : 'G';
+
+        if ($.cookie('dbwfserver_size')) size  =  $.cookie('dbwfserver_size');
+
+        if ($.cookie('dbwfserver_bg_top_color')) bg_top_color  =  $.cookie('dbwfserver_bg_top_color');
+
+        if ($.cookie('dbwfserver_bg_bottom_color')) bg_bottom_color  =  $.cookie('dbwfserver_bg_bottom_color');
+
+        if ($.cookie('dbwfserver_tick_color')) tick_color  =  $.cookie('dbwfserver_tick_color');
+
+        if ($.cookie('dbwfserver_data_color')) data_color  =  $.cookie('dbwfserver_data_color');
+
+        if ($.cookie('dbwfserver_text_color')) text_color  =  $.cookie('dbwfserver_text_color');
+
+        if ($.cookie('dbwfserver_filter')) filter  =  $.cookie('dbwfserver_filter');
+
+    //}}} Get cookie values
+}
+
+function setCookie() {
+    //{{{ Set cookie
+
+        // Set COOKIE global options
+        COOKIE_OPTS = { path: '/', expiresAt: 99 };
+
+        $.cookie('dbwfserver_time_zone', timezone, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_type', type, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_size', size, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_acceleration', acceleration, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_bg_top_color', bg_top_color, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_bg_bottom_color', bg_bottom_color, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_tick_color', tick_color, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_text_color', text_color, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_data_color', data_color, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_filter', filter, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_phases', show_phases, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_points', show_points, COOKIE_OPTS);
+
+        //$.cookie('dbwfserver_stime', ts , COOKIE_OPTS);
+
+        //$.cookie('dbwfserver_etime', te , COOKIE_OPTS);
+
+        //$.cookie('dbwfserver_sta', stations , COOKIE_OPTS);
+
+        //$.cookie('dbwfserver_chan', channels , COOKIE_OPTS);
+
+    //}}} Set cookie
+}
+
+function build_dialog_boxes() {
+    //{{{
+
+    //Set station and channel dialog boxes
+    $("#list").dialog({ 
+        //{{{
+        height: 'auto',
+        width: 'auto',
+        modal: true,
+        autoOpen: false,
+        draggable: true, 
+        resizable: true,
+        buttons: {
+            OK: function() {
+
+                var target;
+                var selection = '';
+                var type_opt = $( this ).dialog('option', 'title'); 
+
+
+                if (type_opt == 'Select Channels:') {
+                    target = $("#channel_string");
+                }
+                else if (type_opt == 'Select Stations:') {
+                    target = $("#station_string");
+                }
+                else { 
+                    alert( 'ERROR: '+ type_opt );
+                    $( this ).dialog( "close" );
+                    return;
+                }
+
+                target.val('.*');
+
+                $(".ui-selected").each(function(){
+                    if ( ! selection ) {
+                        selection = $( this ).text();
+                    }
+                    else { 
+                        selection = selection + '|' + $( this ).text();
+                    }
+                });
+
+                if ( selection ) target.val(selection);
+
+                $( this ).dialog( "close" );
+
+            },
+            Cancel: function() {
+                $( this ).dialog( "close" );
+            }
+        }
+        //}}}
+    }); // end of dialog 
+
+    //Set loading dialog box
+    $("#event_list").dialog({ 
+        //{{{
+        autoOpen: false,
+        draggable: true, 
+        modal: true,
+        resizable: true,
+        minWidth:  600, 
+        //}}}
+    }); // end of dialog 
+
+    //Set loading dialog box
+    $("#configpanel").dialog({ 
+        //{{{
+        autoOpen: false,
+        modal: true,
+        draggable: true, 
+        resizable: true,
+        buttons: {
+            OK: function() {
+
+                timezone = $("input[name='timezone']:checked").val();
+
+                type = $("input[name='wf_type']:checked").val();
+
+                size = $("input[name='wf_size']:checked").val();
+
+                acceleration = $("input[name='accel_type']:checked").val();
+
+                bg_top_color = $("#bg_top_color").val();
+
+                bg_bottom_color = $("#bg_bottom_color").val();
+
+                tick_color = $("#tick_color").val();
+
+                text_color = $("#text_color").val();
+
+                data_color = $("#data_color").val();
+
+                filter = $("#filter").val(); 
+
+                show_phases = $('#phases').is(':checked') ? true : false; 
+
+                show_points = $('#points').is(':checked') ? true : false;
+
+                setCookie();
+
+                varSet();
+
+                load_all = true;
+
+                $( this ).dialog( "close" );
+
+                if (! $("#subnav").is(":visible") ) { setData(); }
+
+            },
+            Cancel: function() {
+                $( this ).dialog( "close" );
+            }
+        },
+        //}}}
+    }); // end of dialog 
+
+    //Set loading dialog box
+    $("#helppanel").dialog({ 
+        //{{{
+        autoOpen: false,
+        draggable: true, 
+        resizable: true,
+        buttons: {
+            OK: function() {
+                $( this ).dialog( "close" );
+            }
+        }
+        //}}}
+    }); // end of dialog 
+
+    //Set loading dialog box
+    $("#loading").dialog({ 
+        //{{{
+        autoOpen: false,
+        //dialogClass: "ui-state-error", 
+        dialogClass: "ui-widget-overlay", 
+        draggable: false, 
+        modal:true,
+        resizable: false,
+        open: function(event, ui) { isPlotting = true; },
+        close: function(event, ui) { isPlotting = false; }
+        //}}}
+    }); // end of dialog 
+
+    //}}}
+}
+
+function waitingDialog(waiting) { 
+    //{{{
+
+    $("#loading").html( (waiting.message && '' != waiting.message) ? '<p>'+waiting.message+'</p>' : '<p>Please wait...</p>'); 
+    $("#loading").dialog('option', 'title', (waiting.title && '' != waiting.title) ? waiting.title : 'Loading'); 
+    $("#loading").dialog('open'); 
+
+    //}}}
+}
+
+function closeWaitingDialog() { 
+    //{{{
+
+    if (activeQueries == 0) {
+        if (! $('#wforms').hasClass("ui-helper-hidden") ) setPhases();
+        $("#loading").dialog('close'); 
+        $("#loading").empty(); 
+    }
+
+    //}}}
+}
+
+function build_calendars() { 
+    //{{{
+
+    // Build DATEPICKER
+    $(".pickdate").datepicker({
+        dateFormat: '@',
+        beforeShowDay: function(test_date) { 
+
+            diff = test_date.getTimezoneOffset();
+
+            var found = true;
+
+            //$.each(dates_allowed, function(key,value) {
+
+            //    var option = new Date((value + (diff*60)) * 1000 );
+
+            //    if (test_date.getTime() == option.getTime()) { found = true; }
+
+            //});
+
+            return found ? [true,'','Valid'] : [false,'','Not valid.']; 
+
+        },
+        onSelect: function(dateText, inst) {
+            if (this.id == "end_time"){
+                var old = $(".pickdate").not(this).val();
+                $(".pickdate").not(this).datepicker("option", 'maxDate', dateText );
+                $(".pickdate").not(this).val( old );
+                $("#end_time").val( (dateText / 1000) + 86399 );
+            } else {
+                var old = $(".pickdate").not(this).val();
+                $(".pickdate").not(this).datepicker("option", "minDate", dateText);
+                $(".pickdate").not(this).val( old );
+                $("#start_time").val( dateText / 1000 );
+            }
+        }
+    });
+
+    //
+    // Set the max and min on datepicker to 
+    // database max and min times on wfdisc
+    //
+
+    $.ajax({
+        url: proxy + "/data/dates",
+        success: function(json) {
+
+            var max = 0;
+            var min = 999999999999;
+
+            if ( typeof(json) != "undefined" ) {
+
+                $.each(json, function(key,value) {
+
+                    if ( value[0] < min) { min = value[0]; }
+                    if ( value[1] > max) { max = value[1]; }
+
+                });
+
+                $(".pickdate").datepicker("option", 'minDate', min*1000+''); 
+                $(".pickdate").datepicker("option", 'maxDate', max*1000+''); 
+
+                dates_allowed = json;
+
+            }
+
+        }
+    });
+
     //}}}
 }
 
@@ -881,24 +894,7 @@ function varSet(){
 // {{{ Set vars for plots
 
     // Function to produce tick labels for X axis
-    x_formatter =  function (val, axis) {
-        //{{{
-        if ( timezone == "local" ) {
-            var lbl = '(UTC + ' + (diff/60)+')';
-        }
-        else {
-            val += (new Date(val).getTimezoneOffset() * 60000);
-            var lbl = 'UTC'
-        }
-
-        var newDate = new Date(val);
-
-        //$('#errors').append('<p>Epoch:'+val+" date:"+ newDate + " diff:"+ diff + "</p>");
-        //$('#errors').removeClass('ui-helper-hidden');
-        return newDate.getFullYear()+'-'+(newDate.getMonth()+1)+'-'+newDate.getDate()+' '+newDate.getHours()+':'+newDate.getMinutes()+':'+newDate.getSeconds()+' '+lbl
-
-        //}}}
-    };
+    x_formatter =  function (val, axis) { return convertTime(val); };
 
     // Function to produce tick labels for X axis
     y_formatter =  function (val, axis) {
@@ -951,10 +947,10 @@ function varSet(){
 
 
     // For the text on the screen.
-    NameCss = { color:text_color, 'font-size':'20px', position:'absolute', left:'5%', top:'8%'};
+    NameCss = { color:text_color, 'font-size':'20px', position:'absolute', left:'10%', top:'8%'};
 
     // For the text on the screen.
-    calibCss = { color:text_color, 'font-size':'15px', position:'absolute', left:'15%', top:'8%'};
+    calibCss = { color:text_color, 'font-size':'15px', position:'absolute', right:'5%', top:'8%'};
 
     // For the exit icon
     IconCss = { cursor:'pointer', position:'absolute', right:'1%', top:'5%'};
@@ -1054,102 +1050,53 @@ function handleSelect(evt, pos){
     if (isShiftPressed) {
         var delta = 0;
 
-        delta = parseInt( pos.xaxis.from, 10 )/1000 - ts ;
+        delta = parseInt( pos.xaxis.from, 10 ) - ts ;
 
         ts -= delta;
 
-        delta = te - parseInt( pos.xaxis.to, 10 )/1000;
+        delta = te - parseInt( pos.xaxis.to, 10 );
 
         te += delta;
 
-        if (mode == "limited") { 
-            if (ts < original_ts) { ts = original_ts; }
-            if (te > original_te) { te = original_te; }
-        }
+        if  ( ts < original_ts || te > original_te )
+            alert('Cannot zoom-out more than original query!');
+
+        if (ts < original_ts) { ts = original_ts; }
+        if (te > original_te) { te = original_te; }
 
     }
     else { 
 
-        ts = parseInt( pos.xaxis.from, 10 )/1000 ;
-        te = parseInt( pos.xaxis.to, 10 )/1000 ;
+        ts = parseInt( pos.xaxis.from, 10 ) ;
+        te = parseInt( pos.xaxis.to, 10 ) ;
 
     }
 
+    load_all = true;
     setData();
 
     // }}} Selection zoom functionality
 }
 
-function buildWrappers(){
-    //{{{
+function convertTime(time){
+//{{{
+        var newDate = new Date(time);
 
-    //
-    // Build each plot wrapper in order
-    //
+        var diff = newDate.getTimezoneOffset();
 
-    //errorResponse('buildWrappers(): ','TEST ERROR STRING');
-
-    var sta_array = [];
-    var numerals = false;
-
-    for ( var mysta in traces ) {
-        if(isNaN(mysta)){
-            sta_array.push(mysta);
-        } else {
-            numerals = true;
-            sta_array.push( parseInt(mysta) );
+        if ( timezone == "local" ) {
+            var lbl = '(UTC + ' + (diff/60)+')';
         }
-    }
-
-    if (numerals) 
-        sta_array.sort(function(a,b){return a - b});
-    else
-        sta_array.sort();
-
-    for ( var s_key in sta_array ) {
-        var chan_array = [];
-        var s_val = sta_array[s_key];
-        var numerals = false;
-
-        for ( var mychan in traces[s_val]) { 
-            if(isNaN(traces[s_val][mychan])){
-                chan_array.push(traces[s_val][mychan]);
-            } else {
-                numerals = true;
-                chan_array.push( parseInt(traces[s_val][mychan]) );
-            }
+        else {
+            time += (newDate.getTimezoneOffset() * 60000);
+            newDate = new Date(time);
+            var lbl = 'UTC'
         }
 
-        if (numerals) 
-            chan_array.sort(function(a,b){return a - b});
-        else
-            chan_array.sort();
 
-        for ( var c_key in chan_array ) {
-            var c_val = chan_array[c_key];
-            var wpr = s_val + '_' + c_val + '_wrapper' ;
-            // If we don't have div then build one...
-            if ( $("#"+wpr).length == 0 ){
-                $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
-            }
 
-            $("#"+wpr).empty();
-            $("#"+wpr).width( $('#name_path').width() );
-            $("#"+wpr).html(' <div class="ui-state-highlight ui-corner-all" style="width:100%;height:100%;margin:5px"><p><span class="ui-icon ui-icon-info" style="float:left"></span><strong>Loading plot ['+s_val+'_'+c_val+']</strong></p></div>');
-
-            if ( type == 'coverage') { 
-                $("#"+wpr).height( 50 );
-            } else if (size == 'big') {
-                $("#"+wpr).height( 200 );
-            } else if (size == 'medium') {
-                $("#"+wpr).height( 150 );
-            } else {
-                $("#"+wpr).height( 100 );
-            }
-        }
-    }
-
-    //}}}
+        return newDate.getFullYear()+'-'+(newDate.getMonth()+1)+'-'+newDate.getDate()+' '+newDate.getHours()+':'+newDate.getMinutes()+':'+newDate.getSeconds()+' '+lbl
+//}}}
 }
 
 function setData(resp) {
@@ -1158,272 +1105,169 @@ function setData(resp) {
 
     getCookie();
 
-    // 
-    // If resp defined... update globals
-    //
+    // If resp defined... 
+    // update globals
     if ( resp ) {
     //{{{
 
-        // is define globally for app
         if (resp.error) {
             errorResponse('setData(): ',resp['error']);
             closeWaitingDialog();
             return;
         }
 
-        if (typeof(resp['sta']) == "undefined" || ! resp.sta.length) { 
-            errorResponse('plotData(): ','Wrong value for station: '+resp['o_sta']);
-            closeWaitingDialog();
-            return
+        if (resp.sta) sta = resp['sta'];
+
+        if (resp.chan) chan = resp['chan'];
+
+        if (resp.time_start) ts = resp['time_start']*1000;
+
+        if (resp.time_end) te = resp['time_end']*1000;
+
+        if (resp.filter) filter = resp['filter'];
+
+        if (resp.calib) calibrate = resp['calib'];
+
+        if (resp.page) page = resp['page'];
+
+        if ( (parseInt(page) > 0) ? parseInt(page) : 0 ) {
+            last_page = parseInt(page);
+            load_all = true;
+        } else {
+            page = 0;
         }
-        sta = resp['sta'];
 
-        if (typeof(resp['chan']) == "undefined" || ! resp.chan.length) { 
-            errorResponse('plotData(): ','Wrong value for channel: '+resp['o_chan']);
-            closeWaitingDialog();
-            return
-        }
-        chan = resp['chan'];
-
-        if (resp.traces) traces = resp['traces'];
-
-        if (resp.time_start) ts = resp['time_start'];
-
-        if (resp.time_end) te = resp['time_end'];
+        ts = parseInt(ts);
+        te = parseInt(te);
 
     //}}}
     }
 
+    // Set max time window
+    // This will prevent the user
+    // to zoom-out away from this 
+    // segment later.
     if ( ! original_ts ) original_ts = ts;
-
     if ( ! original_te ) original_te = te;
+
 
     // Show plots and hide Controls
     closeSubnav();
     $('#wforms').removeClass('ui-helper-hidden');
-
-
-    if ( sta.length > 4 ) {
-        sta = sta.slice(0,4);
-        errorResponse('plotData(): ','Hard limit on stations to 4: '+sta);
-    }
+    $('#link').show();
+    $('#clean').show();
 
     //
-    // If we don't have traces defined, get them from server...
-    //
-    if ( ! traces.length ) {
-    //{{{
-        var sta_string = '.*';
-        for (var i in sta ) {
-            sta_string = (sta_string == '.*') ? sta[i] : sta_string+'-'+sta[i];
-        }
+    // Get the data... 
+    //  coverage and waveforms 
+    //  now are combined...
+    sta = (sta) ? sta : '.*';
+    chan = (chan) ? chan : '.*';
 
-        var chan_string = '.*';
-        for (var i in chan ) {
-            chan_string = (chan_string == '.*') ? chan[i] : chan_string+'-'+chan[i];
-        }
+    // Page to load
+    page = (parseInt(page) > 0) ? parseInt(page) : 0;
+    last_page = (parseInt(last_page) > 0) ? parseInt(last_page) : 1;
 
-        $.ajax({
-            url: proxy + '/data/stations/' + sta_string + '/' + chan_string ,
-            async: false,
-            error:function(error) { errorResponse('setData(): ','Error in query: '+url); },
-            success: function(data) { 
-                if (typeof(data) == "undefined" || data.length == 0) { 
-                    errorResponse('setData(): ','Error in query for sta: '+sta_string+' chan: '+chan_string); 
-                } else {
-                    traces = data;
-                }
-            }
-        });
-    //}}}
-    };
+    page += 1;
 
-    $("#loading").html('<p>Query for : ['+sta+']-['+chan+']</p>'+$("#loading").html()); 
+    if (page > last_page) page = last_page;
 
-    //
-    // Build each plot wrapper in order
-    //
-    buildWrappers();
+    if (load_all) 
+        var first_page = 1;
+    else
+        var first_page = page;
 
-    // Set max and min for plots
-    if (ts) flot_ops.xaxis.min = ts*1000;
-    if (te) flot_ops.xaxis.max = te*1000;
+    load_all = false;
 
-    if (type == 'coverage') {
-    //{{{
-        var sta_string = '.*';
-        for (var i in sta ) {
-            sta_string = (sta_string == '.*') ? sta[i] : sta_string+'-'+sta[i];
-        }
-        var chan_string = '.*';
-        for (var i in chan ) {
-            chan_string = (chan_string == '.*') ? chan[i] : chan_string+'-'+chan[i];
-        }
+    for( i=first_page;i<=page;i++) {
 
-        var url = proxy + '/data/coverage/' + sta_string + '/' + chan_string ;
+        var url = proxy + '/data/wf/' + sta + '/' + chan ;
 
-        url += ( ts ) ? '/'+ts : '/-'; 
+        url += ( ts ) ? '/'+ts/1000 : '/-'; 
 
-        url += ( te ) ? '/'+te : '/-'; 
+        url += ( te ) ? '/'+te/1000 : '/-'; 
 
-        // Just 1 ajax call for all coverage data 
-        // since all comes from the wfdisc table.
+        url += ( filter ) ? '/'+filter : '/-'; 
+
+        url += ( calibrate ) ? '/True' : '/False'; 
+
+        url += '/'+i ; 
+
         activeQueries += 1; 
+
         $.ajax({ 
             url:url, 
-            error:function(error) { errorResponse('setData(): ','Error in query: '+url); },
+            error:function(error) { 
+                errorResponse('setData(): ','Error in query: '+url); 
+                activeQueries -= 1; 
+            },
             success: function(data){
-            //{{{
-                if (data['error']) {
-                    errorResponse('buildWrappers(): ',data['error']);
-                }
-                sta = data['sta'];
-                chan = data['chan'];
-
-                // Coverage could be called without times... need update
-                if (data['time_start']) ts = data['time_start'];
-                if (data['time_end']) te = data['time_end'];
-
-                for (var mysta in traces ) {
-                    for (var k in traces[mysta] ) {
-                        mychan = traces[mysta][k];
-
-                        //alert('list: ['+mysta+':'+mychan+']');
-
-                        var d = new Object();
-                        d[mysta] = new Object();
-                        d[mysta][mychan] = {};
-
-                        if (typeof(data[mysta]) == "undefined" ) { 
-                            plotData(d);
-                        } else if (typeof(data[mysta][mychan]) == "undefined" ) { 
-                            plotData(d);
-                        } else{
-                            d[mysta][mychan] = {'format':'coverage','data':data[mysta][mychan]['data']};
-                            plotData(d);
-                        }
-
-                    }
-                }
-            //}}}
+                plotData(data);
+                closeWaitingDialog();
             }
         });
-    //}}}
-    } else if (type == 'waveform'){
-    //{{{
-        var count = 0;
-        var remove = Array;
-        for (var mysta in traces ) {
-            count = count + 1;
-            for (var k in traces[mysta] ) {
 
-                mychan = traces[mysta][k];
-
-                // Hard limit on stations
-                if (count > 4) {
-                    remove.push(mysta);
-                    var name = mysta + '_' + mychan ;
-                    var wpr = name+"_wrapper";
-                    $("#"+wpr).remove();
-                    continue;
-                }
-
-                var url = proxy + '/data/wf/' + mysta + '/' + mychan ;
-
-                url += ( ts ) ? '/'+ts : '/-'; 
-
-                url += ( te ) ? '/'+te : '/-'; 
-
-                url += ( filter ) ? '/'+filter : '/-'; 
-
-                activeQueries += 1; 
-
-                $("#loading").html('<p>AJAX Query: '+url+'</p>'+$("#loading").html()); 
-                $.ajax({
-
-                    url:url,
-                    dataType:'json',
-                    error:function(error) { errorResponse('setData(): ','Error in query: '+url); },
-                    success: function(data) { 
-                        if (typeof(data) == "undefined" || ! data.length == 0) { 
-                            errorResponse('setData(): ','Error in query for sta: '+mysta+' chan: '+mychan); 
-                        } else {
-                            plotData(data,mysta,mychan); 
-                        }
-                    }
-
-                });
-
-            };
-
-        };
-
-    //}}}
-    } else {
-    //{{{
-        $('#wforms').addClass('ui-helper-hidden');
-        openSubnav();
-        errorResponse('setData(): ',' Problems detecting "type" for plot. Select (waveforms or coverage) in config panel');
-        return;
-    //}}}
     }
 
-    if (count > 3) errorResponse('plotData(): ','Hard limit on stations to 4.');
 
-    for (var s in remove) {
-        delete traces[v];
-    }
-
-    closeWaitingDialog();
 //}}}
 }
 
-function plotData(r_data,mysta,mychan){
+function plotData(r_data){
 //{{{
 
-    var temp_name = mysta + '_' + mychan ;
-    var wpr = name+"_wrapper";
+    if ( ! r_data ) errorResponse('plotData(): ','ERROR in returned object from server!');
 
-    if ( typeof(r_data['error']) != "undefined" ) { 
-    //{{{  
+    var flot_data = [];
+    var temp_flot_ops = flot_ops;
+    var calib = 'false';
+    var filter = 'none';
+    // "1 g = 9.80665 m/s2" 
+    var conv = 1/9806.65;
 
-        $("#"+wpr).remove();
-        $("#loading").html('<p>ERROR: '+mysta+'-'+mychan+' '+r_data['error']+'</p>'+$("#loading").html()); 
-        errorResponse('plotData(): ','['+mysta+':'+mychan+'] '+r_data['error']);
-        activeQueries -= 1; 
-        return;
-
-    //}}}
+    if ( typeof(r_data['page']) != "undefined" ){ 
+        if ( parseInt(r_data['page']) > page ) page = r_data['page'];
     }
 
-    //if ( typeof(r_data) == "string" ) {
-    //        var name = mysta + '_' + mychan ;
-    //        var wpr = name+"_wrapper";
-    //        $("#"+wpr).remove();
-    //}
+    if ( typeof(r_data['last_page']) != "undefined"   ) last_page = r_data['last_page'];
+    if ( typeof(r_data['time']) != "undefined" ) ts = r_data['time'];
+    if ( typeof(r_data['endtime']) != "undefined"   ) te = r_data['endtime'];
+    if ( ts ) temp_flot_ops.xaxis.min   = ts;
+    if ( te ) temp_flot_ops.xaxis.max   = te;
+
+    if ( typeof(r_data['calib']) != "undefined" ) calib = r_data['calib'];
+
+    if ( typeof(r_data['filter']) != "undefined" ) filter = r_data['filter'];
+
+    $('#load_bar').hide();
+    $('#load_bar').empty();
+
+    if ( page < last_page ) {
+        $("#load_bar").html( "<p>Page " + page + " of " + last_page + "       <button id=load_next>Load Next</div></p>" );
+        $('#load_bar').show();
+    }
+
     for (var sta in r_data) {
+        if ( sta == 'page') continue; 
+        if ( sta == 'last_page') continue; 
+        if ( sta == 'time' ) continue;
+        if ( sta == 'endtime' ) continue;
+        if ( sta == 'filter' ) continue;
+        if ( sta == 'calib' ) continue;
+
         for (var chan in r_data[sta]) {
 
-            $("#loading").html('<p>Plotting: '+sta+'-'+chan+'</p>'+$("#loading").html()); 
+            //$("#loading").html('<p>Plotting: '+sta+'-'+chan+'</p>'+$("#loading").html()); 
 
             var name = sta + '_' + chan ;
             var wpr = name+"_wrapper";
             var plt = name+"_plot";
-            var temp_flot_ops = flot_ops;
-            var flot_data = [];
             var data = r_data[sta][chan];
             var plot = $("<div>").attr("id", plt );
-            var segtype = '-';
-            var calib = 1;
 
             if (document.getElementById(wpr) == null) {
-                errorResponse('plotData(): ','No wrapper div for ['+sta+':'+chan+']. Appending new at bottom.');
                 $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
             }
-
-            $("#"+wpr).width( $('#name_path').width() );
-
-            $("#"+wpr).empty();
 
             if ( type == 'coverage') { 
                 $("#"+wpr).height( 50 );
@@ -1435,45 +1279,49 @@ function plotData(r_data,mysta,mychan){
                 $("#"+wpr).height( 100 );
             }
 
+            $("#"+wpr).width( $('#name_path').width() );
+            $("#"+wpr).empty();
+
+            // If we have no data in object
+            if ( typeof(data['ERROR']) != "undefined" ) { 
+            //{{{
+                var text = name + ' => ' + data['ERROR'] + ' [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]';
+                $("#"+wpr).height( 20 );
+                $("#"+wpr).css( "border", "1px solid black" );
+                $("#"+wpr).css( "margin", "2px" );
+                $('#'+wpr).append( $("<div style='padding:1px'>" + text + "</div>") );
+                $("#"+wpr).addClass('remove');
+                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>")).append( $("<div style='padding:1px'>" + text + "</div>") );
+                continue;
+            //}}}
+            } 
+            // If we have no data in object
+            if ( typeof(data['data']) == "undefined" ) { 
+            //{{{
+                var text = name + ' => No data object returned for: [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]';
+                $("#"+wpr).height( 20 );
+                $("#"+wpr).css( "border", "1px solid black" );
+                $("#"+wpr).css( "margin", "2px" );
+                $('#'+wpr).append( $("<div style='padding:1px'>"+text+"</div>") );
+                $("#"+wpr).addClass('remove');
+                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>"));
+                continue;
+            //}}}
+            } 
+
             $("#"+wpr).append(plot);
             $("#"+plt).width( '100%' );
             $("#"+plt).height( '100%' );
+
+
             $("#"+plt).bind("plotselected", handleSelect);
 
-            if ( ! ts && typeof(data['start']) != "undefined" ) ts = data['start'];
-            if ( ! te && typeof(data['end']) != "undefined"   ) te = data['end'];
-            if ( ! temp_flot_ops.xaxis.min ) temp_flot_ops.xaxis.min   = ts*1000;
-            if ( ! temp_flot_ops.xaxis.max ) temp_flot_ops.xaxis.max   = te*1000;
+            var segtype = '-';
+            if ( typeof(data['segtype']) != "undefined" ) segtype = data['segtype'];
 
-            if ( typeof(data['data']) == "undefined" ) { 
-            //{{{  If we don't have ANY data...
-
-                $("#"+wpr).remove();
-                $("#loading").html('<p>ERROR: '+mysta+'-'+mychan+' NO DATA!!!!!</p>'+$("#loading").html()); 
-                errorResponse('plotData(): ','No data for ['+mysta+':'+mychan+'].');
-                //$("#"+wpr).height( 50 );
-
-                //var canvas = $.plot($("#"+plt),[], temp_flot_ops);
-                //var arrDiv = $("<div>").css(NameCss);
-
-                //arrDiv.css({ color:text_color, left:'30%', top:'5%'});
-
-                //arrDiv.append('No data in time segment: ('+ts+','+te+').');
-
-                //$("#"+plt).append(arrDiv);
-
-            //}}}
-            } else if ( typeof(data['error']) != "undefined" ) { 
-            //{{{  If we don't have ANY data...
-
-                $("#"+wpr).remove();
-                $("#loading").html('<p>ERROR: '+mysta+'-'+mychan+' '+data['error']+'</p>'+$("#loading").html()); 
-                errorResponse('plotData(): ','['+mysta+':'+mychan+'] '+data['error']);
-
-            //}}}
-            } else if ( data['format'] == 'coverage') { 
-            //{{{  Here we are plotting coverage bars
-
+            // Setup for Coverage Bars
+            if ( data['format'] == 'coverage') { 
+            //{{{
                 $.each( data['data'], function(i,arr) {
 
                     var start_time = parseFloat(arr[0],10) *1000;
@@ -1481,6 +1329,7 @@ function plotData(r_data,mysta,mychan){
                     flot_data.push([start_time,1,end_time]);
 
                 });
+                data['data'] = flot_data;
 
                 // Set FLOT options
                 // for coverage
@@ -1499,140 +1348,57 @@ function plotData(r_data,mysta,mychan){
                 temp_flot_ops.points  = {show:false};
                 temp_flot_ops.lines = {show:false};
 
-                var canvas = $.plot($("#"+plt),[ flot_data ], temp_flot_ops);
-
             //}}}
+            // Setup for bins
             } else if( data['format'] == 'bins' ) {
-            //{{{  Plot bins
-
-                //if ( typeof(data['metadata']['calib']) != "undefined" ) { 
-                //    var calib = data['metadata']['calib'];
-                //    if ( calib == 0 || isNaN(calib)  ){ calib = 1; }
-                //}
-
+            //{{{
                 temp_flot_ops.bars = {show:true,barWidth:0,align:'center'};
                 temp_flot_ops.points  = {show:false};
                 temp_flot_ops.lines = {show:true};
 
-                if ( typeof(data['metadata']['segtype']) != "undefined" ) { 
-                    var segtype = data['metadata']['segtype'];
-                }
-
-
-                calib = 1;
-                if ( typeof(datatypes[segtype]) != "undefined") {
-
-                    if (segtype == 'A' ) {
-
-                        if (acceleration == 'G') {
-                            segtype = '(A) => acceleration (G)';
-                            // "1 g = 9.80665 m/s2" 
-                            calib = 1/9806;
-                        } else {
-                            segtype = '(A) => ' + datatypes[segtype];
-                        }
-                    } else {
-                        segtype = '(' + segtype + ') => ' + datatypes[segtype];
-                    }
-                }
-
-                //for ( var i=0, len=data['data'].length; i<len; ++i ){
-                //    temp_data = data['data'][i];
-                //    if (temp_data[1] == temp_data[2]) { temp_data[2] += .1; }
-                //    flot_data[i] =  [temp_data[0]*1000,temp_data[2]*calib,temp_data[1]*calib];
-                //}
-
-                if ( typeof(data['start']) != "undefined" ) s_temp = data['start'];
-                if ( typeof(data['end']) != "undefined"   ) e_temp = data['end'];
-
-                time_step = (e_temp - s_temp) / data['data'].length;
-
-                for ( var i=0, len=data['data'].length; i<len; ++i ){
-                    if (data['data'][i][0] == data['data'][i][1]) { 
-                        flot_data[i] =  [s_temp*1000,data['data'][i][0]*calib+0.0001,data['data'][i][0]*calib];
-                    } else {
-                        flot_data[i] =  [s_temp*1000,data['data'][i][1]*calib,data['data'][i][0]*calib];
-                    }
-                    s_temp= s_temp + time_step;
-                }
-
-                var canvas = $.plot($("#"+plt),[ flot_data ], temp_flot_ops);
-
-                $('#'+plt).append($("<div>").css(calibCss).append('[ calib:'+calib+',  segtype:'+segtype+' ]'));
-            //}}}
             } else if( data['format'] == 'lines' ) {
-            //{{{  Plot lines
-                //alert('Plot data:' + plt );
-
-                //if ( typeof(data['metadata']['calib']) != "undefined" ) { 
-                //    var calib = data['metadata']['calib'];
-                //    if ( calib == 0 || isNaN(calib)  ){ calib = 1; }
-                //}
-
-                if ( typeof(data['metadata']['segtype']) != "undefined" ) { 
-                    var segtype = data['metadata']['segtype'];
-                }
-
-                calib = 1;
-                if ( typeof(datatypes[segtype]) != "undefined") {
-                    if (segtype == 'A' ) {
-
-                        if (acceleration == 'G') {
-                            segtype = '(A) => acceleration (G)';
-                            // "1 g = 9.80665 m/s2" 
-                            calib = 1/9806;
-                        } else { 
-                            segtype = '(A) => ' + datatypes[segtype]; 
-                        }
-                    }
-                    else {
-                        segtype = '(' + segtype + ') => ' + datatypes[segtype];
-                    }
-                }
-
-                //for ( var i=0, len=data['data'].length; i<len; ++i ){
-                //    temp_data = data['data'][i];
-                //    flot_data[i] =  [temp_data[0]*1000,temp_data[1]*calib];
-                //}
-                if ( typeof(data['start']) != "undefined" ) s_temp = data['start'];
-                if ( typeof(data['end']) != "undefined"   ) e_temp = data['end'];
-
-                time_step = (e_temp - s_temp) / data['data'].length;
-
-                for ( var i=0, len=data['data'].length; i<len; ++i ){
-                    flot_data[i] =  [s_temp*1000,data['data'][i]*calib];
-                    s_temp= s_temp + time_step;
-                }
 
                 if ( show_points ) 
                     temp_flot_ops.points  = {show:true,lineWidth:1,shadowSize:0};
                 else
                     temp_flot_ops.points  = {show:false};
+
                 temp_flot_ops.lines = {show:true,lineWidth:1,shadowSize:0};
                 temp_flot_ops.bars = {show:false};
 
-                var canvas = $.plot($("#"+plt),[ flot_data ], temp_flot_ops);
-
-                $('#'+plt).append($("<div>").css(calibCss).append('[ calib:'+calib+',  segtype:'+segtype+' ]'));
+            }
             //}}}
-            } else {
-            //{{{  If we don't have ANY data...
 
-                errorResponse('plotData(): ','Error in json object for ['+sta+':'+chan+']');
+            // Add units label
+            if ( typeof(datatypes[segtype]) != "undefined") {
+            //{{{
+                // Convert to G if needed
+                if (segtype == 'A' ) {
 
-                $("#"+wpr).height( 50 );
+                    if (acceleration == 'G') {
+                        segtype = 'accel (mG)';
 
-                var canvas = $.plot($("#"+plt),[], temp_flot_ops);
-                var arrDiv = $("<div>").css(NameCss);
+                        flot_data = [];
+                        for ( var i=0, len=data['data'].length; i<len; ++i ){
+                            if ( typeof(data['data'][i][2]) != "undefined") 
+                                flot_data[i] =  [data['data'][i][0],data['data'][i][1]*conv,data['data'][i][2]*conv];
+                            else
+                                flot_data[i] =  [data['data'][i][0],data['data'][i][1]*conv];
+                        }
 
-                arrDiv.css({ color:text_color, left:'30%', top:'5%'});
-
-                arrDiv.append('Error in "format" of data.');
-
-                $("#"+plt).append(arrDiv);
-
+                        data['data'] = flot_data;
+                    } else {
+                        segtype = datatypes[segtype];
+                    }
+                } else {
+                    segtype = datatypes[segtype];
+                }
             //}}}
             }
+
+            // PLot data
+            var canvas = $.plot($("#"+plt),[ data['data'] ], temp_flot_ops);
+            $('#'+plt).append($("<div>").css(calibCss).append('[ calib: "'+calib+'",  type: "'+segtype+'", filter: "'+filter+'" ]'));
 
             $(".tickLabel").css({'font-size':'15px'});
 
@@ -1651,36 +1417,22 @@ function plotData(r_data,mysta,mychan){
             chan_plot_obj[name] = canvas;
 
             $('#'+plt).append( $("<div>").html(name).css(NameCss) );
-            $('#'+plt).append($("<div>").attr("id","remove_"+name).css(IconCss).attr("class","icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>"));
-
-            $(function() {
-                $("#remove_"+name) .click(function() {
-                    $("#"+wpr).remove();
-                    delete traces[sta][chan];
-                })
-                .mouseenter(function() {
-                    $(this).addClass('ui-state-hover');
-                })
-                .mouseleave(function() {
-                    $(this).removeClass("ui-state-hover");
-                });
-            });
+            //$('#'+plt).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>"));
         }
     }
 
     activeQueries -= 1; 
 
-
 //}}}
-//
 }
 
 function setPhases(){
 //{{{
     if (! show_phases ) return; 
     if (! ts || ! te) return;
+
     $.ajax({
-        url: proxy + "/data/events/"+ts+"/"+te,
+        url: proxy + "/data/events/"+ts/1000+"/"+te/1000,
         success: function(data) {
             if (typeof(data) == "undefined" ) { return; }
             if (data == "null" ) { return; }
@@ -1722,3 +1474,14 @@ function setPhases(){
 //}}}
 }
 
+//$('.remove').live('click', function() {
+//    $(this).parentsUntil('#wforms').remove();
+//});
+//
+//$(".remove").live("mouseover mouseout", function(event) {
+//  if ( event.type == "mouseover" ) {
+//    $(this).addClass('ui-state-hover');
+//  } else {
+//    $(this).removeClass("ui-state-hover");
+//  }
+//});

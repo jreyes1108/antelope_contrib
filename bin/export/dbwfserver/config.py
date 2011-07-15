@@ -18,8 +18,8 @@ class Config_Server():
         self.dbname              = ''
         self.proxy_url           = 'false'
         self.port                = -1
-        self.binning_threshold   = -1
-        self.canvas_size_default = -1
+        self.max_traces          = -1
+        self.max_points          = -1
         self.apply_calib         = False
         self.display_tracebacks  = False
         self.display_arrivals    = True
@@ -80,8 +80,8 @@ class Config_Server():
         if self.port == -1:
             self.port = stock.pfget_int( self.pfname, "default_port" )
 
-        self.binning_threshold   = stock.pfget_int( self.pfname, "binning_threshold" )
-        self.canvas_size_default = stock.pfget_int( self.pfname, "canvas_size_default" )
+        self.max_points          = stock.pfget_int( self.pfname, "max_points" )
+        self.max_traces          = stock.pfget_int( self.pfname, "max_traces" )
         self.jquery_dir          = stock.pfget_string( self.pfname, "jquery_dir" )
         self.static_dir          = stock.pfget_string( self.pfname, "static_dir" )
         self.template            = stock.pfget_string( self.pfname, "template" )
@@ -177,8 +177,8 @@ class Config_Server():
         if attrname == "antelope": return self.antelope
         if attrname == "proxy_url": return self.proxy_url
         if attrname == "port": return self.port
-        if attrname == "binnig_threshold": return self.binnig_threshold
-        if attrname == "canvas_size_default": return self.canvas_size_default
+        if attrname == "max_points": return self.max_points
+        if attrname == "max_traces": return self.max_traces
         if attrname == "apply_calib": return self.apply_calib
         if attrname == "display_tracebacks": return self.display_tracebacks
         if attrname == "display_arrivals": return self.display_arrivals

@@ -13,9 +13,9 @@ default_chans &Tbl{
 
 default_time_window 200
 
-binning_threshold 2
+max_points  800
 
-canvas_size_default 800
+max_traces  20
 
 #
 # HTML templates

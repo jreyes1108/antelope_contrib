@@ -1,6 +1,7 @@
 import re
 import os
 import sys
+import pty
 import random
 import getopt
 import socket
@@ -8,7 +9,8 @@ import platform
 from string import Template
 from collections import defaultdict 
 from time import sleep
-from multiprocessing import Pool
+#from multiprocessing import Pool
+from subprocess import Popen, PIPE, STDOUT
 
 
 
@@ -17,6 +19,7 @@ def system_print():
     #
     #Print system info in case of errors
     #
+
     print
     print 'uname:', platform.uname()
     print
@@ -31,6 +34,7 @@ def system_print():
     print 'version  :', platform.version()
     print 'machine  :', platform.machine()
     print 'processor:', platform.processor()
+
 #}}}
 
 def missing_twisted():
@@ -38,6 +42,7 @@ def missing_twisted():
     #
     #Print instructions to install Twisted.
     #
+
     v       = platform.python_version()
     v_major = sys.version_info[0]
     v_minor = sys.version_info[1]
@@ -55,8 +60,15 @@ def missing_twisted():
     print '\tThis version should match the version'
     print '\tused to configure the Python Interface to Antelope.'
     print  
+
 #}}}
 
+try:
+    import antelope.datascope as datascope
+    import antelope.stock as stock
+except Exception,e:
+    print "Problem loading Antelope's Python libraries. (%s)" % e
+    sys.exit()
 
 try:
     from twisted.python import log
@@ -94,12 +106,19 @@ else:
         print "Problem loading Python's simplejson library. (%s)" % e
         sys.exit()
 
-try:
-    pool = Pool(10)
-except Exception,e:
-    print "Problem with process pool object on lib 'multiprocessing' class:Pool. (%s)" % e
-    sys.exit()
+#   #
+#   # Create pool of workers
+#   #
+#   try:
+#       pool = Pool(4)
+#   except Exception,e:
+#       print "Problem with process pool object on lib 'multiprocessing' class:Pool. (%s)" % e
+#       sys.exit()
+#   
 
+#
+# Import other functions
+#
 try:
     import dbwfserver.config as configuration
 except Exception,e:
@@ -117,12 +136,17 @@ try:
 except Exception,e:
     print "Problem loading dbwfserver's RESOURCE module from contrib code. (%s)" % e
     sys.exit()
+
+
 #
 #Configure system with command-line flags and pf file values.
 #
-#config = configuration.Config_Server()
-config = pool.apply(configuration.Config_Server)
+config = configuration.Config_Server()
+#config = pool.apply(configuration.Config_Server)
+
 sys.argv = config.configure()
+
+if config.verbose: print '\n\tStart Server!\n'
 
 
 try:
@@ -130,8 +154,8 @@ try:
 except:
     print "Exiting."
     try:
-        pool.close()
-        pool.terminate()
+        #pool.close()
+        #pool.terminate()
         reactor.stop()
     except:
         pass
