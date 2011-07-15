@@ -1,6 +1,6 @@
 
 BIN = dbwfserver_extract dbwfserver
-PF = dbwfserver_extract.pf dbwfserver.pf
+PF =  dbwfserver.pf
 MAN1 = dbwfserver.1
 
 DATADIR = python/dbwfserver
