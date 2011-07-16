@@ -273,6 +273,9 @@ class Stations():
                 db.lookup( table='wfdisc')
                 start = db.ex_eval('min(time)')
                 end   = db.ex_eval('max(endtime)')
+                if end > stock.now():
+                    end = stock.now()
+
                 start_day = stock.str2epoch(stock.epoch2str(start,'%D'))
                 end_day = stock.str2epoch(stock.epoch2str(end,'%D'))
                 db.close()
@@ -684,6 +687,8 @@ class Events():
                 db.lookup( table='wfdisc')
                 start = db.ex_eval('min(time)')
                 end = db.ex_eval('max(endtime)')
+                if end > stock.now():
+                    end = stock.now()
                 records = db.query(datascope.dbRECORD_COUNT)
 
             except:

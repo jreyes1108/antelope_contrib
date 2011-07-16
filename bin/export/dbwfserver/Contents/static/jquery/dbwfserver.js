@@ -726,9 +726,19 @@ function build_calendars() {
     // Build DATEPICKER
     $(".pickdate").datepicker({
         dateFormat: '@',
+        beforeShow: function() { 
+
+            if (this.id == 'end_time') {
+                if ( $('#end_time').val() > 0 ) $(this).val($('#end_time').val()*1000);  
+            } else {
+                if ( $('#start_time').val() > 0 ) $(this).val($('#start_time').val()*1000);  
+            }
+            return {};
+
+        },
         beforeShowDay: function(test_date) { 
 
-            diff = test_date.getTimezoneOffset();
+            //diff = test_date.getTimezoneOffset();
 
             var found = true;
 
