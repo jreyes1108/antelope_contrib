@@ -11,12 +11,13 @@
 static void
 help ()
 {
-    printf("\n\n Usage: dbwfserver_extract [-h] [-d] [-c] [-p page] [-n max_traces] [-m max_points] [-f filter] [-s subset] database time endtime\n");
-    printf("\t\t(for debugging)\n");
-    printf("\t\t-h                  Print this help.\n");
-    printf("\t\t-d                  Display traces in a dbpick window at the end.\n");
-    printf("\t\t(for data extraction)\n");
+    //
+    // Just print the help section and exit the code
+    //
+    printf("\n\n Usage: dbwfserver_extract [-h] [-b] [-c] [-p page] [-n max_traces] [-m max_points] [-f filter] [-s subset] database time endtime\n");
+    printf("\t\t-h                  Print this help and exit.\n");
     printf("\t\t-c                  Calibrate traces.\n");
+    printf("\t\t-b                  Export coverage bars only, no data.\n");
     printf("\t\t-p  'page'          If we have extra traces then show this page.\n");
     printf("\t\t-n  'traces'        Do not export more than this number of traces.\n");
     printf("\t\t-b  'bin_size'      Use this value to bin the data. No binning unless 'max_points' is in use and reached.\n");
@@ -33,13 +34,13 @@ help ()
     exit (1);
 }
 
-
-/* creates a new string by concatenating two strings s1 and s2 together.
- * Unlike strcat, does not alter the original string.  Returns a
- * freshly-allocated char* that must be freed by the caller. */
 char *
 stradd( char * s1, char * s2 )
 {
+
+    /* creates a new string by concatenating two strings s1 and s2 together.
+    * Unlike strcat, does not alter the original string.  Returns a
+    * freshly-allocated char* that must be freed by the caller. */
     char * ns;
     int len;
 
@@ -56,66 +57,65 @@ stradd( char * s1, char * s2 )
 int
 main (int argc, char **argv)
 {
-    int     c, i, n, display, page, bin, bufd, first;
-    int     calibrate, errflg, maxtr=0, last_page, maxpoints=0;
-    long    first_trace=0, last_trace=0;
+    int     calibrate=0, errflg=0, maxtr=0, last_page=0, bars=0, maxpoints=0;
+    int     c=0, i=0, n=0, page=0, bin=0, bufd=0, first=0;
+    long    result=0, first_trace=0, last_trace=0, nsamp=0, nrecords=0, nrecs=0;
+    float   *data=NULL, period=0, *max=NULL, *min=NULL;
+    double  time=0, endtime=0, samprate=0, start=0, stop=0;
+    char    old_sta[16]="", segtype[8]="", sta[16]="", chan[16]="", temp[90]="";
     char    *database=NULL, *dbname=NULL, *subset=NULL, *filter=NULL;
-    char    old_sta[16]="";
-    char    sta[16]="", chan[16]="";
-    Dbptr   tr, db, dbwf, dbsite;
-    long    nrecords=0, nrecs=0;
-    double  start, stop;
+    Dbptr   tr, dbwf, dbsite;
     Tbl     *fields;
-    float  *data, period, *max, *min;
-    long   nsamp; 
-    double time, endtime, samprate;
-    char   segtype[8]="";
+    Hook    *hook=0;
 
-    while ((c = getopt (argc, argv, "hdcn:f:s:m:n:p:")) != -1) {
+    //
+    // Get all command-line options
+    //
+    while ((c = getopt (argc, argv, "bhdcf:s:m:n:p:")) != -1) {
         switch (c) {
 
-        case 'n':
-            maxtr = atoi( optarg );
-            break ; 
+        case 'b':
+            bars = 1;
+            break;
 
-        case 'd':
-            display = 1 ; 
-            break ; 
-
-        case 'f':
-            filter =  strdup( optarg );
-            break ;
-
-        case 'm':
-            maxpoints = atoi( optarg );
-            break ;
-
-        case 'p':
-            page = atoi( optarg );
-            break ;
-
-        case 's':
-            subset = strdup( optarg );
-            break ;
+        case 'h':
+            help() ;
+            break;
 
         case 'c':
             calibrate = 1;
             break;
 
-        case 'h':
-            help() ;
+        case 'f':
+            filter =  strdup( optarg );
+            break;
+
+        case 's':
+            subset = strdup( optarg );
+            break;
+
+        case 'm':
+            maxpoints = atoi( optarg );
+            break;
+
+        case 'n':
+            maxtr = atoi( optarg );
+            break;
+
+        case 'p':
+            page = atoi( optarg );
+            break;
 
         default:
             errflg++;
-            break ;
+            break;
         }
     }
 
-    if (errflg || argc-optind != 3)
-    help();
+    if ( errflg ) help();
 
     //
-    // Verify flags
+    // VERIFY FLAGS
     //
     if ( page && ! maxtr ) {
         printf ("{\"ERROR\":\"Need -n MAXTRACES if using -p PAGE flag!\"}\n" ) ;
@@ -123,36 +123,16 @@ main (int argc, char **argv)
     }
 
     //
-    // Get command line args
+    // GET COMMAND-LINE ARGS
     //
+    if ( argc-optind != 3 ) help();
     database = argv[optind++] ;
     start = atof( argv[optind++] );
     stop = atof( argv[optind++] );
 
     //
-    // Load database
+    // TEST DBS
     //
-    if ( dbopen(database, "r", &db) ) {
-        printf ("{\"ERROR\":\"Can't open %s\"}\n", database ) ;
-        exit( 1 );
-    }
-
-
-    // SITE
-    //dbname = stradd( database, ".site" );
-    //if ( dbopen_table(dbname, "r", &dbsite) == dbINVALID ) { 
-    //    printf ("{\"ERROR\":\"Can't open %s\"}\n", dbname ) ;
-    //    exit( 1 );
-    //}
-    //dbquery ( dbsite, dbRECORD_COUNT, &nrecords ) ; 
-    //if (! nrecords) {
-    //    printf ("{\"ERROR\":\"EMPTY %s\"}\n", dbname ) ;
-    //    exit( 1 );
-    //}
-    //free(dbname);
-
-
-    // SITECHAN
     dbname = stradd( database, ".sitechan" );
     if ( dbopen_table(dbname, "r", &dbsite) == dbINVALID ) { 
         printf ("{\"ERROR\":\"Can't open %s\"}\n", dbname ) ;
@@ -165,8 +145,6 @@ main (int argc, char **argv)
     }
     free(dbname);
 
-
-    // WFDISC
     dbname = stradd( database, ".wfdisc" );
     if ( dbopen_table(dbname, "r", &dbwf) == dbINVALID ) { 
         printf ("{\"ERROR\":\"Can't open %s\"}\n", dbname ) ;
@@ -179,75 +157,90 @@ main (int argc, char **argv)
     }
     free(dbname);
 
-
-
     //
-    // Join site and sitechan tables
+    // SUBSET SITECHAN TABLE
     //
-    //dbsite = dbjoin (dbsite, dbsitechan, 0, 0, 0, 0, 0);
-    //dbquery ( dbsite, dbRECORD_COUNT, &nrecords ) ; 
-    //if (! nrecords) {
-    //    printf ("{\"ERROR\":\"No records after join of site and sitechan for %s\"}\n", database ) ;
-    //    exit( 1 );
-    //}
+    if ( subset != NULL ) 
+        sprintf( temp, "%s && ondate <= %s && (offdate >= %s || offdate == -1)", subset,epoch2str(stop,"%Y%j"),epoch2str(start,"%Y%j") );
+    else 
+        sprintf( temp, "ondate <= %s && (offdate >= %s || offdate == -1)", epoch2str(stop,"%Y%j"),epoch2str(start,"%Y%j") );
+    dbsite = dbsubset ( dbsite, temp, 0 ) ; 
 
     //
-    // Subset database
+    // UNIQUE SORT SITECHAN TABLE
     //
-    if ( subset ) { 
-        dbsite = dbsubset ( dbsite, subset, 0 ) ; 
-    }
-
-    // Unique sort on sta and chans
     fields = strtbl("sta","chan",0) ;
     dbsite = dbsort ( dbsite, fields, dbSORT_UNIQUE,"" ) ; 
-
     dbquery ( dbsite, dbRECORD_COUNT, &nrecords ) ; 
-
     if (! nrecords) {
         printf ("{\"ERROR\":\"No records after subset %s\"}\n", subset ) ;
         exit( 1 );
     }
 
-    first_trace = 0;
-    last_trace = nrecords;
-    if ( ! page  ) page = 1;
-    if ( ! maxtr  ) maxtr = nrecords;
-
-    last_page =  nrecords / maxtr; 
-    if ( ( nrecords % maxtr ) > 1 ) last_page++;
-
-    if ( maxtr ) {
-
-        first_trace = ( (page - 1) * maxtr );
-        last_trace = first_trace + maxtr ;
-
-        if ( first_trace > nrecords ) {
-            //printf ("{\"ERROR\":\"No more records. recs:%ld maxtr:%i page:%i\"}\n", nrecords, maxtr, page ) ;
-            printf ("{\"ERROR\":\"No more records. last_page:%i page:%i\"}\n", last_page, page ) ;
-            exit( 1 );
-        }
-        
-        if ( last_trace > nrecords ) last_trace = nrecords;
+    //
+    // SUBSET WFDISC TABLE
+    //
+    if ( subset != NULL ) 
+        sprintf( temp, "%s && endtime > %f && time < %f", subset,start,stop );
+    else
+        sprintf( temp, "endtime > %f && time < %f", start,stop );
+    dbwf = dbsubset(dbwf, temp, 0);
+    dbquery ( dbwf, dbRECORD_COUNT, &nrecs ) ; 
+    //printf("\n\twfdisc: %s \n", temp);
+    //printf("\n\nwfdisc: %ld\n\n", nrecs);
+    if (! nrecs) {
+        printf ("{\"ERROR\":\"No records after subset %s\"}\n", temp ) ;
+        exit( 1 );
     }
 
+    // 
+    // VERIFY NUMBER OF TRACES AND PAGES
     //
-    // Apply the same subset to the wfdisc table
-    //
-    if ( subset )
-        dbwf = dbsubset ( dbwf, subset, 0 ) ; 
+    first_trace = 0;
+    last_trace = nrecords;
+
+    if ( bars == 1 ) {
+        // ONLY for coverage bars...
+        page = 1;
+        last_page = 1;
+    }
+    else {
+        // ONLY for wf traces...
+        // compare to flags
+        if ( ! page  ) page = 1;
+        if ( ! maxtr  ) maxtr = nrecords;
+
+        // set last_page
+        last_page =  nrecords / maxtr; 
+        if ( ( nrecords % maxtr ) > 1 ) last_page++;
+
+        // set first and last traces values
+        if ( maxtr ) {
+
+            first_trace = ( (page - 1) * maxtr );
+            last_trace = first_trace + maxtr ;
+
+            if ( first_trace > nrecords ) {
+                printf ("{\"ERROR\":\"No more records. last_page:%i page:%i\"}\n", last_page, page ) ;
+                exit( 1 );
+            } 
+        }
+
+    }
+    if ( last_trace > nrecords ) last_trace = nrecords;
 
     //
-    // We can save space if we say this only once...
+    // START BUILDING JSON OBJECT
     //
     printf ("{\"page\":%i,\"last_page\":%i,",page,last_page) ;
-    printf ("\"time\":%f,\"endtime\":%f,",start*1000,stop*1000) ;
-    if ( filter ) 
+    printf ("\"time\":%0.0f,\"endtime\":%0.0f,",start*1000,stop*1000) ;
+
+    if ( filter && bars == 0) 
         printf ( "\"filter\":\"%s\",",filter) ; 
     else 
         printf ( "\"filter\":\"false\",") ; 
 
-    if ( calibrate ) 
+    if ( calibrate && bars == 0) 
         printf ( "\"calib\":\"true\",") ; 
     else 
         printf ( "\"calib\":\"false\",") ; 
@@ -256,125 +249,184 @@ main (int argc, char **argv)
 
     for ( i = first_trace; i < last_trace; i++ )
     {
+
+        first = 1;
+
         dbsite.record = i;
         dbgetv( dbsite, NULL, "sta", &sta, "chan", &chan, 0 );
 
+        //
+        // JSON SYNTAX
+        //
         if ( strcmp(old_sta,sta) != 0 ) {
             if ( strcmp(old_sta,"") != 0 ) {
+                // IF THIS IS NOT THE FIRST CLOSE PREV BRACKET
                 printf("},");
             }
+            // TRACK LAST STATION
             sprintf( old_sta, "%s", sta );
+            // NEW STATION AND NEW CHANNEL
             printf("\"%s\":{\"%s\":{", sta,chan);
         }
         else {
+            // NEW CHANNEL FOR SAME STATION
             printf(",\"%s\":{", chan);
         }
 
-        // 
-        // Load data into trace object
-        //
-        tr = dbinvalid() ;
-        tr = trloadchan ( dbwf, start, stop, sta, chan );
+        if ( bars == 1 ) {
+            //
+            // COVERAGE BARS
+            //
 
-        // eliminate marked gaps from waveforms; these
-        //   are gaps where no data was recorded, but special missing values
-        //   were inserted instead of ending the wfdisc record 
-        if ( trsplit(tr, 0, 0) ) { 
-            printf ( "\"ERROR\":\"trsplit failed\"}" ) ; 
-            continue;
-        }
-
-        // splice together any adjacent data segments which can be
-        if ( trsplice(tr, 0, 0, 0) ) { 
-            printf ( "\"ERROR\":\"trsplice failed\"}" ) ; 
-            continue;
-        }
-
-        dbquery ( tr, dbRECORD_COUNT, &nrecs ) ; 
-        if (! nrecs) {
-            printf ( "\"ERROR\":\"No Data!\"}" ) ; 
-            continue;
-        }
-
-        // Calibrate trace object if needed
-        if ( calibrate ) trapply_calib( tr );
-
-        // filter trace object if needed
-        if ( filter ) trfilter( tr, filter );
-
-        for ( tr.record = 0 ; tr.record < nrecs ; tr.record++ ) { 
-
-            // We are missing previous sections of the WF for now... WIP
-            dbgetv(tr,0,"time",&time,"endtime",&endtime,"nsamp",&nsamp,"samprate",&samprate,"segtype",&segtype,"data",&data,NULL) ; 
-
-        }
-
-        period = 1/samprate;
-        first = 1;
-        max = NULL;
-        min = NULL;
-        bufd = 0;
-        bin = 1;
-
-        //
-        // Calculate if we need to bin the data
-        //
-        if ( maxpoints && nsamp > maxpoints ) {
-            bin = nsamp / maxpoints;
-            if ( ( nsamp % maxpoints ) > 1 ) bin++;
-        }
-
-        if ( bin == 1 )
-            printf ( "\"format\":\"lines\"," ) ; 
-        else
             printf ( "\"format\":\"bins\"," ) ; 
+            printf ( "\"type\":\"coverage\"," ) ; 
+            printf ( "\"data\":[" ) ; 
 
-        printf ( "\"type\":\"wf\"," ) ; 
-        printf ( "\"time\":%f,",time*1000 ) ; 
-        printf ( "\"endtime\":%f,",endtime*1000 ) ; 
-        printf ( "\"samprate\":%f,",samprate ) ; 
-        printf ( "\"segtype\":\"%s\",",segtype ) ; 
-        printf ( "\"data\":[" ) ; 
+            // To search from the beginning (including the 
+            // first record) set the record number < 0
+            dbwf.record = -1;
 
-        for ( n=0 ; n<nsamp ; n++ ) { 
-            //
-            // Bin data if we need to...
-            //
-            if ( bin > 1 ){
-                bufd++;
+            sprintf( temp, "sta == '%s' && chan == '%s'", sta,chan );
 
-                if ( min == NULL || data[n] < *min) min = &data[n];
-                if ( max == NULL || data[n] > *max) max = &data[n];
+            for ( ;; ) {
+
+                result = dbfind(dbwf, temp, 0, &hook);
+
+
+                //printf("\n\t%ld %s \n", result, temp);
+
+                if (result >= 0) {
+
+                    dbwf.record = result ;
+                    dbgetv(dbwf,0,"time",&time,"endtime",&endtime,NULL) ; 
+
+                    if ( first == 0  ) printf( "," );
+
+                    printf( "[%0.0f,%0.0f]", time*1000 , endtime*1000 ) ; 
+
+                    first = 0;
+
+                } 
+                else { break; }
 
             }
 
-            if ( bin > 1 && bufd < bin ) {
-                time = time + period;
+            printf ( "]" ) ; 
+
+            // Clean memory
+            free_hook(&hook);
+
+            // 
+            // IF WE HAVE NO ROWS
+            //
+            if ( first ) {
+                printf ( ",\"ERROR\":\"No Data!\"" ) ; 
+            }
+
+            printf ( "}" ) ; 
+
+        }
+        else {
+
+            // 
+            // Load data into trace object
+            //
+            tr = dbinvalid() ;
+            //printf ( "\n\nstart:%f stop:%f sta:%s chan:%s\n\n", start, stop, sta, chan ) ; 
+            tr = trloadchan( dbwf, start, stop, sta, chan );
+            //exit(1);
+
+            dbquery ( tr, dbRECORD_COUNT, &nrecs ) ; 
+            if (! nrecs) {
+                printf ( "\"ERROR\":\"No Data!\"}" ) ; 
                 continue;
             }
 
-            if ( first == 0  ) printf( "," );
+            //printf ( "\n\nTEST nrecs=%ld\n\n", nrecs ) ; 
 
-            if ( bin > 1 )
-                // The time is of the last element in the bin
-                printf( "[%f,%f,%f]", time*1000 , *min, *max ) ; 
-            else 
-                printf( "[%f,%f]", time*1000 , data[n] ) ; 
+            // Calibrate trace object if needed
+            if ( calibrate ) trapply_calib( tr );
 
-            time = time + period;
+            // filter trace object if needed
+            if ( filter ) trfilter( tr, filter );
+
+            for ( tr.record = 0 ; tr.record < nrecs ; tr.record++ ) { 
+
+                // We are missing previous sections of the WF for now... WIP
+                dbgetv(tr,0,"time",&time,"endtime",&endtime,"nsamp",&nsamp,"samprate",&samprate,"segtype",&segtype,"data",&data,NULL) ; 
+
+            }
+
+            period = 1/samprate;
             max = NULL;
             min = NULL;
             bufd = 0;
-            first = 0;
+            bin = 1;
+
+            //
+            // Calculate if we need to bin the data
+            //
+            if ( maxpoints && nsamp > maxpoints ) {
+                bin = nsamp / maxpoints;
+                if ( ( nsamp % maxpoints ) > 1 ) bin++;
+            }
+
+            if ( bin == 1 )
+                printf ( "\"format\":\"lines\"," ) ; 
+            else
+                printf ( "\"format\":\"bins\"," ) ; 
+
+            printf ( "\"type\":\"wf\"," ) ; 
+            printf ( "\"time\":%0.0f,",time*1000 ) ; 
+            printf ( "\"endtime\":%0.0f,",endtime*1000 ) ; 
+            printf ( "\"samprate\":%f,",samprate ) ; 
+            printf ( "\"segtype\":\"%s\",",segtype ) ; 
+            printf ( "\"data\":[" ) ; 
+
+            for ( n=0 ; n<nsamp ; n++ ) { 
+                //
+                // Bin data if we need to...
+                //
+                if ( bin > 1 ){
+                    bufd++;
+
+                    if ( min == NULL || data[n] < *min) min = &data[n];
+                    if ( max == NULL || data[n] > *max) max = &data[n];
+
+                }
+
+                if ( bin > 1 && bufd < bin ) {
+                    time = time + period;
+                    continue;
+                }
+
+                if ( first == 0  ) printf( "," );
+
+                if ( bin > 1 )
+                    // The time is of the last element in the bin
+                    printf( "[%0.0f,%0f,%0f]", time*1000 , *min, *max ) ; 
+                else 
+                    printf( "[%0.0f,%0f]", time*1000 , data[n] ) ; 
+
+                time = time + period;
+                max = NULL;
+                min = NULL;
+                bufd = 0;
+                first = 0;
+            }
+
+            tr.table = dbALL ;
+            trfree( tr );
+
+            printf ( "]}" ) ; 
 
         }
-
-        printf ( "]}" ) ; 
 
     }
     printf ( "}}\n" ) ; 
 
-    //trfree( tr );
+    dbclose(dbsite);
+    dbclose(dbwf);
 
     return 0;
 }

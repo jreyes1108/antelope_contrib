@@ -107,11 +107,11 @@ class db_nulls():
         dictionary with NULL values for each field.
         """
 
-        try:
-            import antelope.datascope as datascope
-        except Exception,e:
-            print "Problem loading Antelope's Python libraries. (%s)" % e
-            reactor.stop()
+        #try:
+        #    import antelope.datascope as datascope
+        #except Exception,e:
+        #    print "Problem loading Antelope's Python libraries. (%s)" % e
+        #    reactor.stop()
 
 
         self.null_vals = {}
@@ -184,6 +184,7 @@ class Stations():
         self.dbcentral = db
         self.stachan_cache = {}
         self.offset = -1
+        self.wfdates = []
 
         #
         # Load null class
@@ -273,21 +274,23 @@ class Stations():
                 db.lookup( table='wfdisc')
                 start = db.ex_eval('min(time)')
                 end   = db.ex_eval('max(endtime)')
-                if end > stock.now():
-                    end = stock.now()
-
-                start_day = stock.str2epoch(stock.epoch2str(start,'%D'))
-                end_day = stock.str2epoch(stock.epoch2str(end,'%D'))
                 db.close()
             except Exception,e:
                 print "Stations(): ERROR: Problem with wfdisc table. %s: %s" % (Exception,e)
                 reactor.stop()
 
+            if end > stock.now():
+                end = stock.now()
+
+            start_day = stock.str2epoch(stock.epoch2str(start,'%D'))
+            end_day = stock.str2epoch(stock.epoch2str(end,'%D'))
+            self.wfdates = [start_day,end_day]
+
             try:
                 db = datascope.dbopen( dbname , 'r' )
                 db.lookup( table='sitechan')
-                #db.join( 'sitechan' )
-                db.sort(['sta', 'chan'], unique=True)
+                #db.sort(['sta', 'chan'], unique=True)
+                db.sort(['sta', 'chan'])
                 records = db.query(datascope.dbRECORD_COUNT)
 
             except Exception,e:
@@ -305,14 +308,26 @@ class Stations():
 
                 db.record = j
                 try:
-                    sta, chan  = db.getv('sta','chan')
+                    sta, chan, ondate, offdate = db.getv('sta','chan','ondate','offdate')
                 except Exception, e:
                     print 'Station(): ERROR extracting data db.getv(sta,chan). (%s=>%s)' % (Exception,e)
 
+                ondate = stock.str2epoch(str(ondate))
+                if offdate != -1: offdate = stock.str2epoch(str(offdate))
 
                 if not sta in stachan_cache: stachan_cache[sta] = {}
                 if not chan in stachan_cache[sta]: stachan_cache[sta][chan] = {}
-                stachan_cache[sta][chan]['dates'] = [start_day,end_day]
+
+                if 'dates' in stachan_cache[sta][chan]:
+                    old_start, old_end = stachan_cache[sta][chan]['dates'] = [start_day,end_day]
+                    if old_start < ondate: ondate = old_start
+                    if old_end > offdate: offdate = old_end
+
+
+                if ondate < start_day: ondate = start_day
+                if offdate > end_day: offdate = end_day
+
+                stachan_cache[sta][chan]['dates'] = [ondate,offdate]
                 stachan_cache[sta][chan]['start'] = start
                 stachan_cache[sta][chan]['end'] = end
 
@@ -359,49 +374,49 @@ class Stations():
 
     #}}}
 
-    def dates(self,test=False):
+    def stadates(self):
     #{{{ function to return start and end times for a station
         """
         Get list of valid dates
         """
 
-        cache = {}
+        #cache = {}
 
-        if not test: 
-            test = self.stachan_cache.keys()
-        else:
-            test = self.convert_sta(test.split('|'))
+        #if not test: 
+        #    test = self.stachan_cache.keys()
+        #else:
+        #    test = self.convert_sta(test.split('|'))
 
 
-        for sta in test:
+        #for sta in test:
 
-            if not sta in self.stachan_cache: continue 
+        #    if not sta in self.stachan_cache: continue 
 
-            for chan in self.stachan_cache[sta].keys():
+        #    for chan in self.stachan_cache[sta].keys():
 
-                if not 'dates' in self.stachan_cache[sta][chan]: continue
+        #        if 'dates' in self.stachan_cache[sta][chan]:
 
-                if self.config.debug: print "Stations(): dates(%s,%s)=>%s" % (sta,chan,self.stachan_cache[sta][chan]['dates'])
+        #            if self.config.debug: print "Stations(): dates(%s,%s)=>%s" % (sta,chan,self.stachan_cache[sta][chan]['dates'])
 
-                (start,end) = self.stachan_cache[sta][chan]['dates']
+        #            (start,end) = self.stachan_cache[sta][chan]['dates']
 
-                if sta not in cache: cache[sta] = (start,end)
+        #            if sta not in cache: cache[sta] = {}
+        #            if chan not in cache[sta]: cache[sta][chan] = {}
+        #            cache[sta][chan] = (start,end)
 
-                try: 
-                    if cache[sta][0] > start:
-                        cache[sta][0] = start 
-                except:
-                    cache[sta][0] = start 
+        #if self.config.debug: print "Stations(): dates(%s)=>%s" % (test,cache)
 
-                try:
-                    if cache[sta][1] < end:
-                        cache[sta][1] = end
-                except:
-                    cache[sta][chan][1] = end
+        #return cache
+        return self.stachan_cache
 
-        if self.config.debug: print "Stations(): dates(%s)=>%s" % (test,cache)
+    #}}}
 
-        return cache
+    def dates(self):
+    #{{{ function to return start and end times for a station
+        """
+        Get list of valid dates
+        """
+        return self.wfdates
 
     #}}}
 
@@ -1205,11 +1220,21 @@ class QueryParser(resource.Resource):
 
                     if self.config.debug: log.msg('QueryParser(): render_uri() query => data => dates')
 
-                    if len(path) == 2:
-                        return self.uri_results( uri, elf.stations.dates([path[1]]) )
+                    return self.uri_results( uri, self.stations.dates() )
 
-                    else:
-                        return self.uri_results( uri, self.stations.dates() )
+                #}}}
+
+                elif path[0] == 'stadates':
+                #{{{
+                    """
+                    Return list of yearday values for time in db
+                    for all stations in the cluster of dbs.
+                    """
+
+                    if self.config.debug: log.msg('QueryParser(): render_uri() query => data => dates')
+
+                    return self.uri_results( uri, self.stations.stadates() )
+
                 #}}}
 
                 elif path[0] == 'stations':
@@ -1280,8 +1305,9 @@ class QueryParser(resource.Resource):
                     """
                     if self.config.debug: print "QueryParser(): render_uri(): Get coverage" 
 
+                    query.update( { "coverage": 1 } )
 
-                    return self.uri_results( uri, self.coverage(query) )
+                    return self.uri_results( uri, self.get_data(query) )
 
                 #}}}
 
@@ -1402,14 +1428,13 @@ class QueryParser(resource.Resource):
         uri.update( { 
             "sta":[],
             "chan":[],
-            "o_sta":'null',
-            "o_chan":'null',
             "end":0,
             "data":False,
             "start":0,
             "filter":'None',
             "calib":False,
             "page":1,
+            "coverage":0,
             "time_window":False
         } )
 
@@ -1578,6 +1603,11 @@ class QueryParser(resource.Resource):
         else:
             filter = ""
 
+        if query['coverage']:
+            coverage = "-b "
+        else:
+            coverage = ""
+
         if query['calib']:
             calib = "-c "
         else:
@@ -1588,12 +1618,11 @@ class QueryParser(resource.Resource):
         else:
             page = ""
 
-        run = "dbwfserver_extract %s %s %s %s -n %s -m %s %s %s %s" % ( regex, filter, page, calib, self.config.max_traces, self.config.max_points, self.dbname, start, end)
+        run = "dbwfserver_extract %s %s %s %s %s -n %s -m %s %s %s %s" % ( regex, coverage, filter, page, calib, self.config.max_traces, self.config.max_points, self.dbname, start, end)
 
-        if self.config.debug: 
-            print "*********"
-            print "QueryParser(): get_data(): Extraction command: [%s]" % run
-            print "*********"
+        print "*********"
+        print "QueryParser(): get_data(): Extraction command: [%s]" % run
+        print "*********"
 
         master, slave = pty.openpty()
 
@@ -1613,162 +1642,6 @@ class QueryParser(resource.Resource):
         return stdout.readline()
 
         # }}}
-
-    def coverage(self,station=None,channel=None,start=0,end=0):
-    #{{{
-
-        if self.config.debug: print "coverage(): Get data for %s.%s [%s,%s]" % (station,channel,start,end)
-
-        try:
-            if self.config.debug: print "coverage(): try import datascope"
-            import antelope.datascope as datascope
-            import antelope.stock as stock
-        except Exception,e:
-            print "Problem loading Antelope's Python libraries. (%s)" % e
-            reactor.stop()
-
-        if self.config.debug: print "coverage(): done importing datascope"
-
-        #
-        #Get list of segments of data for the respective station and channel
-        #
-        sta_str  = ''
-        chan_str = ''
-        res_data = {}
-
-        res_data.update( {'type':'coverage'} )
-        res_data.update( {'format':'cov-bars'} )
-        res_data.update( {'time_start':0} )
-        res_data.update( {'time_end':0} )
-
-        res_data['sta'] = self.stations.convert_sta(station)
-        res_data['chan'] = self.stations.convert_chan(channel,station)
-
-        #
-        # Build dictionary to store data
-        #
-        #   We need to build this to be clear to the application
-        #   that some stations may have no data.
-        for sta in res_data['sta']:
-
-            for chan in res_data['chan']:
-
-                    res_data[sta][chan] = {}
-
-        if start: 
-            dbname = self.db(start)
-        else: 
-            dbname = self.db( stock.now() )
-
-        if self.config.debug: print  "coverage(): db:%s" % dbname
-
-        try:
-            if self.config.debug: print 'coverage(): Loading %s.wfdisc' % dbname
-            db = datascope.dbopen( dbname, 'r' )
-            db.lookup( table='wfdisc' )
-
-        except Exception, e:
-            response_data['error'] = 'coverage(): ERROR: in loading of %s.wfdisc => [%s]' % (dbname,e)
-            return response_data
-
-        if self.config.debug: print 'coverage(): Loading wfdisc => DONE'
-
-        try:
-            records = db.query(datascope.dbRECORD_COUNT)
-        except:
-            records = 0
-
-        if self.config.debug: print  'coverage(): records [%s]' % records 
-
-        # Subset wfdisc for stations
-        if station:
-
-            sta_str  = "|".join(str(x) for x in station)
-            db.subset("sta =~/%s/" % sta_str)
-            if self.config.debug: print "coverage(): subset on sta =~/%s/ " % sta_str
-
-        # Subset wfdisc for channels
-        if channel:
-
-            chan_str  = "|".join(str(x) for x in channel)
-            db.subset("chan =~/%s/" % chan_str)
-            if self.config.debug: print "coverage(): subset on chan =~/%s/ " % chan_str
-
-        # Subset wfdisc for start_time
-        if start:
-
-            res_data['time_start'] = start
-            db.subset("endtime > %s" % start)
-            if self.config.debug: print "coverage(): subset on time >= %s " % start
-
-        else:
-            # If no start time on request... use min in subset
-            res_data['time_start'] = db.ex_eval('min(time)')
-
-        # Subset wfdisc for end_time
-        if end:
-
-            res_data['time_end'] = end
-            db.subset("time <= %s" % end)
-            if self.config.debug: print "coverage(): subset on time_end <= %s " % end
-
-        else:
-            # If no end time on request... use max in subset
-            res_data['time_end'] = db.ex_eval('max(endtime)')
-
-        try:
-            records = db.query(datascope.dbRECORD_COUNT)
-        except:
-            records = 0
-
-        if self.config.debug: print  'coverage(): records [%s]' % records 
-
-        if not records:
-
-            print  'coverage(): No records for: [%s,%s,%s,%s]' %  (station,channel,start,end)
-            return res_data
-
-        for i in range(records):
-
-            db.record = i
-
-            try:
-
-                (this_sta,this_chan,time,endtime) = db.getv('sta','chan','time','endtime')
-
-            except Exception,e:
-
-                print "coverage(): Problem in getv(): %s" % e
-
-            else:
-
-                if self.config.debug: print "coverage() db.getv: (%s,%s,%s,%s)" % (this_sta,this_chan,time,endtime)
-
-                #if res_data['time_start'] < time:  res_data['time_start'] = time
-                #if res_data['time_end'] > endtime: res_data['time_end'] = endtime
-
-                #if not this_sta in res_data['sta']: res_data['sta'].append(this_sta)
-                #if not this_chan in res_data['chan']: res_data['chan'].append(this_chan)
-                #print 'coverage(): sta:%s chan:%s' % (res_data['sta'],res_data['chan'])
-
-                #if this_sta not in res_data: res_data[this_sta] = defaultdic(dict)
-                #if this_chan not in res_data[this_sta]: res_data[this_sta][this_chan] = defaultdic(dict)
-                if 'data' not in res_data[this_sta][this_chan]: res_data[this_sta][this_chan]['data'] = []
-
-                try:
-                    res_data[this_sta][this_chan]['data'].append([time,endtime])
-                except:
-                    print "coverage(): Problem adding data to dictionary: [%s,%s] %s" % (time,endtime,e)
-
-        try:
-            db.close()
-        except:
-            print "get_dat(): ERROR: on closing db pointer Exception [%s]: %s" % (Exception,e)
-
-        print "coverage(): %s" % res_data
-        return res_data
-    #}}}
-
 
 #}}}
 

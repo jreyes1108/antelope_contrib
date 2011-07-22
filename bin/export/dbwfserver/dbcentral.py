@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # {{{ HEADERS
 #
 # @author:   Rob Newman <rlnewman@ucsd.edu>, (+1) 858 822 1333
@@ -29,15 +27,7 @@
 
 # }}} HEADERS
 
-import sys
-import os
-import glob
-
-# Load datascope functions
-sys.path.append( os.environ['ANTELOPE'] + '/local/data/python/antelope/' )
-import datascope as datascope
-import stock as stock
-
+from __main__ import *
 
 class dbcentralException(Exception):
     pass

@@ -96,25 +96,26 @@ function init(){
         if (window_active && ! $('#wforms').hasClass("ui-helper-hidden") && ! isPlotting ) {
             load_all = true;
             TO = setTimeout('setData();', 2000);
+            waitingDialog("Waveform Explorer:", "Resize detected. Refresh screen in 2 secs.");
         }
     });
     //}}} Automatic canvas resize
 
     build_dialog_boxes();
 
-    waitingDialog({title: "Waveform Explorer:", message: "Initializing..."});
+    waitingDialog("Waveform Explorer:", "Initializing client.");
 
     //  Setup AJAX defaults
     $.ajaxSetup({
         type: 'get',
         dataType: 'json',
-        timeout: 90000,
+        timeout: 30000,
         error:errorResponse
     });
 
     getCookie();
 
-    $('#load_next').live('click', function() { setData(); });
+    $('#load_next').live('click', function() { page += 1; setData(); });
 
     $('#link').live('click', function() { makeLink(); });
 
@@ -243,6 +244,14 @@ function init(){
     //}}}
     });
 
+    $('#openlog').live('click', function() {
+    //{{{
+        $("#openlog").removeClass('ui-state-error');
+        $("#logpanel").dialog('option', 'title','LOG:'); 
+        $("#logpanel").dialog('open'); 
+    //}}}
+    });
+
     $('#load_events').live('click', function() {
     //{{{
         $('#event_list').empty();
@@ -347,6 +356,8 @@ function init(){
         ts = parseInt(ts);
         te = parseInt(te);
 
+        $("#logpanel").append('<p>Plot['+sta+'] ['+chan+'] ['+ts+'] ['+te+']</p>'); 
+
         $('#list').empty();
         $('#event_list').empty();
         $('#wforms').empty();
@@ -383,7 +394,6 @@ function init(){
 
     $('#load_chans').live('click', function() {
         //{{{
-
         $('#list').empty();
         $("#list").html("<ol></ol>");
 
@@ -424,6 +434,8 @@ function init(){
 
     $("button, input:submit, input:checkbox").button();
 
+    $("#logpanel").append('<p>Done initializing server.</p>'); 
+
     closeWaitingDialog();
 
     // }}} Set defaults
@@ -433,7 +445,90 @@ function init(){
 function openSubnav() {
     // {{{ open subnav div
 
-    waitingDialog({title: "Waveform Explorer:", message: "Initializing..."});
+    waitingDialog("Waveform Explorer:", "Open Control Window.");
+
+    //{{{ Build DATEPICKERS
+
+    // Build DATEPICKER
+    $(".pickdate").datepicker({
+        dateFormat: '@',
+        beforeShow: function() { 
+
+            if ( $(this).val() > 0 ) $(this).val($(this).val()*1000);  
+            return {};
+
+        },
+        beforeShowDay: function(test_date) { 
+
+            //diff = test_date.getTimezoneOffset();
+
+            var found = true;
+
+            //$.each(dates_allowed, function(key,value) {
+
+            //    var option = new Date((value + (diff*60)) * 1000 );
+
+            //    if (test_date.getTime() == option.getTime()) { found = true; }
+
+            //});
+
+            return found ? [true,'','Valid'] : [false,'','Not valid.']; 
+
+        },
+        onSelect: function(dateText, inst) {
+            var old = $(".pickdate").not(this).val();
+
+            if (this.id == "end_time")
+                $(".pickdate").not(this).datepicker("option", 'maxDate', dateText );
+            else
+                $(".pickdate").not(this).datepicker("option", "minDate", dateText);
+
+            if ( old ) 
+                $(".pickdate").not(this).val( old );
+            else 
+                $(".pickdate").not(this).val( null );
+
+            if (this.id == "end_time")
+                $("#end_time").val( (dateText / 1000) + 86399 );
+            else
+                $("#start_time").val( dateText / 1000 );
+        }
+    });
+
+    //
+    // Set the max and min on datepicker to 
+    // database max and min times on wfdisc
+    //
+
+    $.ajax({
+        url: proxy + "/data/dates",
+        success: function(json) {
+
+            $("#logpanel").append('<p>Got dates for calendar.</p>'); 
+            if ( json ) {
+                var max = 0;
+                var min = 0;
+
+                min = json[0] * 1000;
+                max = json[1] * 1000;
+
+                var newDate = new Date(min);
+                min += parseInt(newDate.getTimezoneOffset() * 60000);
+
+                var newDate = new Date(max);
+                max += parseInt(newDate.getTimezoneOffset() * 60000);
+
+                $(".pickdate").datepicker("option", 'minDate', min+''); 
+                $(".pickdate").datepicker("option", 'maxDate', max+''); 
+
+                dates_allowed = json;
+
+            }
+
+        }
+    });
+
+    //}}}
 
     $("#station_string").val(sta);
 
@@ -472,6 +567,7 @@ function makeLink(){
     url += ( filter ) ? '/'+filter : '/-'; 
     url += ( calibrate ) ? '/True' : '/False'; 
     url += '/'+page ; 
+    $("#logpanel").append('<p>makeLink()=>'+url+'</p>'); 
     alert(url);
 //}}}
 }
@@ -481,6 +577,9 @@ function getCookie() {
         //
         // Look for cookie values and update elements
         //
+
+        $("#logpanel").append('<p>Get COOKIE.</p>'); 
+
         show_phases = ($.cookie('dbwfserver_phases') == 'true') ? true : false;
 
         show_points = ($.cookie('dbwfserver_points') == 'true') ? true : false;
@@ -510,6 +609,8 @@ function getCookie() {
 
 function setCookie() {
     //{{{ Set cookie
+
+        $("#logpanel").append('<p>Set COOKIE.</p>'); 
 
         // Set COOKIE global options
         COOKIE_OPTS = { path: '/', expiresAt: 99 };
@@ -667,6 +768,23 @@ function build_dialog_boxes() {
         //}}}
     }); // end of dialog 
 
+    //Set log dialog box
+    $("#logpanel").dialog({ 
+        //{{{
+        autoOpen: false,
+        draggable: true, 
+        resizable: true,
+        buttons: {
+            Clear: function() {
+                $('#logpanel').empty();
+            },
+            OK: function() {
+                $( this ).dialog( "close" );
+            }
+        }
+        //}}}
+    }); // end of dialog 
+
     //Set loading dialog box
     $("#helppanel").dialog({ 
         //{{{
@@ -698,11 +816,13 @@ function build_dialog_boxes() {
     //}}}
 }
 
-function waitingDialog(waiting) { 
+function waitingDialog(title,message) { 
     //{{{
 
-    $("#loading").html( (waiting.message && '' != waiting.message) ? '<p>'+waiting.message+'</p>' : '<p>Please wait...</p>'); 
-    $("#loading").dialog('option', 'title', (waiting.title && '' != waiting.title) ? waiting.title : 'Loading'); 
+    $("#logpanel").append('<p>'+message+'</p>'); 
+
+    $("#loading").html( (message && '' != message) ? '<h1>'+message+'</h1>' : '<h1>Please wait...</h1>'); 
+    $("#loading").dialog('option', 'title', (title && '' != title) ? title : 'Loading'); 
     $("#loading").dialog('open'); 
 
     //}}}
@@ -716,88 +836,6 @@ function closeWaitingDialog() {
         $("#loading").dialog('close'); 
         $("#loading").empty(); 
     }
-
-    //}}}
-}
-
-function build_calendars() { 
-    //{{{
-
-    // Build DATEPICKER
-    $(".pickdate").datepicker({
-        dateFormat: '@',
-        beforeShow: function() { 
-
-            if (this.id == 'end_time') {
-                if ( $('#end_time').val() > 0 ) $(this).val($('#end_time').val()*1000);  
-            } else {
-                if ( $('#start_time').val() > 0 ) $(this).val($('#start_time').val()*1000);  
-            }
-            return {};
-
-        },
-        beforeShowDay: function(test_date) { 
-
-            //diff = test_date.getTimezoneOffset();
-
-            var found = true;
-
-            //$.each(dates_allowed, function(key,value) {
-
-            //    var option = new Date((value + (diff*60)) * 1000 );
-
-            //    if (test_date.getTime() == option.getTime()) { found = true; }
-
-            //});
-
-            return found ? [true,'','Valid'] : [false,'','Not valid.']; 
-
-        },
-        onSelect: function(dateText, inst) {
-            if (this.id == "end_time"){
-                var old = $(".pickdate").not(this).val();
-                $(".pickdate").not(this).datepicker("option", 'maxDate', dateText );
-                $(".pickdate").not(this).val( old );
-                $("#end_time").val( (dateText / 1000) + 86399 );
-            } else {
-                var old = $(".pickdate").not(this).val();
-                $(".pickdate").not(this).datepicker("option", "minDate", dateText);
-                $(".pickdate").not(this).val( old );
-                $("#start_time").val( dateText / 1000 );
-            }
-        }
-    });
-
-    //
-    // Set the max and min on datepicker to 
-    // database max and min times on wfdisc
-    //
-
-    $.ajax({
-        url: proxy + "/data/dates",
-        success: function(json) {
-
-            var max = 0;
-            var min = 999999999999;
-
-            if ( typeof(json) != "undefined" ) {
-
-                $.each(json, function(key,value) {
-
-                    if ( value[0] < min) { min = value[0]; }
-                    if ( value[1] > max) { max = value[1]; }
-
-                });
-
-                $(".pickdate").datepicker("option", 'minDate', min*1000+''); 
-                $(".pickdate").datepicker("option", 'maxDate', max*1000+''); 
-
-                dates_allowed = json;
-
-            }
-
-        }
-    });
 
     //}}}
 }
@@ -991,6 +1029,8 @@ function varSet(){
 function errorResponse(x,e) {
     // {{{ Report Errors to user
 
+    $("#logpanel").append('<p>ERROR: '+x+': '+e+'</p>'); 
+
     if(x.status==0){
 
         //alert('You are offline!!\n Please Check Your Network.' + '\n\n' + e);
@@ -1111,7 +1151,7 @@ function convertTime(time){
 
 function setData(resp) {
 //{{{
-    waitingDialog({title: "Waveform Explorer:", message: "Query SERVER for data."});
+    waitingDialog("Waveform Explorer:", "Waiting for data from server.");
 
     getCookie();
 
@@ -1153,6 +1193,8 @@ function setData(resp) {
     //}}}
     }
 
+    $("#logpanel").append('<p>Get: ['+sta+'] ['+chan+'] ['+ts+'] ['+te+']</p>'); 
+
     // Set max time window
     // This will prevent the user
     // to zoom-out away from this 
@@ -1175,10 +1217,10 @@ function setData(resp) {
     chan = (chan) ? chan : '.*';
 
     // Page to load
-    page = (parseInt(page) > 0) ? parseInt(page) : 0;
+    page = (parseInt(page) > 0) ? parseInt(page) : 1;
     last_page = (parseInt(last_page) > 0) ? parseInt(last_page) : 1;
 
-    page += 1;
+    //if ( page > 1) page += 1;
 
     if (page > last_page) page = last_page;
 
@@ -1191,7 +1233,12 @@ function setData(resp) {
 
     for( i=first_page;i<=page;i++) {
 
-        var url = proxy + '/data/wf/' + sta + '/' + chan ;
+        var url = proxy ;
+
+        if ( type == 'coverage')
+            url += '/data/coverage/' + sta + '/' + chan ;
+        else
+            url += '/data/wf/' + sta + '/' + chan ;
 
         url += ( ts ) ? '/'+ts/1000 : '/-'; 
 
@@ -1203,12 +1250,15 @@ function setData(resp) {
 
         url += '/'+i ; 
 
+        $("#logpanel").append('<p>AJAX: ['+url+']</p>'); 
+        //waitingDialog("Waveform Explorer:", '<p>Query: ['+url+']</p>');
+
         activeQueries += 1; 
 
         $.ajax({ 
             url:url, 
             error:function(error) { 
-                errorResponse('setData(): ','Error in query: '+url); 
+                errorResponse('Query(): ['+url+'] ','Error: '+error); 
                 activeQueries -= 1; 
             },
             success: function(data){
@@ -1275,6 +1325,37 @@ function plotData(r_data){
             var data = r_data[sta][chan];
             var plot = $("<div>").attr("id", plt );
 
+            // If we have no data in object
+            if ( typeof(data['ERROR']) != "undefined" ) { 
+            //{{{
+                $("#logpanel").append('<h3>'+name+':'+data['ERROR']+'</h3>'); 
+                $("#openlog").addClass('ui-state-error');
+                //var text = name + ' => ' + data['ERROR'] + ' [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]';
+                //$("#"+wpr).height( 20 );
+                //$("#"+wpr).css( "border", "1px solid black" );
+                //$("#"+wpr).css( "margin", "2px" );
+                //$('#'+wpr).append( $("<div style='padding:1px'>" + text + "</div>") );
+                //$("#"+wpr).addClass('remove');
+                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>")).append( $("<div style='padding:1px'>" + text + "</div>") );
+                continue;
+            //}}}
+            } 
+            // If we have no data in object
+            if ( typeof(data['data']) == "undefined" ) { 
+            //{{{
+                $("#logpanel").append('<h3>'+name+': No data object in JSON</h3>'); 
+                $("#openlog").addClass('ui-state-error');
+                //var text = name + ' => No data object returned for: [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]';
+                //$("#"+wpr).height( 20 );
+                //$("#"+wpr).css( "border", "1px solid black" );
+                //$("#"+wpr).css( "margin", "2px" );
+                //$('#'+wpr).append( $("<div style='padding:1px'>"+text+"</div>") );
+                //$("#"+wpr).addClass('remove');
+                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>"));
+                continue;
+            //}}}
+            } 
+
             if (document.getElementById(wpr) == null) {
                 $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
             }
@@ -1292,33 +1373,6 @@ function plotData(r_data){
             $("#"+wpr).width( $('#name_path').width() );
             $("#"+wpr).empty();
 
-            // If we have no data in object
-            if ( typeof(data['ERROR']) != "undefined" ) { 
-            //{{{
-                var text = name + ' => ' + data['ERROR'] + ' [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]';
-                $("#"+wpr).height( 20 );
-                $("#"+wpr).css( "border", "1px solid black" );
-                $("#"+wpr).css( "margin", "2px" );
-                $('#'+wpr).append( $("<div style='padding:1px'>" + text + "</div>") );
-                $("#"+wpr).addClass('remove');
-                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>")).append( $("<div style='padding:1px'>" + text + "</div>") );
-                continue;
-            //}}}
-            } 
-            // If we have no data in object
-            if ( typeof(data['data']) == "undefined" ) { 
-            //{{{
-                var text = name + ' => No data object returned for: [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]';
-                $("#"+wpr).height( 20 );
-                $("#"+wpr).css( "border", "1px solid black" );
-                $("#"+wpr).css( "margin", "2px" );
-                $('#'+wpr).append( $("<div style='padding:1px'>"+text+"</div>") );
-                $("#"+wpr).addClass('remove');
-                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>"));
-                continue;
-            //}}}
-            } 
-
             $("#"+wpr).append(plot);
             $("#"+plt).width( '100%' );
             $("#"+plt).height( '100%' );
@@ -1330,12 +1384,12 @@ function plotData(r_data){
             if ( typeof(data['segtype']) != "undefined" ) segtype = data['segtype'];
 
             // Setup for Coverage Bars
-            if ( data['format'] == 'coverage') { 
+            if ( data['type'] == 'coverage') { 
             //{{{
                 $.each( data['data'], function(i,arr) {
 
-                    var start_time = parseFloat(arr[0],10) *1000;
-                    var end_time   = parseFloat(arr[1],10) *1000;
+                    var start_time = parseFloat(arr[0],10);
+                    var end_time   = parseFloat(arr[1],10);
                     flot_data.push([start_time,1,end_time]);
 
                 });
@@ -1354,7 +1408,7 @@ function plotData(r_data){
                         fillColor:data_color
                 };
 
-                temp_flot_ops.bars = {show:true,barWidth:0,align:'center'};
+                //temp_flot_ops.bars = {show:true,barWidth:0,align:'center'};
                 temp_flot_ops.points  = {show:false};
                 temp_flot_ops.lines = {show:false};
 
@@ -1408,7 +1462,7 @@ function plotData(r_data){
 
             // PLot data
             var canvas = $.plot($("#"+plt),[ data['data'] ], temp_flot_ops);
-            $('#'+plt).append($("<div>").css(calibCss).append('[ calib: "'+calib+'",  type: "'+segtype+'", filter: "'+filter+'" ]'));
+            $('#'+plt).append( $("<div>").html(name).css(NameCss) );
 
             $(".tickLabel").css({'font-size':'15px'});
 
@@ -1426,8 +1480,10 @@ function plotData(r_data){
 
             chan_plot_obj[name] = canvas;
 
-            $('#'+plt).append( $("<div>").html(name).css(NameCss) );
-            //$('#'+plt).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>"));
+            if ( type == 'waveform') { 
+                $('#'+plt).append($("<div>").css(calibCss).append('[ calib: "'+calib+'",  type: "'+segtype+'", filter: "'+filter+'" ]'));
+                //$('#'+plt).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>"));
+            }
         }
     }
 

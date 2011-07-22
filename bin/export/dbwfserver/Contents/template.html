@@ -318,6 +318,8 @@
 
     <!-- }}} PANEL -->
 
+    <div id="logpanel"></div>
+
     <div id="name_path" class='ui-corner-all ui-widget-header'>
 
         <h2>$application_title</h2>
@@ -328,9 +330,10 @@
 
         <button id='home'><span class="ui-icon ui-icon-home" style="float: left; margin-right: 0.3em;"></span>Home</button>
         <button id='openconfig'><span class="ui-icon ui-icon-gear" style="float: left; margin-right: 0.3em;"></span>Config</button>
-        <button id='openhelp'class='ui-state-error'><span class="ui-icon ui-icon-alert" style="float: left; margin-right: 0.3em;"></span>Help</button>
+        <button id='openhelp'><span class="ui-icon ui-icon-alert" style="float: left; margin-right: 0.3em;"></span>Help</button>
         <button id='link'class='ui-helper-hidden'><span class="ui-icon ui-icon-link" style="float: left; margin-right: 0.3em;"></span>Link</button>
         <button id='clean'class='ui-helper-hidden'><span class="ui-icon ui-icon-trash" style="float: left; margin-right: 0.3em;"></span>Clean</button>
+        <button id='openlog'class='ui-helper-hidden'><span class="ui-icon ui-icon-document" style="float: left; margin-right: 0.3em;"></span>Log</button>
 
     </div>
                 
@@ -395,10 +398,8 @@
         var proxy      =  $proxy;
 
         if (proxy ) {
-	     window.proxy = proxy
+            window.proxy = proxy
         }
-
-        build_calendars();
 
         if (setup_ui) {
              setupUI(setup_ui);
