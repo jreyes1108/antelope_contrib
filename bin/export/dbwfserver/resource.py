@@ -1513,6 +1513,8 @@ class QueryParser(resource.Resource):
         # Return points or bins of data for query
         #
 
+        response_data = defaultdict(dict)
+
         if self.config.debug: 
             print "QueryParser(): get_data(): Build COMMAND"
 
