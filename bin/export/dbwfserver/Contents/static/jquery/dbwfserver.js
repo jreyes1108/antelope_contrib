@@ -603,8 +603,8 @@ function openSubnav() {
         onSelect: function(dateText, inst) {
             var old = $(".pickdate").not(this).val();
 
-            d = new Date();
-            dateText -= (d.getTimezoneOffset() * 60000);
+            //d = new Date();
+            //dateText -= (d.getTimezoneOffset() * 60000);
 
             if (this.id == "end_time")
                 $(".pickdate").not(this).datepicker("option", 'maxDate', dateText );
