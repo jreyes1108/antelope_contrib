@@ -5,6 +5,8 @@ var mode = 'limited';
 var isShiftPressed =  false;
 var activeQueries = 0;
 var isPlotting =  false;
+var realtime =  false;
+var realtime_refresh =  10;
 
 var ts = null;
 var te = null;
@@ -203,6 +205,12 @@ function init_full(){
             $('#SI').attr('checked', true);
         }
 
+        if ( realtime_refresh ){
+            $('#refresh').val(realtime_refresh);
+        } else {
+            $('#refresh').val('10');
+        }
+
         if ( bg_top_color ){
             $('#bg_top_color').val(bg_top_color);
         } else {
@@ -236,7 +244,7 @@ function init_full(){
         if ( filter ) {
             $('#filter').val( filter) ;
         } else {
-            $('#filter').val('none');
+            $('#filter').val('None');
         }
 
         $("button, input:submit, input:checkbox").button('refresh');
@@ -484,13 +492,82 @@ function init_full(){
     $('#zoom-left-full').live('click', function() { shiftPlot('LL'); });
     $('#zoom-right-full').live('click', function() { shiftPlot('RR'); });
 
-    $('#clean').button('disable');
+    $('#realtime').button('disable');
+    //$('#clean').button('disable');
+    $('#realtime').hide();
+    //$('#clean').hide();
 
     $("#logpanel").append('<p>Done initializing server.</p>'); 
 
     closeWaitingDialog();
 
     // }}} Set defaults
+}
+
+function setupRT() {
+    // {{{ 
+
+    $('#realtime').live('click', function() { toggleRT(); });
+    $('#realtime').button({ label: "Run RealTime" });
+    $('#realtime').show();
+    $('#realtime').button('enable');
+
+    // }}}
+}
+
+function toggleRT() {
+    // {{{ 
+
+    realtime = (realtime == true) ? false : true;
+    if ( realtime ) {
+        $('#toolbar').hide();
+        $('#link').hide();
+        $('#clean').hide();
+        $('#home').hide();
+        $('#openconfig').hide();
+        $('#openhelp').hide();
+        $(".wrapper > div").unbind("plotselected", handleSelect);
+        $('#realtime').button({ label: "Stop RealTime" });
+    } else {
+        $('#toolbar').show();
+        $('#link').show();
+        $('#clean').show();
+        $('#home').show();
+        $('#openconfig').show();
+        $('#openhelp').show();
+        $(".wrapper > div").bind("plotselected", handleSelect);
+        $('#realtime').button({ label: "Run RealTime" });
+    }
+
+    runRT();
+
+    // }}}
+}
+
+function runRT() {
+    // {{{ 
+
+
+    if (realtime) {
+        if (activeQueries != 0) {
+            setTimeout( 'runRT();', 1000);
+            return;
+        }
+
+        $.ajax({
+            url: proxy + "/data/now",
+            async:false,
+            success: function(json) {
+                delta = te -ts;
+                te = json * 1000;
+                ts = te - delta;
+                load_all = true;
+                setTimeout( 'setData();', realtime_refresh * 1000);
+            }
+        });
+    }
+
+    // }}}
 }
 
 // For App GUI
@@ -617,6 +694,7 @@ function openSubnav() {
     $('#link').hide();
     $('#toolbar').hide();
     $('#clean').hide();
+    $('#realtime').hide();
     $('#load_bar').empty();
     $('#load_bar').addClass('ui-helper-hidden');
     $('#subnav').removeClass('ui-helper-hidden');
@@ -668,6 +746,8 @@ function getCookie() {
 
         if ($.cookie('dbwfserver_size')) size  =  $.cookie('dbwfserver_size');
 
+        if ($.cookie('dbwfserver_realtime_refresh')) realtime_refresh  =  $.cookie('dbwfserver_realtime_refresh');
+
         if ($.cookie('dbwfserver_bg_top_color')) bg_top_color  =  $.cookie('dbwfserver_bg_top_color');
 
         if ($.cookie('dbwfserver_bg_bottom_color')) bg_bottom_color  =  $.cookie('dbwfserver_bg_bottom_color');
@@ -694,6 +774,8 @@ function setCookie() {
         $.cookie('dbwfserver_time_zone', timezone, COOKIE_OPTS);
 
         $.cookie('dbwfserver_type', type, COOKIE_OPTS);
+
+        $.cookie('dbwfserver_realtime_refresh', realtime_refresh, COOKIE_OPTS);
 
         $.cookie('dbwfserver_size', size, COOKIE_OPTS);
 
@@ -734,7 +816,7 @@ function build_dialog_boxes() {
         //{{{
         height: 'auto',
         width: 'auto',
-        modal: true,
+        modal: false,
         autoOpen: false,
         draggable: true, 
         resizable: true,
@@ -786,7 +868,7 @@ function build_dialog_boxes() {
         //{{{
         autoOpen: false,
         draggable: true, 
-        modal: true,
+        modal: false,
         resizable: true,
         minWidth:  600, 
         //}}}
@@ -809,6 +891,8 @@ function build_dialog_boxes() {
                 size = $("input[name='wf_size']:checked").val();
 
                 acceleration = $("input[name='accel_type']:checked").val();
+
+                realtime_refresh = $("#refresh").val();
 
                 bg_top_color = $("#bg_top_color").val();
 
@@ -882,7 +966,7 @@ function build_dialog_boxes() {
         //dialogClass: "ui-state-error", 
         dialogClass: "ui-widget-overlay", 
         draggable: false, 
-        modal:true,
+        modal:false,
         resizable: false,
         open: function(event, ui) { isPlotting = true; },
         close: function(event, ui) { isPlotting = false; }
@@ -1270,9 +1354,11 @@ function setData(resp) {
     // Show plots and hide Controls
     closeSubnav();
     $('#wforms').removeClass('ui-helper-hidden');
-    $('#link').show();
-    $('#toolbar').show();
-    $('#clean').show();
+    if ( ! realtime ) {
+        $('#link').show();
+        $('#toolbar').show();
+        $('#clean').show();
+    }
 
     //
     // Get the data... 
@@ -1334,6 +1420,7 @@ function setData(resp) {
 
     }
 
+    runRT();
 
 //}}}
 }
@@ -1392,37 +1479,6 @@ function plotData(r_data){
             var data = r_data[sta][chan];
             var plot = $("<div>").attr("id", plt );
 
-            // If we have no data in object
-            if ( typeof(data['ERROR']) != "undefined" ) { 
-            //{{{
-                $("#logpanel").append('<h3>'+name+':'+data['ERROR']+'</h3>'); 
-                $("#openlog").addClass('ui-state-error');
-                //var text = name + ' => ' + data['ERROR'] + ' [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]';
-                //$("#"+wpr).height( 20 );
-                //$("#"+wpr).css( "border", "1px solid black" );
-                //$("#"+wpr).css( "margin", "2px" );
-                //$('#'+wpr).append( $("<div style='padding:1px'>" + text + "</div>") );
-                //$("#"+wpr).addClass('remove');
-                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>")).append( $("<div style='padding:1px'>" + text + "</div>") );
-                continue;
-            //}}}
-            } 
-            // If we have no data in object
-            if ( typeof(data['data']) == "undefined" ) { 
-            //{{{
-                $("#logpanel").append('<h3>'+name+': No data object in JSON</h3>'); 
-                $("#openlog").addClass('ui-state-error');
-                //var text = name + ' => No data object returned for: [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]';
-                //$("#"+wpr).height( 20 );
-                //$("#"+wpr).css( "border", "1px solid black" );
-                //$("#"+wpr).css( "margin", "2px" );
-                //$('#'+wpr).append( $("<div style='padding:1px'>"+text+"</div>") );
-                //$("#"+wpr).addClass('remove');
-                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>"));
-                continue;
-            //}}}
-            } 
-
             if (document.getElementById(wpr) == null) {
                 $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
             }
@@ -1439,6 +1495,38 @@ function plotData(r_data){
 
             $("#"+wpr).width( $('#name_path').width() );
             $("#"+wpr).empty();
+            // If we have no data in object
+            if ( data['ERROR']  ) { 
+            //{{{
+                var text = '<h3>' + name + ' => ' + data['ERROR'] + ' [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]</h3>';
+                $("#logpanel").append(text); 
+                $("#openlog").addClass('ui-state-error');
+                //$("#"+wpr).height( 20 );
+                $("#"+wpr).css( "border", "1px solid black" );
+                $("#"+wpr).css( "margin", "2px" );
+                $('#'+wpr).append( $("<div style='padding:1px'>" + text + "</div>") );
+                $("#"+wpr).addClass('remove');
+                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>")).append( $("<div style='padding:1px'>" + text + "</div>") );
+                continue;
+            //}}}
+            } 
+            // If we have no data in object
+            if ( typeof(data['data']) == "undefined" ) { 
+            //{{{
+                $("#logpanel").append('<h3>'+name+': No data object in JSON</h3>'); 
+                $("#openlog").addClass('ui-state-error');
+                $("#"+wpr).remove();
+                //var text = name + ' => No data object returned for: [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]';
+                //$("#"+wpr).height( 20 );
+                //$("#"+wpr).css( "border", "1px solid black" );
+                //$("#"+wpr).css( "margin", "2px" );
+                //$('#'+wpr).append( $("<div style='padding:1px'>"+text+"</div>") );
+                //$("#"+wpr).addClass('remove');
+                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>"));
+                continue;
+            //}}}
+            } 
+
 
             $("#"+wpr).append(plot);
             $("#"+plt).width( '100%' );

@@ -61,12 +61,24 @@ main (int argc, char **argv)
     int     c=0, i=0, n=0, page=0, bin=0, bufd=0, first=0;
     long    result=0, first_trace=0, last_trace=0, nsamp=0, nrecords=0, nrecs=0;
     float   *data=NULL, period=0, *max=NULL, *min=NULL;
+    float   inf=0, ninf=0;
     double  time=0, endtime=0, samprate=0, start=0, stop=0;
-    char    old_sta[16]="", segtype[8]="", sta[16]="", chan[16]="", temp[300]="";
+    char    old_sta[16]="", segtype[16]="", sta[16]="", chan[16]="", temp[300]="";
     char    *database=NULL, *dbname=NULL, *subset=NULL, *filter=NULL;
     Dbptr   tr, dbwf, dbsite;
     Tbl     *fields;
     Hook    *hook=0;
+
+    //
+    // Get Inf and -Inf
+    //
+    inf = an_infinity();
+    ninf = -inf;
+
+    elog_init( argc, argv);
+    elog_set( ELOG_DELIVER, 0 ,"stdout");
+    //elog_tag( ELOG_TAG, "%P %a@lncdfDa" );
+
 
     //
     // Get all command-line options
@@ -338,6 +350,7 @@ main (int argc, char **argv)
         }
         else {
 
+            printf ( "\"ERROR\":\"" ) ; 
             // 
             // Load data into trace object
             //
@@ -348,7 +361,7 @@ main (int argc, char **argv)
 
             dbquery ( tr, dbRECORD_COUNT, &nrecs ) ; 
             if (! nrecs) {
-                printf ( "\"ERROR\":\"No Data!\"}" ) ; 
+                printf ( "\"}" ) ; 
                 continue;
             }
 
@@ -366,6 +379,9 @@ main (int argc, char **argv)
                 dbgetv(tr,0,"time",&time,"endtime",&endtime,"nsamp",&nsamp,"samprate",&samprate,"segtype",&segtype,"data",&data,NULL) ; 
 
             }
+
+            // Try to catch any elog msgs from the trloads
+            printf ( "\"," ) ; 
 
             period = 1/samprate;
             max = NULL;
@@ -412,11 +428,16 @@ main (int argc, char **argv)
 
                 if ( first == 0  ) printf( "," );
 
-                if ( bin > 1 )
+                if ( bin > 1 ) {
                     // The time is of the last element in the bin
-                    printf( "[%0.0f,%0f,%0f]", time*1000 , *min, *max ) ; 
-                else 
-                    printf( "[%0.0f,%0f]", time*1000 , data[n] ) ; 
+                    if ( *min == inf || *min == ninf ) min = 0;
+                    if ( *max == inf || *max == ninf ) max = 0;
+                    printf( "[%0.0f,%0.1f,%0.1f]", time*1000 , *min, *max ) ; 
+                }
+                else {
+                    if ( data[n] == inf || data[n] == ninf ) data[n] = 0;
+                    printf( "[%0.0f,%0.1f]", time*1000 , data[n] ) ; 
+                }
 
                 time = time + period;
                 max = NULL;
@@ -434,9 +455,6 @@ main (int argc, char **argv)
 
     }
     printf ( "}}\n" ) ; 
-
-    dbclose(dbsite);
-    dbclose(dbwf);
 
     return 0;
 }

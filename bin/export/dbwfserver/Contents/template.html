@@ -175,6 +175,11 @@
             </div>
         </div>
 
+        <h2>Realtime refresh in seconds:</h2>
+        <div class='controls'>
+            <input type='text' id='refresh' value='0'/>
+        </div>
+
 
         <hr/>
         <h2>Colors:</h2>
@@ -334,6 +339,7 @@
         <button id='link'class='ui-helper-hidden'><span class="ui-icon ui-icon-link" style="float: left; margin-right: 0.3em;"></span>Link</button>
         <button id='clean'class='ui-helper-hidden'><span class="ui-icon ui-icon-trash" style="float: left; margin-right: 0.3em;"></span>Clean</button>
         <button id='openlog'class='ui-helper-hidden'><span class="ui-icon ui-icon-document" style="float: left; margin-right: 0.3em;"></span>Log</button>
+        <button id='realtime'class='ui-helper-hidden'>RealTime</button>
 
         <span id="toolbar" style="float:right" class="ui-helper-hidden">
             <button id='zoom-left-full'>Left</button>
@@ -406,6 +412,7 @@
         var meta_query =  $meta_query ;
         var error      =  $error ;
         var proxy      =  $proxy;
+        var realtime   =  $realtime;
 
         if (proxy ) {
             window.proxy = proxy
@@ -413,6 +420,10 @@
 
         if (setup_ui) {
              setupUI(setup_ui);
+        }
+
+        if (realtime) {
+             setupRT();
         }
 
         if (error) {

@@ -913,6 +913,7 @@ class QueryParser(resource.Resource):
 
         self.config = config
         self.dbname = db
+        self.realtime = 'false'
         self.loading_stations = True
         self.loading_events = True
 
@@ -1058,6 +1059,9 @@ class QueryParser(resource.Resource):
         else:
             self.loading_events = False
 
+        if self.stations.max_time() > (stock.now() - 3600 ):
+            self.realtime = 'true'
+
         print '\nREADY!\n'
     #}}}
 
@@ -1125,6 +1129,7 @@ class QueryParser(resource.Resource):
             "type":       'meta-query',
             "error":      'false',
             "setupUI":    'false',
+            "realtime":   self.realtime,
             "proxy":      "''",
             "proxy_url":  self.config.proxy_url,
             "style":      self.config.style,
@@ -1245,6 +1250,17 @@ class QueryParser(resource.Resource):
                         return self.uri_results( uri, self.stations.channels( stas ) )
 
                     return self.uri_results( uri, self.stations.channels() )
+                #}}}
+
+                elif path[0] == 'now':
+                #{{{
+                    """
+                    Return JSON object for epoch(now).
+                    """
+
+                    if self.config.debug: log.msg('QueryParser(): render_uri() query => data => now')
+
+                    return self.uri_results( uri, [stock.now()] )
                 #}}}
 
                 elif path[0] == 'filters':
@@ -1524,8 +1540,12 @@ class QueryParser(resource.Resource):
 
         if not end: end = start + self.config.default_time_window
 
+        tempdb = self.db(start)
+        if not tempdb:
+            response_data['error'] = "Not valid database for this time [%s]" % start
+            print response_data['error']
+            return response_data
 
-        #regex = "-s 'sta=~/%s/ && chan=~/%s/' " % (("|".join(str(x) for x in query['sta'])),("|".join(str(x) for x in query['chan'])))
         regex = "-s 'sta=~/%s/ && chan=~/%s/' " % (query['sta'],query['chan'])
 
         if query['filter'] != 'None':
@@ -1548,7 +1568,7 @@ class QueryParser(resource.Resource):
         else:
             page = ""
 
-        run = "dbwfserver_extract %s %s %s %s %s -n %s -m %s %s %s %s" % ( regex, coverage, filter, page, calib, self.config.max_traces, self.config.max_points, self.dbname, start, end)
+        run = "dbwfserver_extract %s %s %s %s %s -n %s -m %s %s %s %s 2>&1" % ( regex, coverage, filter, page, calib, self.config.max_traces, self.config.max_points, tempdb, start, end)
 
         print "*********"
         print "QueryParser(): get_data(): Extraction command: [%s]" % run
@@ -1561,7 +1581,7 @@ class QueryParser(resource.Resource):
         #return stdout.readline()
 
         # Method 2
-        return os.popen(run).read()
+        return os.popen(run).read().replace('\n', '')
 
         # }}}
 
