@@ -335,6 +335,15 @@
         <button id='clean'class='ui-helper-hidden'><span class="ui-icon ui-icon-trash" style="float: left; margin-right: 0.3em;"></span>Clean</button>
         <button id='openlog'class='ui-helper-hidden'><span class="ui-icon ui-icon-document" style="float: left; margin-right: 0.3em;"></span>Log</button>
 
+        <span id="toolbar" style="float:right" class="ui-helper-hidden">
+            <button id='zoom-left-full'>Left</button>
+            <button id='zoom-left'>Left 1/4</button>
+            <button id='zoom-in'>In</button>
+            <button id='zoom-out'>Out</button>
+            <button id='zoom-right'>Right 1/4</button>
+            <button id='zoom-right-full'>Right</button>
+        </span>
+
     </div>
                 
     <div id="errors" style='margin-top:5px;margin-bottom:5px' class="ui-helper-hidden ui-widget-content ui-corner-all ui-state-error">
@@ -344,6 +353,15 @@
 
     <div id="subnav" class="ui-helper-hidden ui-state-highlight ui-corner-all" style='padding: 10px'>
     <!--{{{ SUB NAV-->
+
+
+        <div id="time_panel">
+            <h2>Time Segment:</h2>
+            <label for="start_time">Start time:</label>
+            <input type="text" name="start_time" id="start_time" class="pickdate" size="25"/>
+            <label for="end_time">End time:</label>
+            <input type="text" name="end_time" id="end_time" class="pickdate" size="25"/>
+        </div>
 
         <div id="station_panel">
             <h2>Stations:</h2>
@@ -356,15 +374,6 @@
             <input type="text" name="channel_string" id="channel_string" size="50" value=".*" />
             <input type="submit" id="load_chans" class="controls" value="Load"/>
         </div>
-
-        <div id="time_panel">
-            <h2>Time Segment:</h2>
-            <label for="start_time">Start time:</label>
-            <input type="text" name="start_time" id="start_time" class="pickdate" size="25"/>
-            <label for="end_time">End time:</label>
-            <input type="text" name="end_time" id="end_time" class="pickdate" size="25"/>
-        </div>
-
         <div class="controls">
             $event_controls
         </div>
@@ -391,6 +400,7 @@
     $(document).ready( function(){
 
         init();
+        init_full();
 
         var setup_ui    =  $setupUI ;
         var meta_query =  $meta_query ;
@@ -406,7 +416,7 @@
         }
 
         if (error) {
-             //errorResponse('parsererror',error);
+             errorResponse('parsererror',error);
         }
 
         if (meta_query) {

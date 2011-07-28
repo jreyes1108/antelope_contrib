@@ -151,6 +151,7 @@ if config.verbose: print '\n\tStart Server!\n'
 
 
 try:
+    print "RUN REACTOR!"
     run()
 except:
     print "Exiting."

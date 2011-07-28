@@ -3,23 +3,6 @@ from __main__ import *
 #
 # Global Functions
 # 
-def _error(text,dictionary=None,quiet=False):
-#{{{
-    """
-    Test if the 'error' is defined in the dictionary and append text.
-    Return updated dictionary.
-    """
-
-    log.msg("\nERROR:\n\t%s\n\n" % text)
-
-    if dictionary and not quiet:
-        if 'error' in dictionary:
-            dictionary['error'] = str(dictionary['error']) + '\n'+ text 
-        else:
-            dictionary['error'] = '\n' + text
-
-    if dictionary: return dictionary
-#}}}
 
 def isNumber(test):
 #{{{
@@ -60,6 +43,7 @@ class db_nulls():
         self.dbcentral = db
         self.tables    = tables
         self.debug    = debug
+        self.null_vals = defaultdict(lambda: defaultdict(dict))
 
         """
         Load values from databases
@@ -88,8 +72,8 @@ class db_nulls():
         """
         if element is None:
 
-            return _error("\nERROR: db_nulls(): No element named (%s) in object.\n\n" % element)
-
+            print  "\nERROR: db_nulls(): No element named (%s) in object.\n\n" % element
+            return 
 
         if element in self.null_vals:
 
@@ -97,7 +81,8 @@ class db_nulls():
 
         else:
 
-            return _error("\nERROR: db_nulls(): No value for (%s)\n\n" % element)
+            print "\nERROR: db_nulls(): No value for (%s)\n\n" % element
+            return
     #}}}
 
     def _get_nulls(self):
@@ -114,8 +99,6 @@ class db_nulls():
         #    reactor.stop()
 
 
-        self.null_vals = {}
-
         """
         We will assume all databases have the same schema. 
         Get the first only.
@@ -127,7 +110,7 @@ class db_nulls():
 
         except Exception, e:
             print '\n\nERROR: dbopen(%s)=>(%s)\n\n' % (dbname,e)
-            reactor.stop()
+            sys.exit(reactor.stop()) 
 
 
         if self.debug: log.msg("Class Db_Nulls: Looking for tables:%s" % self.tables)
@@ -177,22 +160,17 @@ class Stations():
     def __init__(self, db, config):
     #{{{ Load class and get the data
 
-        print "Stations: init() class"
-
         self.config = config
         self.first = True
         self.dbcentral = db
-        self.stachan_cache = {}
+        self.stachan_cache = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
         self.offset = -1
-        self.wfdates = []
+        self.wfdates = defaultdict(lambda: defaultdict(dict))
+        self.maxtime = -1
+        self.mintime = 0
 
-        #
-        # Load null class
-        #
-        print "Stations: self.nulls"
-        self.nulls = db_nulls(db,self.config.debug,['sitechan']) 
+        if self.config.debug: print "Stations(): init() class"
 
-        print "Stations: call _get_stachan_cache"
         self._get_stachan_cache()
 
     #}}}
@@ -224,7 +202,7 @@ class Stations():
         end-user/application display of content using log.msg() or log.msg()
         """
 
-        if self.config.verbose: print "class Stations():"
+        if self.config.verbose: print "Stations():"
 
         for st in self.stachan_cache.keys():
             chans = self.stachan_cache[st].keys()
@@ -240,68 +218,102 @@ class Stations():
 
 
         if station in self.stachan_cache:
-            if self.config.debug: print "Stations(%s) => %s" % (station,self.stachan_cache[station])
+            if self.config.debug: print "Stations(): %s => %s" % (station,self.stachan_cache[station])
             return self.stachan_cache[station]
 
         else:
             print "Stations(): No value for station:%s" % station
-            for sta in self.stachan_cache:
-                for chan in self.stachan_cache[sta]:
-                    print '%s.%s => %s' % (sta,chan,self.stachan_cache[sta][chan])
+            if self.config.debug:
+                for sta in self.stachan_cache:
+                    for chan in self.stachan_cache[sta]:
+                        print '\t%s.%s => %s' % (sta,chan,self.stachan_cache[sta][chan])
 
         return False
     #}}}
 
     def _get_stachan_cache(self):
     #{{{ private function to load data
-
-        if self.config.debug: print "Stations: _get_stachan_cache(): starting"
-
-        stachan_cache = {}
         records = 0
 
-        if self.config.verbose: print "Stations: _get_stachan_cache(): update cache"
+        if self.config.verbose: print "Stations(): update cache"
 
         for dbname in self.dbcentral.list():
 
-            if self.config.debug: print "Station(): _get_stachan_cache(): in dbname: %s" % dbname
+            if self.config.debug: print "Station(): dbname: %s" % dbname
+            dates = {}
 
-            #
-            # On the first part just get the names and pass them down to the object
-            #
             try:
                 db = datascope.dbopen( dbname , 'r' )
-                db.lookup( table='wfdisc')
-                start = db.ex_eval('min(time)')
-                end   = db.ex_eval('max(endtime)')
-                db.close()
+                db.lookup( table='wfdisc',field='time')
+                records = db.query(datascope.dbRECORD_COUNT)
+                self.mintime = db.ex_eval('min(time)')
+                self.maxtime   = db.ex_eval('max(endtime)')
             except Exception,e:
                 print "Stations(): ERROR: Problem with wfdisc table. %s: %s" % (Exception,e)
-                reactor.stop()
+                sys.exit(reactor.stop()) 
 
-            if end > stock.now():
-                end = stock.now()
+            if self.maxtime > stock.now() or self.maxtime > (stock.now()-3600):
+                self.maxtime = -1
 
-            start_day = stock.str2epoch(stock.epoch2str(start,'%D'))
-            end_day = stock.str2epoch(stock.epoch2str(end,'%D'))
-            self.wfdates = [start_day,end_day]
+
+            #
+            # Method 1
+            #   python tools
+            #
+            for j in range(records):
+                db.record = j
+                try:
+                    self.wfdates[stock.yearday(db.getv('time')[0])] = 1
+                except Exception, e:
+                    print 'Station(): ERROR (%s=>%s)' % (Exception,e)
+
+            if self.config.debug: 
+                print 'Stations(): maxtime: %s' % self.maxtime
+                print 'Stations(): mintime: %s' % self.mintime
+                print 'Stations(): dates: %s' % dates.keys()
+
+            try:
+                db.close()
+            except:
+                pass
+
+            #
+            # Method 2
+            #   system tools
+            #
+            #run = "%s/bin/dbselect %s.wfdisc 'yearday(time)'" % (os.environ['ANTELOPE'],dbname)
+
+            #print "*********"
+            #print "Dates: "
+            #print "*********"
+            #for file in os.popen(run).readlines():
+            #    dates[file.strip()] = 1
+            #l = dates.keys()
+            #print l
+            #print "*********"
+            #sys.exit(reactor.stop()) 
+
+            #start_day = stock.str2epoch(stock.epoch2str(start,'%D'))
+            #end_day = stock.str2epoch(stock.epoch2str(end,'%D'))
+            #if self.wfdate:
+            #    if self.wfdate[0] > start_day: self.wfdate[0] = start_day
+            #    if self.wfdate[1] < start_day: self.wfdate[0] = start_day
+            #self.wfdates = [start_day,end_day]
 
             try:
                 db = datascope.dbopen( dbname , 'r' )
                 db.lookup( table='sitechan')
-                #db.sort(['sta', 'chan'], unique=True)
                 db.sort(['sta', 'chan'])
                 records = db.query(datascope.dbRECORD_COUNT)
 
             except Exception,e:
-                #print 'Stations(): ERROR: Porblems with site table or sitechan table %s: %s\n\n' % (Exception,e)
                 print 'Stations(): ERROR: Porblems with sitechan table %s: %s\n\n' % (Exception,e)
-                reactor.stop()
+                sys.exit(reactor.stop()) 
 
 
             if not records: 
                 print "Stations(): ERROR: No records after sitechan sort. "
-                reactor.stop()
+                sys.exit(reactor.stop()) 
 
 
             for j in range(records):
@@ -310,28 +322,14 @@ class Stations():
                 try:
                     sta, chan, ondate, offdate = db.getv('sta','chan','ondate','offdate')
                 except Exception, e:
-                    print 'Station(): ERROR extracting data db.getv(sta,chan). (%s=>%s)' % (Exception,e)
+                    print 'Station(): ERROR (%s=>%s)' % (Exception,e)
 
                 ondate = stock.str2epoch(str(ondate))
                 if offdate != -1: offdate = stock.str2epoch(str(offdate))
 
-                if not sta in stachan_cache: stachan_cache[sta] = {}
-                if not chan in stachan_cache[sta]: stachan_cache[sta][chan] = {}
+                self.stachan_cache[sta][chan]['dates'].extend([[ondate,offdate]])
 
-                if 'dates' in stachan_cache[sta][chan]:
-                    old_start, old_end = stachan_cache[sta][chan]['dates'] = [start_day,end_day]
-                    if old_start < ondate: ondate = old_start
-                    if old_end > offdate: offdate = old_end
-
-
-                if ondate < start_day: ondate = start_day
-                if offdate > end_day: offdate = end_day
-
-                stachan_cache[sta][chan]['dates'] = [ondate,offdate]
-                stachan_cache[sta][chan]['start'] = start
-                stachan_cache[sta][chan]['end'] = end
-
-                if self.config.debug: print "Station(): %s.%s" % (sta,chan)
+                if self.config.debug: print "Station(): %s.%s dates: %s" % (sta,chan,self.stachan_cache[sta][chan]['dates'])
 
             try:
                 db.close()
@@ -339,75 +337,66 @@ class Stations():
                 pass
 
 
-        if self.config.verbose:
-            print "Stations(): Updating cache (%s) stations." % len(stachan_cache.keys())
-
-        self.stachan_cache = stachan_cache
-
-        if self.config.verbose: print "Stations: _get_stachan_cache(): Done! updating cache"
-
+        print "Stations(): Done updating cache (%s) stations." % len(self.stachan_cache)
 
     #}}}
 
-    def max_time(self,test=False):
-    #{{{ function to return time of last sample for list
+    def min_time(self):
+    #{{{ function to return time of first sample 
         """
-        Get time of first sample
+        Get time of first wfdisc sample
         """
 
-        cache = 0
-
-        if not test: test = self.stachan_cache.keys()
-
-        for sta in test:
-
-            for chan in self.stachan_cache[sta].keys():
-
-                try: 
-                    if self.stachan_cache[sta][chan]['end'] > cache:
-                        cache = self.stachan_cache[sta][chan]['end']
-                except:
-                    pass
-
-        if self.config.debug: print 'Stations(): max_time(%s)=>%s' % (test,cache)
-        return cache
+        return self.mintime
 
     #}}}
 
-    def stadates(self):
+    def max_time(self):
+    #{{{ function to return time of last sample 
+        """
+        Get time of last wfdisc sample
+        """
+
+        if self.maxtime == -1:
+            return stock.now()
+
+        return self.maxtime
+
+    #}}}
+
+    def stadates(self,start=False,end=False):
     #{{{ function to return start and end times for a station
         """
         Get list of valid dates
         """
 
-        #cache = {}
-
-        #if not test: 
-        #    test = self.stachan_cache.keys()
-        #else:
-        #    test = self.convert_sta(test.split('|'))
+        if not start: return self.stachan_cache.keys()
 
 
-        #for sta in test:
+        cache = {}
 
-        #    if not sta in self.stachan_cache: continue 
+        if not end: end = stock.now()
+        if start > end: end = stock.now()
+        start = float(start)
+        end = float(end)
 
-        #    for chan in self.stachan_cache[sta].keys():
+        for sta in self.stachan_cache:
+            for chan in self.stachan_cache[sta]:
+                for date in self.stachan_cache[sta][chan]['dates']:
 
-        #        if 'dates' in self.stachan_cache[sta][chan]:
+                    if date[1] == -1:
 
-        #            if self.config.debug: print "Stations(): dates(%s,%s)=>%s" % (sta,chan,self.stachan_cache[sta][chan]['dates'])
+                        if date[0] <= start: cache[sta] = 1
+                        if date[0] <= end: cache[sta] = 1
 
-        #            (start,end) = self.stachan_cache[sta][chan]['dates']
+                    else:
 
-        #            if sta not in cache: cache[sta] = {}
-        #            if chan not in cache[sta]: cache[sta][chan] = {}
-        #            cache[sta][chan] = (start,end)
+                        if date[0] <= start and start <= date[1]: cache[sta] = 1
+                        if date[0] <= end and end <= date[1]: cache[sta] = 1
+                        if start <= date[0] and date[1] <= end: cache[sta] = 1
 
-        #if self.config.debug: print "Stations(): dates(%s)=>%s" % (test,cache)
-
-        #return cache
-        return self.stachan_cache
+        print cache.keys()
+        return cache.keys()
 
     #}}}
 
@@ -416,11 +405,11 @@ class Stations():
         """
         Get list of valid dates
         """
-        return self.wfdates
+        return self.wfdates.keys()
 
     #}}}
 
-    def channels(self,station=False):
+    def channels(self,station=[]):
     #{{{ function to return list of valid channels
         """
         Get unique list of channels.
@@ -429,14 +418,15 @@ class Stations():
 
         if station:
 
-            if station in self.stachan_cache:
+            for sta in station:
+                if sta in self.stachan_cache:
 
-                for ch in self.stachan_cache[station]:
+                    for ch in self.stachan_cache[sta]:
 
-                    chans[ch] = 1
-            else:
+                        chans[ch] = 1
+                else:
 
-                return False
+                    return False
         else:
 
             for st in self.stachan_cache.keys():
@@ -450,78 +440,39 @@ class Stations():
     #}}}
 
     def convert_sta(self, list=['.*']):
-    #{{{ get list of stations for the query
+            #{{{ get list of stations for the query
 
         stations = []
-        keys = {} 
+        keys = {}
 
-        if not list: list = ['.*'] 
+        if not list: list = ['.*']
 
         if self.config.debug: print "Stations(): convert_sta(%s)" % list
 
         for test in list:
 
-            if re.search('^\w*$', test): 
+            if re.search('^\w*$', test):
                 stations.extend([x for x in self.stachan_cache if x == test])
 
             else:
 
-                if not re.search('^\^', test): test = '^'+test 
+                if not re.search('^\^', test): test = '^'+test
                 if not re.search('\$$', test): test = test+'$'
 
                 stations.extend([x for x in self.stachan_cache if re.search(test,x)])
 
-        for s in stations: 
-            keys[s] = 1 
+        for s in stations:
+                        keys[s] = 1
 
         stations = keys.keys()
 
-        if self.config.verbose: print "Stations(): convert_sta(%s) => %s" % (list,stations)
+        if self.config.debug: print "Stations(): convert_sta(%s) => %s" % (list,stations)
 
         return stations
 
     #}}}
 
-    def convert_chan(self, list=['.*'], stations=['.*']):
-    #{{{ get list of stations for the query
-
-        if not list: list = ['.*'] 
-        if not stations: stations = ['.*'] 
-
-        if self.config.debug: print "Stations(): convert_chan(%s,%s)" % (list,stations)
-
-        channels = []
-        station_list = self.convert_sta(stations)
-        keys = {} 
-
-        for test in list:
-            for sta in station_list:
-
-                if re.search('^\w*$', test): 
-
-                    channels.extend([x for x in self.stachan_cache[sta] if x == test])
-
-                else:
-
-                    if not re.search('^\^', test): test = '^'+test 
-                    if not re.search('\$$', test): test = test+'$'
-
-                    channels.extend([x for x in self.stachan_cache[sta] if re.search(test,x)])
-
-
-        for s in channels: 
-            keys[s] = 1 
-
-        channels = keys.keys()
-
-        if self.config.verbose:
-            print "Stations(): convert_chan(%s,%s) => %s" % (stations,list,channels)
-
-        return channels
-
-    #}}}
-
-    def lis(self):
+    def list(self):
             return self.stachan_cache.keys()
 #}}}
 
@@ -537,18 +488,19 @@ class Events():
         self.config = config
         self.first = True
         self.dbcentral = db
-        self.event_cache = {}
+        self.event_cache = defaultdict(lambda: defaultdict(dict))
         self.offset = -1 
         self.start = 0
         self.end = 0
 
+        if self.config.debug: print "Events(): init() class"
+
         #
         # Load null class
         #
-        print "Events(): self.nulls"
+        if self.config.debug: print "Events(): self.nulls"
         self.nulls = db_nulls(db,self.config.debug,['events','event','origin','assoc','arrival']) 
 
-        print "Events(): call _get_event_cache"
         self._get_event_cache()
 
     #}}}
@@ -598,10 +550,10 @@ class Events():
         method to intercepts data requests.
         """
 
-        value = _isNumber(value)
+        value = isNumber(value)
 
         if not value:
-            return _error("Not a valid number in function call: %s" % value)
+            return "Not a valid number in function call: %s" % value
 
         if value in self.event_cache:
 
@@ -610,14 +562,14 @@ class Events():
         else:
 
             print "Events(): %s not in database." % value
-            return False
+            return self.list
     #}}}
 
     def list(self):
         return self.event_cache.keys()
 
     def table(self):
-        return self.event_cache
+        return dict(self.event_cache)
 
     def time(self,orid_time,window=5):
     #{{{ Function to get possible matches of events for some epoch time.
@@ -637,7 +589,8 @@ class Events():
         orid_time = _isNumber(orid_time)
 
         if not orid_time:
-            return _error("Not a valid number in function call: %s" % orid_time)
+            print  "Not a valid number in function call: %s" % orid_time
+            return
         
         start = float(orid_time)-float(window)
         end   = float(orid_time)+float(window)
@@ -645,14 +598,16 @@ class Events():
         dbname = self.dbcentral(orid_time)
 
         if not db:
-            return _error("No match for orid_time in dbcentral object: (%s,%s)" % (orid_time,self.dbcentral(orid_time)))
+            print  "No match for orid_time in dbcentral object: (%s,%s)" % (orid_time,self.dbcentral(orid_time))
+            return
 
         try: 
             db = datascope.dbopen( dbname , 'r' )
             db.lookup( table='origin')
             db.query(datascope.dbTABLE_PRESENT) 
         except Exception,e:
-            return _error("Exception on Events() time(%s): Error on db pointer %s [%s]" % (orid_time,db,e))
+            print "Exception on Events() time(%s): Error on db pointer %s [%s]" % (orid_time,db,e)
+            return
 
         db.subset( 'time >= %f' % start )
         db.subset( 'time <= %f' % end )
@@ -684,17 +639,11 @@ class Events():
     def _get_event_cache(self):
     #{{{ private function to load the data from the tables
 
-        if self.config.debug: print "Events: _get_evnet_cache(): starting"
-
-        if self.config.debug: print "Events(): update cache."
+        if self.config.verbose: print "Events(): update cache"
 
         for dbname in self.dbcentral.list():
 
-
-            if self.config.debug: 
-                print "Events(): _get_event_cache  db[%s]" % dbname
-
-            event_cache = {}
+            if self.config.debug: print "Events(): dbname: %s" % dbname
 
             # Get min max for wfdisc table first
             try:
@@ -834,30 +783,30 @@ class Events():
                     nass = "%d" % nass
 
 
-                event_cache[orid] = {'time':time, 'lat':lat, 'lon':lon, 'depth':depth, 'auth':auth, 'mb':mb, 'ms':ms, 'ml':ml, 'nass':nass}
+                self.event_cache[orid] = {'time':time, 'lat':lat, 'lon':lon, 'depth':depth, 'auth':auth, 'mb':mb, 'ms':ms, 'ml':ml, 'nass':nass}
 
                 if mb > 0:
-                    event_cache[orid]['magnitude'] = mb
-                    event_cache[orid]['mtype'] = 'Mb'
+                    self.event_cache[orid]['magnitude'] = mb
+                    self.event_cache[orid]['mtype'] = 'Mb'
                 elif ms > 0:
-                    event_cache[orid]['magnitude'] = ms
-                    event_cache[orid]['mtype'] = 'Ms'
+                    self.event_cache[orid]['magnitude'] = ms
+                    self.event_cache[orid]['mtype'] = 'Ms'
                 elif ml > 0:
-                    event_cache[orid]['magnitude'] = ml
-                    event_cache[orid]['mtype'] = 'Ml'
+                    self.event_cache[orid]['magnitude'] = ml
+                    self.event_cache[orid]['mtype'] = 'Ml'
                 else:
-                    event_cache[orid]['magnitude'] = '-'
-                    event_cache[orid]['mtype'] = '-'
+                    self.event_cache[orid]['magnitude'] = '-'
+                    self.event_cache[orid]['mtype'] = '-'
 
             try:
                 db.close()
             except:
                 pass
 
-        self.event_cache = event_cache
+        print "Events(): Done updating cache. (%s)" % len(self.event_cache)
 
-        if self.config.verbose:
-            print "Events(): Updating cache. (%s)" % len(event_cache)
+        if self.config.debug:
+            print "Events(): %s" % self.event_cache.keys()
 
 #}}}
 
@@ -867,15 +816,16 @@ class Events():
         Go through station channels to retrieve all
         arrival phases
         """
-        if self.config.verbose: print "Events():phases(%s,%s) "%(min,max)
-        phases = {}
+        if self.config.debug: print "Events():phases(%s,%s) "%(min,max)
+
+        phases = defaultdict(lambda: defaultdict(dict))
 
         assoc   = False
         arrival = False
 
         dbname = self.dbcentral(min)
 
-        if self.config.verbose: print "Events():phases(%s,%s) db:(%s)"%(min,max,dbname)
+        if self.config.debug: print "Events():phases(%s,%s) db:(%s)"%(min,max,dbname)
 
         if not dbname: return phases
 
@@ -900,7 +850,7 @@ class Events():
                 db.close()
             except:
                 pass
-            return phases
+            return dict(phases)
 
         try:
             db.subset("%s <= time && time <= %s" % (float(min),float(max)) )
@@ -913,7 +863,7 @@ class Events():
                 db.close()
             except:
                 pass
-            return phases
+            return dict(phases)
 
         for p in range(nrecs):
 
@@ -940,7 +890,7 @@ class Events():
 
         if self.config.debug:  print "Events: phases(): t1=%s t2=%s [%s]" % (min,max,phases)
 
-        return phases
+        return dict(phases)
     #}}}
 
 #}}}
@@ -957,14 +907,19 @@ class QueryParser(resource.Resource):
     def __init__(self,db,config):
     #{{{
 
+        print '########################'
+        print '\tLoading!'
+        print '########################'
+
         self.config = config
         self.dbname = db
         self.loading_stations = True
+        self.loading_events = True
 
         #
         # Initialize Classes
         #
-        if self.config.verbose: print 'QueryParser(): Init DB: Load class resorce.Resource.__init__(self)'
+        if self.config.debug: print 'QueryParser(): Init DB: Load class resorce.Resource.__init__(self)'
         resource.Resource.__init__(self)
 
 
@@ -978,7 +933,7 @@ class QueryParser(resource.Resource):
 
         if not self.db.list(): 
             print '\nQueryParser(): Init DB: ERROR: No databases to use! (%s)\n\n'% self.dbname
-            reactor.stop()
+            sys.exit(reactor.stop()) 
 
 
         self.tvals = {
@@ -1090,11 +1045,20 @@ class QueryParser(resource.Resource):
 
     def _init_in_thread(self):
     #{{{
+        print '\nLoading Stations()\n'
         self.stations = Stations(self.db,self.config)
         self.loading_stations = False
+        print '\nDone loading Stations()\n'
 
         if self.config.event:
+            print '\nLoading Events()\n'
             self.events = Events(self.db,self.config)
+            self.loading_events = False
+            print '\nDone loading Events()\n'
+        else:
+            self.loading_events = False
+
+        print '\nREADY!\n'
     #}}}
 
     def getChild(self, name, uri): 
@@ -1126,10 +1090,17 @@ class QueryParser(resource.Resource):
             #uri.setHost(host,config.port)
 
 
-        if self.loading_stations :
+        if self.loading_stations or self.loading_events:
             uri.setHeader("content-type", "text/html")
             uri.setHeader("response-code", 500)
-            return "<html><head><title>%s</title></head><body><h1>DBWFSERVER:</h1></br><h3>Server Loading!</h3></body></html>" % self.config.application_name
+            html =  "<html><head><title>%s</title></head><body><h1>DBWFSERVER:</h1></br><h3>Server Loading!</h3></br>" % self.config.application_name
+            
+            html +=  "<p>Waiting for Stations: %s</p></br>" % self.loading_stations
+
+            html +=  "<p>Waiting for Events: %s</p></br>" % self.loading_events
+
+            html +=  "</body></html>"
+            return html
 
         d = defer.Deferred()
         d.addCallback( self.render_uri )
@@ -1204,6 +1175,9 @@ class QueryParser(resource.Resource):
                     if not self.config.event: 
                         return self.uri_results(uri,{})
 
+                    elif len(path) == 2:
+                        return self.uri_results( uri, self.events(path[1]) )
+
                     elif len(path) == 3:
                         return self.uri_results( uri, self.events.phases(path[1],path[2]) )
 
@@ -1215,7 +1189,7 @@ class QueryParser(resource.Resource):
                 #{{{
                     """
                     Return list of yearday values for time in db
-                    for all stations in the cluster of dbs.
+                    for all wfs in the cluster of dbs.
                     """
 
                     if self.config.debug: log.msg('QueryParser(): render_uri() query => data => dates')
@@ -1233,6 +1207,12 @@ class QueryParser(resource.Resource):
 
                     if self.config.debug: log.msg('QueryParser(): render_uri() query => data => dates')
 
+                    if len(path) == 2: 
+                        return self.uri_results( uri, self.stations.stadates(path[1]) )
+
+                    if len(path) == 3: 
+                        return self.uri_results( uri, self.stations.stadates(path[1],path[2]) )
+
                     return self.uri_results( uri, self.stations.stadates() )
 
                 #}}}
@@ -1247,18 +1227,9 @@ class QueryParser(resource.Resource):
                     if self.config.debug: log.msg('QueryParser(): render_uri() query => data => stations')
 
                     if len(path) == 2: 
-                        return self.uri_results( uri, self.stations.convert_sta(path[1].split('|')) )
+                        return self.uri_results( uri, self.stations(path[1]) )
 
-                    if len(path) == 3: 
-                        for sta in self.stations.convert_sta(path[1].split('|')):
-                            for chan in self.stations.convert_chan(path[2].split('|')):
-                                if sta not in response_data: response_data[sta] = []
-                                response_data[sta].extend(self.stations.convert_chan([chan],[sta]))
-
-                        return self.uri_results( uri, response_data )
-
-
-                    return self.uri_results( uri, self.stations.convert_sta() )
+                    return self.uri_results( uri, self.stations.list() )
                 #}}}
 
                 elif path[0] == 'channels':
@@ -1270,9 +1241,10 @@ class QueryParser(resource.Resource):
                     if self.config.debug: log.msg('QueryParser(): render_uri() query => data => channels')
 
                     if len(path) == 2:
-                        return self.uri_results( uri, self.stations.convert_chan(path[1].split('|')) )
+                        stas = self.stations.convert_sta(path[1].split('|')) 
+                        return self.uri_results( uri, self.stations.channels( stas ) )
 
-                    return self.uri_results( uri, self.stations.convert_chan() )
+                    return self.uri_results( uri, self.stations.channels() )
                 #}}}
 
                 elif path[0] == 'filters':
@@ -1321,68 +1293,26 @@ class QueryParser(resource.Resource):
         response_meta.update(self.tvals)
 
         if not path: 
-            #if 'mode' in uri.args: response_meta['setupUI'] = json.dumps(uri.args)
             return  self.uri_results( uri, Template(open(self.config.template).read()).safe_substitute(response_meta) )
 
+        response_meta['meta_query'] = {}
+        response_meta['meta_query']['sta'] = query['sta']
+        response_meta['meta_query']['chan'] = query['chan']
+        response_meta['meta_query']['time_start'] = query['start']
+        response_meta['meta_query']['time_end'] = query['end']
+        response_meta['meta_query']['calib'] = query['calib']
+        response_meta['meta_query']['filter'] = query['filter']
+        response_meta['meta_query']['page'] = query['page']
+        if uri.args:
+            response_meta['setupUI'] = json.dumps(uri.args)
+
+        response_meta['meta_query'] = json.dumps( response_meta['meta_query'] )
+
         if path[0] == 'wf':
-            #{{{
-                """
-                Parse query for data uri. Return html with meta-query data for further ajax uri.
-                """
-                response_meta['meta_query'] = {}
-
-                #for sta in query['sta']:
-                #    temp_dic = self.stations(sta)
-
-                #    for chan in query['chan']:
-                #        if not chan in temp_dic: continue
-
-                #        if sta not in response_meta['meta_query']['traces']: response_meta['meta_query']['traces'][sta] = []
-                #        response_meta['meta_query']['traces'][sta].extend([chan])
-
-
-                response_meta['meta_query']['sta'] = query['sta']
-                response_meta['meta_query']['chan'] = query['chan']
-                response_meta['meta_query']['time_start'] = query['start']
-                response_meta['meta_query']['time_end'] = query['end']
-                response_meta['meta_query']['calib'] = query['calib']
-                response_meta['meta_query']['filter'] = query['filter']
-                response_meta['meta_query']['page'] = query['page']
-                response_meta['meta_query'] = json.dumps( response_meta['meta_query'] )
-
                 return  self.uri_results( uri, Template(open(self.config.template).read()).safe_substitute(response_meta) )
 
-            #}}}
-
         elif path[0] == 'plot':
-            #{{{
-                """
-                Parse query for data uri. Return html with meta-query data for further ajax uri.
-                """
-
-                response_meta['meta_query'] = {}
-
-                response_meta['meta_query']['sta'] = query['sta']
-                response_meta['meta_query']['chan'] = query['chan']
-                response_meta['meta_query']['time_start'] = query['start']
-                response_meta['meta_query']['time_end'] = query['end']
-
-                #for sta in query['sta']:
-                #    temp_dic = self.stations(sta)
-                #    if not temp_dic: continue
-
-                #    for chan in query['chan']:
-                #        if not chan in temp_dic: continue
-                #        response_meta['meta_query']['traces'][sta][chan] = 'True'
-
-
-                response_meta['meta_query'] = json.dumps( response_meta['meta_query'] )
-
-                response_meta.update(self.tvals)
-                
                 return  self.uri_results( uri, Template(open(self.config.plot_template).read()).safe_substitute(response_meta) )
-
-            #}}}
 
         return self.uri_results( uri, "Invalid query."  )
 
@@ -1624,22 +1554,14 @@ class QueryParser(resource.Resource):
         print "QueryParser(): get_data(): Extraction command: [%s]" % run
         print "*********"
 
-        master, slave = pty.openpty()
+        # Method 1
+        #master, slave = pty.openpty()
+        #pipe = Popen(run, stdin=PIPE, stdout=slave, stderr=slave, close_fds=True, shell=True)
+        #stdout = os.fdopen(master)
+        #return stdout.readline()
 
-        #pipe = Popen(run, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-        #pipe = Popen(run, stdin=PIPE, stdout=PIPE, stderr=PIPE, close_fds=True, shell=True)
-        pipe = Popen(run, stdin=PIPE, stdout=slave, stderr=slave, close_fds=True, shell=True)
-        
-        #pipe.wait()
-        #results = pipe.stdout.read()
-
-        stdout = os.fdopen(master)
-        
-        #results = stdout.readline()
-
-        #return results
-
-        return stdout.readline()
+        # Method 2
+        return os.popen(run).read()
 
         # }}}
 

@@ -62,7 +62,7 @@ main (int argc, char **argv)
     long    result=0, first_trace=0, last_trace=0, nsamp=0, nrecords=0, nrecs=0;
     float   *data=NULL, period=0, *max=NULL, *min=NULL;
     double  time=0, endtime=0, samprate=0, start=0, stop=0;
-    char    old_sta[16]="", segtype[8]="", sta[16]="", chan[16]="", temp[90]="";
+    char    old_sta[16]="", segtype[8]="", sta[16]="", chan[16]="", temp[300]="";
     char    *database=NULL, *dbname=NULL, *subset=NULL, *filter=NULL;
     Dbptr   tr, dbwf, dbsite;
     Tbl     *fields;
@@ -164,7 +164,13 @@ main (int argc, char **argv)
         sprintf( temp, "%s && ondate <= %s && (offdate >= %s || offdate == -1)", subset,epoch2str(stop,"%Y%j"),epoch2str(start,"%Y%j") );
     else 
         sprintf( temp, "ondate <= %s && (offdate >= %s || offdate == -1)", epoch2str(stop,"%Y%j"),epoch2str(start,"%Y%j") );
+
+
     dbsite = dbsubset ( dbsite, temp, 0 ) ; 
+
+    // TEST 
+    //printf ("{\"TEST\":\" records after subset %s\"}\n", temp ) ;
+    //exit(1);
 
     //
     // UNIQUE SORT SITECHAN TABLE
@@ -173,9 +179,13 @@ main (int argc, char **argv)
     dbsite = dbsort ( dbsite, fields, dbSORT_UNIQUE,"" ) ; 
     dbquery ( dbsite, dbRECORD_COUNT, &nrecords ) ; 
     if (! nrecords) {
-        printf ("{\"ERROR\":\"No records after subset %s\"}\n", subset ) ;
+        printf ("{\"ERROR\":\"No records after subset %s\"}\n", temp ) ;
         exit( 1 );
     }
+
+    // TEST 
+    //printf ("{\"TEST\":\" %ld records after subset %s\"}\n", nrecords, temp ) ;
+    //exit(1);
 
     //
     // SUBSET WFDISC TABLE

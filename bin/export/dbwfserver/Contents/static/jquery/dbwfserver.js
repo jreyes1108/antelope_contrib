@@ -1,7 +1,7 @@
 // Defaults
 //{{{ Set defaults
 var proxy = '';
-var mode = 'full';
+var mode = 'limited';
 var isShiftPressed =  false;
 var activeQueries = 0;
 var isPlotting =  false;
@@ -84,6 +84,32 @@ datatypes = {
 function init(){
 // {{{ Set defaults
 
+
+    //  Setup AJAX defaults
+    $.ajaxSetup({
+        type: 'get',
+        dataType: 'json',
+        timeout: 30000,
+        error:errorResponse
+    });
+
+    getCookie();
+
+    varSet();
+
+    keyBinds();
+
+    $('#load_next').live('click', function() { page += 1; setData(); });
+
+    $("button, input:submit, input:checkbox").button();
+
+    // }}} Set defaults
+}
+
+function init_full(){
+// {{{ Set defaults
+    mode = 'full';
+
     //{{{ Automatic canvas resize
     window.onblur = function() { window_active = false; }
     window.onfocus = function() { window_active = true; }
@@ -104,18 +130,6 @@ function init(){
     build_dialog_boxes();
 
     waitingDialog("Waveform Explorer:", "Initializing client.");
-
-    //  Setup AJAX defaults
-    $.ajaxSetup({
-        type: 'get',
-        dataType: 'json',
-        timeout: 30000,
-        error:errorResponse
-    });
-
-    getCookie();
-
-    $('#load_next').live('click', function() { page += 1; setData(); });
 
     $('#link').live('click', function() { makeLink(); });
 
@@ -368,50 +382,67 @@ function init(){
         //}}}
     });
 
-    $('#load_stas').live('click', function() {
-    //{{{
+    $('#load_stas').live('click', function() { 
+        //{{{ $('#list').empty(); $("#list").html("<ol></ol>"); 
+        waitingDialog("Waveform Explorer:", "Load stations.");
         $('#list').empty();
         $("#list").html("<ol></ol>");
+
+        url = proxy + "/data/stations";
+
+        if ($("#start_time").val() && $("#end_time").val()) {
+            url += '/'+$("#start_time").val(); 
+            url += '/'+$("#end_time").val(); 
+        }
+
         $.ajax({
-            url: proxy + "/data/stations",
+            url: url,
             async:false,
             success: function(json) {
-
                 for (var i in json.sort()) {
                     $("#list ol").append('<li id="'+json[i]+'" class="ui-state-default">'+json[i]+'</li>');
                 }
 
                 $("#list").selectable();
 
+                closeWaitingDialog();
+                $("#list").dialog('option', 'title','Select Stations:'); 
+                $("#list").dialog('open'); 
+
             }
         });
-
-        $("#list").dialog('option', 'title','Select Stations:'); 
-        $("#list").dialog('open'); 
 
         //}}}
     });
 
     $('#load_chans').live('click', function() {
         //{{{
+        waitingDialog("Waveform Explorer:", "Load channels.");
         $('#list').empty();
         $("#list").html("<ol></ol>");
 
+        url = proxy + "/data/channels";
+
+        url += ( $('#station_string').val() ) ? '/'+$("#station_string").val() : '';
+
         $.ajax({
-            url: proxy + "/data/channels",
+            url: url,
             async:false,
             success: function(json) {
+                $("#list ol").empty();
                 for (var i in json.sort()) {
                     $("#list ol").append('<li id="'+json[i]+'" class="ui-state-default ui-selectee">'+json[i]+'</li>');
                 }
 
                 $("#list").selectable();
 
-            }
-        });
+                closeWaitingDialog();
+                $("#list").dialog('option', 'title','Select Channels:'); 
+                $("#list").dialog('open'); 
 
-        $("#list").dialog('option', 'title','Select Channels:'); 
-        $("#list").dialog('open'); 
+            }
+
+        });
 
         //}}}
     });
@@ -426,13 +457,34 @@ function init(){
     $('#remove_error').mouseleave(function() {
         $(this).removeClass("ui-state-hover");
     });
-    
 
-    varSet();
+    $( "#zoom-in" ).button({
+        icons: { primary: "ui-icon-circle-plus" }
+    });
+    $( "#zoom-out" ).button({
+        icons: { primary: "ui-icon-circle-minus" }
+    });
+    $( "#zoom-left" ).button({
+        icons: { primary: "ui-icon-circle-triangle-w" }
+    });
+    $( "#zoom-right" ).button({
+        icons: { primary: "ui-icon-circle-triangle-e" }
+    });
+    $( "#zoom-left-full" ).button({
+        icons: { primary: "ui-icon-circle-arrow-w" }
+    });
+    $( "#zoom-right-full" ).button({
+        icons: { primary: "ui-icon-circle-arrow-e" }
+    });
 
-    keyBinds();
+    $('#zoom-in').live('click', function() { shiftPlot('I'); });
+    $('#zoom-out').live('click', function() { shiftPlot('O'); });
+    $('#zoom-left').live('click', function() { shiftPlot('L'); });
+    $('#zoom-right').live('click', function() { shiftPlot('R'); });
+    $('#zoom-left-full').live('click', function() { shiftPlot('LL'); });
+    $('#zoom-right-full').live('click', function() { shiftPlot('RR'); });
 
-    $("button, input:submit, input:checkbox").button();
+    $('#clean').button('disable');
 
     $("#logpanel").append('<p>Done initializing server.</p>'); 
 
@@ -460,23 +512,22 @@ function openSubnav() {
         },
         beforeShowDay: function(test_date) { 
 
-            //diff = test_date.getTimezoneOffset();
+            test = test_date.getDOY();
 
-            var found = true;
+            for (var i=0; i<dates_allowed.length; i++) {
 
-            //$.each(dates_allowed, function(key,value) {
+                if (test == dates_allowed[i]) { return [true, '', ''] }
 
-            //    var option = new Date((value + (diff*60)) * 1000 );
+            }
 
-            //    if (test_date.getTime() == option.getTime()) { found = true; }
-
-            //});
-
-            return found ? [true,'','Valid'] : [false,'','Not valid.']; 
+            return [false,'','No data this day.']; 
 
         },
         onSelect: function(dateText, inst) {
             var old = $(".pickdate").not(this).val();
+
+            d = new Date();
+            dateText -= (d.getTimezoneOffset() * 60000);
 
             if (this.id == "end_time")
                 $(".pickdate").not(this).datepicker("option", 'maxDate', dateText );
@@ -500,26 +551,50 @@ function openSubnav() {
     // database max and min times on wfdisc
     //
 
+    Date.fromDayofYear= function(day){
+        day = String(day);
+        y = day.substring(0,4);
+        n = day.substring(4);
+
+        var d= new Date();
+        d.setUTCFullYear(y,0,n);
+        d.setUTCHours(0,0,0,0);
+        return d
+
+    }
+    Date.prototype.getDOY = function() {
+        d = new Date(this.getTime() + (this.getTimezoneOffset() * 60000));
+        var onejan = new Date(d.getFullYear(),0,1);
+        var text =  zeroPad(d.getFullYear(),4) + zeroPad(Math.ceil((d - onejan) / 86400000),3);
+        return text;
+    } 
+
+    function zeroPad(num,count)
+    {
+        var numZeropad = num + '';
+        while(numZeropad.length < count) {
+            numZeropad = "0" + numZeropad;
+        }
+        return numZeropad;
+    }
+
     $.ajax({
         url: proxy + "/data/dates",
         success: function(json) {
 
             $("#logpanel").append('<p>Got dates for calendar.</p>'); 
             if ( json ) {
-                var max = 0;
-                var min = 0;
+                var max = Math.max.apply(Math, json);
+                var min = Math.min.apply(Math, json);
 
-                min = json[0] * 1000;
-                max = json[1] * 1000;
+                max = Date.fromDayofYear(max);
+                min = Date.fromDayofYear(min);
 
-                var newDate = new Date(min);
-                min += parseInt(newDate.getTimezoneOffset() * 60000);
+                max = new Date(max.getTime() + (max.getTimezoneOffset() * 60000));
+                min = new Date(min.getTime() + (min.getTimezoneOffset() * 60000));
 
-                var newDate = new Date(max);
-                max += parseInt(newDate.getTimezoneOffset() * 60000);
-
-                $(".pickdate").datepicker("option", 'minDate', min+''); 
-                $(".pickdate").datepicker("option", 'maxDate', max+''); 
+                $(".pickdate").datepicker("option", 'minDate', min); 
+                $(".pickdate").datepicker("option", 'maxDate', max); 
 
                 dates_allowed = json;
 
@@ -540,6 +615,7 @@ function openSubnav() {
     $("#end_time").val(temp);
 
     $('#link').hide();
+    $('#toolbar').hide();
     $('#clean').hide();
     $('#load_bar').empty();
     $('#load_bar').addClass('ui-helper-hidden');
@@ -832,7 +908,7 @@ function closeWaitingDialog() {
     //{{{
 
     if (activeQueries == 0) {
-        if (! $('#wforms').hasClass("ui-helper-hidden") ) setPhases();
+        setPhases();
         $("#loading").dialog('close'); 
         $("#loading").empty(); 
     }
@@ -842,45 +918,16 @@ function closeWaitingDialog() {
 
 function setupUI(resp) {
 //{{{
-
-    if (resp) {
-    //{{{
-
-        if (typeof(resp.mode) != "undefined" ) {
-
-            if (resp.mode == "simple") { 
-                mode = 'simple';
-                $("#toppanel").hide()
-                $("#title").hide()
-                $("#subnav").hide()
-                $("#name_path").hide()
-                $("#control_bar").hide()
-
-                handleSelect = function() {};
-                shiftPlot = function() {};
-                flot_ops.selection = {mode:null}; 
-            }
-            else if (resp.mode == "limited") { 
-                mode = 'limited';
-                $("#toppanel").hide()
-                $("#title").hide()
-                $("#subnav").hide()
-                $("#name_path").hide()
-                $("#control_bar").hide()
-            }
-
-        }
-    //}}}
-    }
+    // Not implemented now
+    //  This will get anything on
+    //  the URL after the ? in 
+    //  lists for each key.
 
 //}}}
 }
 
 function keyBinds(){
     // {{{ Set bindings for keys
-        if (mode == "simple") return;
-
-
         $(document).unbind('keyup');
         $(document).unbind('keydown');
 
@@ -1059,11 +1106,15 @@ function errorResponse(x,e) {
     }else {
 
         //alert('Error:'+ x + '\n\n' + e);
-        $('#errors').append('<p>Error:'+ x + ': ' + e + '</p>');
+        $('#errors').append('<p>Error: '+ x + ': ' + e + '</p>');
 
     }
 
     $('#errors').removeClass('ui-helper-hidden');
+
+    activeQueries = 0; 
+
+    closeWaitingDialog();
 
     // }}}
 }
@@ -1072,6 +1123,14 @@ function shiftPlot(evt) {
     // {{{ Future data
 
     var delta = te - ts ;
+
+    if (evt == 'LL') { 
+        ts -= delta;
+        te -= delta;
+    } else if (evt == 'RR') {
+        ts += delta;
+        te += delta;
+    } 
 
     delta /= 4;
 
@@ -1089,6 +1148,7 @@ function shiftPlot(evt) {
         te += delta;
     }
 
+    load_all = true;
     setData();
 
     // }}} Future data
@@ -1108,11 +1168,13 @@ function handleSelect(evt, pos){
 
         te += delta;
 
-        if  ( ts < original_ts || te > original_te )
-            alert('Cannot zoom-out more than original query!');
+        if ( mode == 'limited' ) {
+            if  ( ts < original_ts || te > original_te )
+                alert('Cannot zoom-out more than original query!');
 
-        if (ts < original_ts) { ts = original_ts; }
-        if (te > original_te) { te = original_te; }
+            if (ts < original_ts) { ts = original_ts; }
+            if (te > original_te) { te = original_te; }
+        }
 
     }
     else { 
@@ -1199,14 +1261,17 @@ function setData(resp) {
     // This will prevent the user
     // to zoom-out away from this 
     // segment later.
-    if ( ! original_ts ) original_ts = ts;
-    if ( ! original_te ) original_te = te;
+    if ( mode == 'limited' ) {
+        if ( ! original_ts ) original_ts = ts;
+        if ( ! original_te ) original_te = te;
+    }
 
 
     // Show plots and hide Controls
     closeSubnav();
     $('#wforms').removeClass('ui-helper-hidden');
     $('#link').show();
+    $('#toolbar').show();
     $('#clean').show();
 
     //
@@ -1276,7 +1341,9 @@ function setData(resp) {
 function plotData(r_data){
 //{{{
 
-    if ( ! r_data ) errorResponse('plotData(): ','ERROR in returned object from server!');
+    if ( ! r_data ) errorResponse('plotData()','ERROR on server!');
+
+    if ( typeof(r_data['ERROR']) != "undefined" ) errorResponse('plotData(): ',r_data['ERROR']);
 
     var flot_data = [];
     var temp_flot_ops = flot_ops;

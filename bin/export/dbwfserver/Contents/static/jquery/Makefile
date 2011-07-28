@@ -7,7 +7,6 @@ DATA = excanvas.pack.js \
     jquery.hotkeys-0.8.js \
     jquery.tablesorter-2.0.3.min.js \
     jquery.cookie.js \
-    plot.js \
     dbwfserver.js
     
 
