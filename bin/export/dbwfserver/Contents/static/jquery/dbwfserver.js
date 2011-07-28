@@ -14,8 +14,8 @@ var original_ts = null;
 var original_te = null;
 var sta = ['.*'];
 var chan = ['.*'];
-var page = null;
-var last_page = null;
+var page = 1;
+var last_page = 1;
 var load_all = false;
 
 var filter = 'None';
@@ -1297,7 +1297,7 @@ function convertTime(time){
 
 function setData(resp) {
 //{{{
-    waitingDialog("Waveform Explorer:", "Waiting for data from server.");
+    waitingDialog("Waveform Explorer:", "Waiting for data from server. Page: " +page);
 
     getCookie();
 
@@ -1326,11 +1326,11 @@ function setData(resp) {
 
         if (resp.page) page = resp['page'];
 
-        if ( (parseInt(page) > 0) ? parseInt(page) : 0 ) {
+        if ( (parseInt(page) > 1) ? parseInt(page) : 1 ) {
             last_page = parseInt(page);
             load_all = true;
         } else {
-            page = 0;
+            page = 1;
         }
 
         ts = parseInt(ts);
@@ -1427,6 +1427,7 @@ function setData(resp) {
 
 function plotData(r_data){
 //{{{
+    waitingDialog("Waveform Explorer:", "Got data, start plotting. Page: " +page);
 
     if ( ! r_data ) errorResponse('plotData()','ERROR on server!');
 
@@ -1643,6 +1644,12 @@ function plotData(r_data){
     }
 
     activeQueries -= 1; 
+
+    if ( activeQueries == 0 && page < last_page && $('#wforms > *').size() == 0 ) {
+        $("#logpanel").append('EMPTY page. Load next!'); 
+        page += 1;
+        setData();
+    }
 
 //}}}
 }
