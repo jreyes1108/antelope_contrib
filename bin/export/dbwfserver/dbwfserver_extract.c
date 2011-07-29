@@ -387,15 +387,13 @@ main (int argc, char **argv)
                 printf ( "\"format\":\"lines\"," ) ; 
             }
 
-            printf ( "\"data\":[" ) ; 
+            printf ( "\"data\":[null" ) ; 
 
             for ( tr.record = 0 ; tr.record < nrecs ; tr.record++ ) { 
 
                 dbgetv(tr,0,"time",&time,"nsamp",&nsamp,"data",&data,NULL) ; 
 
                 if ( ! nsamp ) continue; 
-
-                if ( tr.record > 0 ) printf( "," );
 
                 for ( n=0 ; n<nsamp ; n++ ) { 
 
@@ -412,7 +410,7 @@ main (int argc, char **argv)
 
                     }
 
-                    if ( bin > 1 && bufd < bin ) continue;
+                    if ( bin > 1 && bufd < bin && n < nsamp-1 ) continue;
 
                     if ( bin > 1 ) {
                         // The time is of the last element in the bin
