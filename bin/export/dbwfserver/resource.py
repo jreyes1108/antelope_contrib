@@ -1513,7 +1513,7 @@ class QueryParser(resource.Resource):
         # Return points or bins of data for query
         #
 
-        response_data = defaultdict(dict)
+        response_data = ""
 
         if self.config.debug: 
             print "QueryParser(): get_data(): Build COMMAND"
@@ -1522,14 +1522,14 @@ class QueryParser(resource.Resource):
             print "QueryParser(): get_data(): Get data for uri:%s.%s" % (query['sta'],query['chan'])
 
         if not query['sta']:
-            response_data['error'] = "Not valid station value" 
-            print response_data['error']
-            return response_data
+            response_data = "Not valid station value" 
+            print response_data
+            return { "ERROR": response_data }
 
         if not query['chan']:
-            response_data['error'] = "Not valid channel value "
-            print response_data['error']
-            return response_data
+            response_data = "Not valid channel value "
+            print response_data
+            return { "ERROR": response_data }
 
         start = isNumber(query['start'])
         end   = isNumber(query['end'])
@@ -1544,9 +1544,9 @@ class QueryParser(resource.Resource):
 
         tempdb = self.db(start)
         if not tempdb:
-            response_data['error'] = "Not valid database for this time [%s]" % start
-            print response_data['error']
-            return response_data
+            response_data = "Not valid database for this time [%s]" % start
+            print response_data
+            return { "ERROR": response_data }
 
         regex = "-s 'sta=~/%s/ && chan=~/%s/' " % (query['sta'],query['chan'])
 

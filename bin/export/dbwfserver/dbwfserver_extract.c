@@ -57,13 +57,13 @@ stradd( char * s1, char * s2 )
 int
 main (int argc, char **argv)
 {
-    int     calibrate=0, errflg=0, maxtr=0, last_page=0, bars=0, maxpoints=0;
-    int     c=0, i=0, n=0, page=0, bin=0, bufd=0, first=0;
+    int     calibrate=0, errflg=0, maxtr=0, last_page=0, bars=0, maxpoints=0, total_points=0;
+    int     c=0, i=0, n=0, page=0, bin=1, bufd=0;
     long    result=0, first_trace=0, last_trace=0, nsamp=0, nrecords=0, nrecs=0;
     float   *data=NULL, period=0, *max=NULL, *min=NULL;
     float   inf=0, ninf=0;
     double  time=0, endtime=0, samprate=0, start=0, stop=0;
-    char    old_sta[16]="", segtype[16]="", sta[16]="", chan[16]="", temp[300]="";
+    char    old_sta[16]="", segtype[16]="", sta[16]="", chan[16]="", temp[600]="";
     char    *database=NULL, *dbname=NULL, *subset=NULL, *filter=NULL;
     Dbptr   tr, dbwf, dbsite;
     Tbl     *fields;
@@ -74,6 +74,8 @@ main (int argc, char **argv)
     //
     inf = an_infinity();
     ninf = -inf;
+    max = &ninf;
+    min = &inf;
 
     elog_init( argc, argv);
     elog_set( ELOG_DELIVER, 0 ,"stdout");
@@ -272,8 +274,6 @@ main (int argc, char **argv)
     for ( i = first_trace; i < last_trace; i++ )
     {
 
-        first = 1;
-
         dbsite.record = i;
         dbgetv( dbsite, NULL, "sta", &sta, "chan", &chan, 0 );
 
@@ -310,6 +310,7 @@ main (int argc, char **argv)
 
             sprintf( temp, "sta == '%s' && chan == '%s'", sta,chan );
 
+            printf( "null" );
             for ( ;; ) {
 
                 result = dbfind(dbwf, temp, 0, &hook);
@@ -322,42 +323,32 @@ main (int argc, char **argv)
                     dbwf.record = result ;
                     dbgetv(dbwf,0,"time",&time,"endtime",&endtime,NULL) ; 
 
-                    if ( first == 0  ) printf( "," );
-
-                    printf( "[%0.0f,%0.0f]", time*1000 , endtime*1000 ) ; 
-
-                    first = 0;
+                    printf( ",[%0.0f,%0.0f]", time*1000 , endtime*1000 ) ; 
 
                 } 
                 else { break; }
 
             }
+            printf( ",null" );
 
             printf ( "]" ) ; 
 
             // Clean memory
             free_hook(&hook);
 
-            // 
-            // IF WE HAVE NO ROWS
-            //
-            if ( first ) {
-                printf ( ",\"ERROR\":\"No Data!\"" ) ; 
-            }
-
             printf ( "}" ) ; 
 
         }
         else {
 
+            // Try to catch any elog msgs from the trloads
             printf ( "\"ERROR\":\"" ) ; 
+
             // 
             // Load data into trace object
             //
             tr = dbinvalid() ;
-            //printf ( "\n\nstart:%f stop:%f sta:%s chan:%s\n\n", start, stop, sta, chan ) ; 
             tr = trloadchan( dbwf, start, stop, sta, chan );
-            //exit(1);
 
             dbquery ( tr, dbRECORD_COUNT, &nrecs ) ; 
             if (! nrecs) {
@@ -365,89 +356,82 @@ main (int argc, char **argv)
                 continue;
             }
 
-            //printf ( "\n\nTEST nrecs=%ld\n\n", nrecs ) ; 
-
             // Calibrate trace object if needed
             if ( calibrate ) trapply_calib( tr );
 
             // filter trace object if needed
             if ( filter ) trfilter( tr, filter );
 
-            for ( tr.record = 0 ; tr.record < nrecs ; tr.record++ ) { 
+            tr.record = 0; 
 
-                // We are missing previous sections of the WF for now... WIP
-                dbgetv(tr,0,"time",&time,"endtime",&endtime,"nsamp",&nsamp,"samprate",&samprate,"segtype",&segtype,"data",&data,NULL) ; 
+            dbgetv(tr,0,"nsamp",&nsamp,"samprate",&samprate,"segtype",&segtype,NULL) ; 
 
-            }
+            total_points = samprate * ( stop - start ); 
 
             // Try to catch any elog msgs from the trloads
             printf ( "\"," ) ; 
 
             period = 1/samprate;
-            max = NULL;
-            min = NULL;
-            bufd = 0;
-            bin = 1;
+
+            printf ( "\"type\":\"wf\"," ) ; 
+            printf ( "\"samprate\":%f,",samprate ) ; 
+            printf ( "\"segtype\":\"%s\",",segtype ) ; 
 
             //
             // Calculate if we need to bin the data
             //
-            if ( maxpoints && nsamp > maxpoints ) {
-                bin = nsamp / maxpoints;
-                if ( ( nsamp % maxpoints ) > 1 ) bin++;
+            if ( maxpoints && total_points > maxpoints ) {
+                bin = total_points / maxpoints;
+                if ( ( total_points % maxpoints ) > 1 ) bin++;
+                printf ( "\"format\":\"bins\"," ) ; 
+            } 
+            else {
+                printf ( "\"format\":\"lines\"," ) ; 
             }
 
-            if ( bin == 1 )
-                printf ( "\"format\":\"lines\"," ) ; 
-            else
-                printf ( "\"format\":\"bins\"," ) ; 
-
-            printf ( "\"type\":\"wf\"," ) ; 
-            printf ( "\"time\":%0.0f,",time*1000 ) ; 
-            printf ( "\"endtime\":%0.0f,",endtime*1000 ) ; 
-            printf ( "\"samprate\":%f,",samprate ) ; 
-            printf ( "\"segtype\":\"%s\",",segtype ) ; 
             printf ( "\"data\":[" ) ; 
 
-            for ( n=0 ; n<nsamp ; n++ ) { 
-                //
-                // Bin data if we need to...
-                //
-                if ( bin > 1 ){
-                    bufd++;
+            for ( tr.record = 0 ; tr.record < nrecs ; tr.record++ ) { 
 
-                    if ( min == NULL || data[n] < *min) min = &data[n];
-                    if ( max == NULL || data[n] > *max) max = &data[n];
+                dbgetv(tr,0,"time",&time,"nsamp",&nsamp,"data",&data,NULL) ; 
 
+                printf( "null" );
+                for ( n=0 ; n<nsamp ; n++ ) { 
+
+                    time += period;
+
+                    //
+                    // Bin data if we need to...
+                    //
+                    if ( bin > 1 ){
+
+                        bufd++;
+                        if ( data[n] < *min) min = &data[n];
+                        if ( data[n] > *max) max = &data[n];
+
+                    }
+
+                    if ( bin > 1 && bufd < bin ) continue;
+
+                    if ( bin > 1 ) {
+                        // The time is of the last element in the bin
+                        if ( isinf(*min) ) min = 0;
+                        if ( isinf(*max) ) max = 0;
+                        printf( ",[%0.0f,%0.1f,%0.1f]", time*1000 , *min, *max ) ; 
+                    }
+                    else {
+                        if ( isinf(data[n]) ) data[n] = 0;
+                        printf( ",[%0.0f,%0.1f]", time*1000 , data[n] ) ; 
+                    }
+
+                    max = &ninf;
+                    min = &inf;
+                    bufd = 0;
                 }
 
-                if ( bin > 1 && bufd < bin ) {
-                    time = time + period;
-                    continue;
-                }
+                printf( ",null" );
 
-                if ( first == 0  ) printf( "," );
-
-                if ( bin > 1 ) {
-                    // The time is of the last element in the bin
-                    if ( *min == inf || *min == ninf ) min = 0;
-                    if ( *max == inf || *max == ninf ) max = 0;
-                    printf( "[%0.0f,%0.1f,%0.1f]", time*1000 , *min, *max ) ; 
-                }
-                else {
-                    if ( data[n] == inf || data[n] == ninf ) data[n] = 0;
-                    printf( "[%0.0f,%0.1f]", time*1000 , data[n] ) ; 
-                }
-
-                time = time + period;
-                max = NULL;
-                min = NULL;
-                bufd = 0;
-                first = 0;
             }
-
-            tr.table = dbALL ;
-            trfree( tr );
 
             printf ( "]}" ) ; 
 

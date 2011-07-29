@@ -139,14 +139,10 @@ function init_full(){
 
     $('#home').live('click', function() {
         //{{{
-        closeSubnav();
 
-        $('#list').empty();
-        $('#event_list').empty();
-        $('#wforms').addClass('ui-helper-hidden');
-        $('#wforms').empty();
+        var path = String(window.location).split('/')
+        window.location = path[0] + '//' + path[2] + '/' + proxy ;
 
-        openSubnav();
         //}}}
     });
 
@@ -1572,18 +1568,18 @@ function plotData(r_data){
             // Setup for bins
             } else if( data['format'] == 'bins' ) {
             //{{{
-                temp_flot_ops.bars = {show:true,barWidth:0,align:'center'};
+                temp_flot_ops.bars = {show:true,lineWidth:1};
                 temp_flot_ops.points  = {show:false};
-                temp_flot_ops.lines = {show:true};
+                temp_flot_ops.lines = {show:true,lineWidth:1};
 
             } else if( data['format'] == 'lines' ) {
 
                 if ( show_points ) 
-                    temp_flot_ops.points  = {show:true,lineWidth:1,shadowSize:0};
+                    temp_flot_ops.points  = {show:true,lineWidth:0.2};
                 else
                     temp_flot_ops.points  = {show:false};
 
-                temp_flot_ops.lines = {show:true,lineWidth:1,shadowSize:0};
+                temp_flot_ops.lines = {show:true,lineWidth:1};
                 temp_flot_ops.bars = {show:false};
 
             }
@@ -1600,13 +1596,14 @@ function plotData(r_data){
 
                         flot_data = [];
                         for ( var i=0, len=data['data'].length; i<len; ++i ){
-                            if ( typeof(data['data'][i][2]) != "undefined") 
-                                flot_data[i] =  [data['data'][i][0],data['data'][i][1]*conv,data['data'][i][2]*conv];
-                            else
-                                flot_data[i] =  [data['data'][i][0],data['data'][i][1]*conv];
+                            data['data'][i][1] =  data['data'][i][1]*conv;
+                            if ( typeof(data['data'][i][2]) != "undefined") data['data'][i][2] =  data['data'][i][2]*conv;
+                                //flot_data[i] =  [data['data'][i][0],data['data'][i][1]*conv,data['data'][i][2]*conv];
+                            //else
+                                //flot_data[i] =  [data['data'][i][0],data['data'][i][1]*conv];
                         }
+                        //data['data'] = flot_data;
 
-                        data['data'] = flot_data;
                     } else {
                         segtype = datatypes[segtype];
                     }
@@ -1618,6 +1615,10 @@ function plotData(r_data){
 
             // PLot data
             var canvas = $.plot($("#"+plt),[ data['data'] ], temp_flot_ops);
+            //for ( var m=0, len=data['data'].length; m<len; ++m ){
+            //    var d = data['data'][m];
+            //    var canvas = $.plot($("#"+plt),[ d ], temp_flot_ops);
+            //}
             $('#'+plt).append( $("<div>").html(name).css(NameCss) );
 
             $(".tickLabel").css({'font-size':'15px'});
