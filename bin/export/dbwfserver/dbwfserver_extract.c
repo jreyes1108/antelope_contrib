@@ -310,7 +310,6 @@ main (int argc, char **argv)
 
             sprintf( temp, "sta == '%s' && chan == '%s'", sta,chan );
 
-            printf( "null" );
             for ( ;; ) {
 
                 result = dbfind(dbwf, temp, 0, &hook);
@@ -329,7 +328,6 @@ main (int argc, char **argv)
                 else { break; }
 
             }
-            printf( ",null" );
 
             printf ( "]" ) ; 
 
@@ -395,7 +393,10 @@ main (int argc, char **argv)
 
                 dbgetv(tr,0,"time",&time,"nsamp",&nsamp,"data",&data,NULL) ; 
 
-                printf( "null" );
+                if ( ! nsamp ) continue; 
+
+                if ( tr.record > 0 ) printf( "," );
+
                 for ( n=0 ; n<nsamp ; n++ ) { 
 
                     time += period;

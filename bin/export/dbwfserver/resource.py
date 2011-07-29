@@ -1493,16 +1493,19 @@ class QueryParser(resource.Resource):
     #{{{
         print 'QueryParser(): uri_results(%s,%s)' % (uri,type(results))
 
-        if uri: 
-            #print '\n\nTYPE: %s \n\n' % type(results)
-            if type(results).__name__ == 'list' or type(results).__name__ == 'dict':
-                uri.setHeader("content-type", "application/json")
-                uri.write(json.dumps(results))
-            else:
-                uri.setHeader("content-type", "text/html")
-                uri.write(results)
+        try:
+            if uri: 
+                #print '\n\nTYPE: %s \n\n' % type(results)
+                if type(results).__name__ == 'list' or type(results).__name__ == 'dict':
+                    uri.setHeader("content-type", "application/json")
+                    uri.write(json.dumps(results))
+                else:
+                    uri.setHeader("content-type", "text/html")
+                    uri.write(results)
 
-            uri.finish()
+                    uri.finish()
+        except:
+            pass
 
         print 'QueryParser(): uri_results() DONE!'
     #}}}
