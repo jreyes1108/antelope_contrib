@@ -57,12 +57,12 @@ stradd( char * s1, char * s2 )
 int
 main (int argc, char **argv)
 {
-    int     calibrate=0, errflg=0, maxtr=0, last_page=0, bars=0, maxpoints=0, total_points=0;
+    int     calibrate=0, errflg=0, maxtr=0, last_page=0, bars=0, maxpoints=0;
     int     c=0, i=0, n=0, page=0, bin=1, bufd=0;
     long    result=0, first_trace=0, last_trace=0, nsamp=0, nrecords=0, nrecs=0;
     float   *data=NULL, period=0, *max=NULL, *min=NULL;
     float   inf=0, ninf=0;
-    double  time=0, endtime=0, samprate=0, start=0, stop=0;
+    double  time=0, endtime=0, samprate=0, start=0, stop=0, total_points=0;
     char    old_sta[16]="", segtype[16]="", sta[16]="", chan[16]="", temp[600]="";
     char    *database=NULL, *dbname=NULL, *subset=NULL, *filter=NULL;
     Dbptr   tr, dbwf, dbsite;
@@ -371,16 +371,17 @@ main (int argc, char **argv)
 
             period = 1/samprate;
 
-            printf ( "\"type\":\"wf\"," ) ; 
-            printf ( "\"samprate\":%f,",samprate ) ; 
-            printf ( "\"segtype\":\"%s\",",segtype ) ; 
+            printf ( "\"type\":\"wf\"," ) ;
+            printf ( "\"samprate\":%f,",samprate ) ;
+            printf ( "\"segtype\":\"%s\",",segtype ) ;
+
 
             //
             // Calculate if we need to bin the data
             //
             if ( maxpoints && total_points > maxpoints ) {
                 bin = total_points / maxpoints;
-                if ( ( total_points % maxpoints ) > 1 ) bin++;
+                if ( fmod( total_points , maxpoints ) > 1 ) bin++;
                 printf ( "\"format\":\"bins\"," ) ; 
             } 
             else {

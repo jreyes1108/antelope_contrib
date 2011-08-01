@@ -1523,7 +1523,6 @@ function plotData(r_data){
             $("#"+plt).bind("plotselected", handleSelect);
 
             var segtype = '-';
-            if ( typeof(data['segtype']) != "undefined" ) segtype = data['segtype'];
 
             // Setup for Coverage Bars
             if ( data['type'] == 'coverage') { 
@@ -1576,7 +1575,10 @@ function plotData(r_data){
             //}}}
 
             // Add units label
+            if ( typeof(data['segtype']) != "undefined" ) segtype = data['segtype'];
+
             if ( typeof(datatypes[segtype]) != "undefined") {
+
             //{{{
                 // Convert to cm if needed
                 if (segtype == 'A' ) {
@@ -1584,12 +1586,10 @@ function plotData(r_data){
                     if (acceleration == 'cm') {
                         segtype = 'accel (cm/sec/sec)';
 
-                        flot_data = [];
                         for ( var i=0, len=data['data'].length; i<len; ++i ){
                             if ( ! data['data'][i] ) continue;
-                            if ( typeof(data['data'][i][1]) == "undefined") continue;
-                            data['data'][i][1] =  data['data'][i][1]*conv;
-                            if ( typeof(data['data'][i][2]) != "undefined") data['data'][i][2] =  data['data'][i][2]*conv;
+                            if ( data['data'][i][1] ) data['data'][i][1] *=  conv;
+                            if ( data['data'][i][2] ) data['data'][i][2] *=  conv;
                         }
 
                     } else {
