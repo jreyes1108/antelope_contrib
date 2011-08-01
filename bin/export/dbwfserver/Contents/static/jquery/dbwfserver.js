@@ -25,7 +25,7 @@ var type = 'waveform';
 var size = 'medium';
 var show_points = true;
 var show_phases = true;
-var acceleration  = 'SI';
+var acceleration  = 'nm';
 var tick_color = '#000000';
 var bg_top_color = '#000080';
 var bg_bottom_color = '#0000FF';
@@ -42,7 +42,7 @@ var dates_allowed = [];
 // Set data conversion table
 //{{{
 datatypes = {
-    'A': 'accel (Nm/sec/sec)',
+    'A': 'accel (nm/sec/sec)',
     'B': 'UV (sunburn) index NOAA (25*nw/m/m)',
     'D': 'displacement (nm)',
     'H': 'hydroacoustic (pascal)',
@@ -193,12 +193,12 @@ function init_full(){
             $('#small').attr('checked', true);
         }
 
-        if ( acceleration  == 'G' ) {
-            $('#G').attr('checked', true);
-            $('#SI').attr('checked', false);
+        if ( acceleration  == 'cm' ) {
+            $('#cm').attr('checked', true);
+            $('#nm').attr('checked', false);
         } else {
-            $('#G').attr('checked', false);
-            $('#SI').attr('checked', true);
+            $('#cm').attr('checked', false);
+            $('#nm').attr('checked', true);
         }
 
         if ( realtime_refresh ){
@@ -738,7 +738,7 @@ function getCookie() {
 
         type = ($.cookie('dbwfserver_type') == 'coverage') ? 'coverage' : 'waveform';
 
-        acceleration = ($.cookie('dbwfserver_acceleration') == 'SI') ? 'SI' : 'G';
+        acceleration = ($.cookie('dbwfserver_acceleration') == 'nm') ? 'nm' : 'cm';
 
         if ($.cookie('dbwfserver_size')) size  =  $.cookie('dbwfserver_size');
 
@@ -933,6 +933,7 @@ function build_dialog_boxes() {
         buttons: {
             Clear: function() {
                 $('#logpanel').empty();
+                $( this ).dialog( "close" );
             },
             OK: function() {
                 $( this ).dialog( "close" );
@@ -1433,8 +1434,7 @@ function plotData(r_data){
     var temp_flot_ops = flot_ops;
     var calib = 'false';
     var filter = 'none';
-    // "1 g = 9.80665 m/s2" 
-    var conv = 1/9806.65;
+    var conv = 0.0000001;
 
     if ( typeof(r_data['page']) != "undefined" ){ 
         if ( parseInt(r_data['page']) > page ) page = r_data['page'];
@@ -1468,8 +1468,6 @@ function plotData(r_data){
 
         for (var chan in r_data[sta]) {
 
-            //$("#loading").html('<p>Plotting: '+sta+'-'+chan+'</p>'+$("#loading").html()); 
-
             var name = sta + '_' + chan ;
             var wpr = name+"_wrapper";
             var plt = name+"_plot";
@@ -1478,7 +1476,10 @@ function plotData(r_data){
 
             if (document.getElementById(wpr) == null) {
                 $("#wforms").append( $("<div>").attr("id",wpr ).attr("class","wrapper") );
+            } else {
+                $("#"+wpr).removeClass('ui-state-error');
             }
+
 
             if ( type == 'coverage') { 
                 $("#"+wpr).height( 50 );
@@ -1495,16 +1496,12 @@ function plotData(r_data){
             // If we have no data in object
             if ( data['ERROR']  ) { 
             //{{{
-                var text = '<h3>' + name + ' => ' + data['ERROR'] + ' [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]</h3>';
+                var text = '<p>' + name + ' => ' + data['ERROR'] + ' [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]</p>';
                 $("#logpanel").append(text); 
                 $("#openlog").addClass('ui-state-error');
-                //$("#"+wpr).height( 20 );
-                $("#"+wpr).css( "border", "1px solid black" );
-                $("#"+wpr).css( "margin", "2px" );
-                $('#'+wpr).append( $("<div style='padding:1px'>" + text + "</div>") );
+                $("#"+wpr).addClass('ui-state-error');
+                $('#'+wpr).append( $("<div style='position:absolute;z-index:9999;margin:30px;font-size:15px;color:"+text_color+"'>" + text + "</div>") );
                 $("#"+wpr).addClass('remove');
-                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>")).append( $("<div style='padding:1px'>" + text + "</div>") );
-                continue;
             //}}}
             } 
             // If we have no data in object
@@ -1513,13 +1510,6 @@ function plotData(r_data){
                 $("#logpanel").append('<h3>'+name+': No data object in JSON</h3>'); 
                 $("#openlog").addClass('ui-state-error');
                 $("#"+wpr).remove();
-                //var text = name + ' => No data object returned for: [ ' + convertTime(ts) + ' - ' + convertTime(te) + ' ]';
-                //$("#"+wpr).height( 20 );
-                //$("#"+wpr).css( "border", "1px solid black" );
-                //$("#"+wpr).css( "margin", "2px" );
-                //$('#'+wpr).append( $("<div style='padding:1px'>"+text+"</div>") );
-                //$("#"+wpr).addClass('remove');
-                //$('#'+wpr).append($("<div>").css(IconCss).attr("class","remove icons ui-state-dfault ui-corner-all").append("<span class='ui-icon ui-icon-close'></span>"));
                 continue;
             //}}}
             } 
@@ -1588,21 +1578,19 @@ function plotData(r_data){
             // Add units label
             if ( typeof(datatypes[segtype]) != "undefined") {
             //{{{
-                // Convert to G if needed
+                // Convert to cm if needed
                 if (segtype == 'A' ) {
 
-                    if (acceleration == 'G') {
-                        segtype = 'accel (mG)';
+                    if (acceleration == 'cm') {
+                        segtype = 'accel (cm/sec/sec)';
 
                         flot_data = [];
                         for ( var i=0, len=data['data'].length; i<len; ++i ){
+                            if ( ! data['data'][i] ) continue;
+                            if ( typeof(data['data'][i][1]) == "undefined") continue;
                             data['data'][i][1] =  data['data'][i][1]*conv;
                             if ( typeof(data['data'][i][2]) != "undefined") data['data'][i][2] =  data['data'][i][2]*conv;
-                                //flot_data[i] =  [data['data'][i][0],data['data'][i][1]*conv,data['data'][i][2]*conv];
-                            //else
-                                //flot_data[i] =  [data['data'][i][0],data['data'][i][1]*conv];
                         }
-                        //data['data'] = flot_data;
 
                     } else {
                         segtype = datatypes[segtype];
@@ -1615,10 +1603,6 @@ function plotData(r_data){
 
             // PLot data
             var canvas = $.plot($("#"+plt),[ data['data'] ], temp_flot_ops);
-            //for ( var m=0, len=data['data'].length; m<len; ++m ){
-            //    var d = data['data'][m];
-            //    var canvas = $.plot($("#"+plt),[ d ], temp_flot_ops);
-            //}
             $('#'+plt).append( $("<div>").html(name).css(NameCss) );
 
             $(".tickLabel").css({'font-size':'15px'});
@@ -1648,6 +1632,7 @@ function plotData(r_data){
 
     if ( activeQueries == 0 && page < last_page && $('#wforms > *').size() == 0 ) {
         $("#logpanel").append('EMPTY page. Load next!'); 
+        $("#loading").append('EMPTY page. Load next!'); 
         page += 1;
         setData();
     }

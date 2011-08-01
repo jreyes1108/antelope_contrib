@@ -928,7 +928,12 @@ class QueryParser(resource.Resource):
         # Open db using dbcentral CLASS
         #
         if self.config.debug: print "QueryParser(): Init DB: Create dbcentral object with database(%s)." % self.dbname
-        self.db = dbcentral.dbcentral(self.dbname,self.config.nickname,self.config.debug)
+        try:
+            self.db = dbcentral.dbcentral(self.dbname,self.config.nickname,self.config.debug)
+        except Exception, e:
+            print '\n\nERROR: dbcentral(%s)=>(%s)\n\n' % (Exception,e)
+            sys.exit()
+
 
         if self.config.debug: self.db.info()
 
@@ -1493,19 +1498,19 @@ class QueryParser(resource.Resource):
     #{{{
         print 'QueryParser(): uri_results(%s,%s)' % (uri,type(results))
 
-        try:
-            if uri: 
-                #print '\n\nTYPE: %s \n\n' % type(results)
-                if type(results).__name__ == 'list' or type(results).__name__ == 'dict':
-                    uri.setHeader("content-type", "application/json")
-                    uri.write(json.dumps(results))
-                else:
-                    uri.setHeader("content-type", "text/html")
-                    uri.write(results)
+        if uri: 
+            #print '\n\nTYPE: %s \n\n' % type(results)
+            if type(results).__name__ == 'list' or type(results).__name__ == 'dict':
+                uri.setHeader("content-type", "application/json")
+                uri.write(json.dumps(results))
+            else:
+                uri.setHeader("content-type", "text/html")
+                uri.write(results)
 
-                    uri.finish()
-        except:
-            pass
+            try:
+                uri.finish()
+            except:
+                pass
 
         print 'QueryParser(): uri_results() DONE!'
     #}}}

@@ -120,7 +120,7 @@ class dbcentral:
 
         except Exception,e:
 
-            self._problem("Cannot open cluster database. (%s)" % e)
+            self._problem("Cannot open database. (%s)" % e)
             return False
 
 
