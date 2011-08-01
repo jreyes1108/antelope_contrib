@@ -387,10 +387,10 @@ function init_full(){
     });
 
     $('#load_stas').live('click', function() { 
-        //{{{ $('#list').empty(); $("#list").html("<ol></ol>"); 
+        //{{{ 
         waitingDialog("Waveform Explorer:", "Load stations.");
         $('#list').empty();
-        $("#list").html("<ol></ol>");
+        $("#list").html("<ol id='selectable'></ol>");
 
         url = proxy + "/data/stations";
 
@@ -407,7 +407,7 @@ function init_full(){
                     $("#list ol").append('<li id="'+json[i]+'" class="ui-state-default">'+json[i]+'</li>');
                 }
 
-                $("#list").selectable();
+                $("#selectable").selectable({ distance: 0 });
 
                 closeWaitingDialog();
                 $("#list").dialog('option', 'title','Select Stations:'); 
@@ -423,7 +423,7 @@ function init_full(){
         //{{{
         waitingDialog("Waveform Explorer:", "Load channels.");
         $('#list').empty();
-        $("#list").html("<ol></ol>");
+        $("#list").html("<ol id='selectable'></ol>");
 
         url = proxy + "/data/channels";
 
@@ -438,7 +438,7 @@ function init_full(){
                     $("#list ol").append('<li id="'+json[i]+'" class="ui-state-default ui-selectee">'+json[i]+'</li>');
                 }
 
-                $("#list").selectable();
+                $("#selectable").selectable({ distance: 0 });
 
                 closeWaitingDialog();
                 $("#list").dialog('option', 'title','Select Channels:'); 
@@ -819,6 +819,7 @@ function build_dialog_boxes() {
         buttons: {
             OK: function() {
 
+                var count = 0;
                 var target;
                 var selection = '';
                 var type_opt = $( this ).dialog('option', 'title'); 
@@ -839,12 +840,18 @@ function build_dialog_boxes() {
                 target.val('.*');
 
                 $(".ui-selected").each(function(){
-                    if ( ! selection ) {
-                        selection = $( this ).text();
+                    if ( count == 31 )  alert("Too many items in selection. Try using REGEX expression. Using first 30 items!");
+                    count += 1;
+                    if ( count < 31 ){
+
+                        if ( ! selection ) {
+                            selection = $( this ).text();
+                        }
+                        else { 
+                            selection = selection + '|' + $( this ).text();
+                        }
                     }
-                    else { 
-                        selection = selection + '|' + $( this ).text();
-                    }
+
                 });
 
                 if ( selection ) target.val(selection);
