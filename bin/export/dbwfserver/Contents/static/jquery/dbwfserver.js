@@ -34,6 +34,8 @@ var data_color = '#FFFF00';
 var realtime_refresh =  10;
 
 var TO = false;
+var RT = false;
+var CLEAR = false;
 var window_active = false;
 
 var chan_plot_obj = {};
@@ -297,6 +299,8 @@ function init_full(){
         $('#list').empty();
         $('#event_list').empty();
         $('#wforms').empty();
+        $('#load_bar').hide();
+        $('#load_bar').empty();
         $('#subnav').addClass('ui-helper-hidden');
 
         setData();
@@ -529,6 +533,10 @@ function toggleRT() {
         $('#realtime').button({ label: "Run RealTime" });
     }
 
+    if (realtime == false && RT !== false) {
+        clearTimeout(RT);
+    }
+
     runRT();
 
     // }}}
@@ -539,8 +547,8 @@ function runRT() {
 
 
     if (realtime) {
-        if (activeQueries != 0) {
-            setTimeout( 'runRT();', 1000);
+        if (activeQueries > 0) {
+            RT = setTimeout( 'runRT();', 1000);
             return;
         }
 
@@ -552,7 +560,7 @@ function runRT() {
                 te = json * 1000;
                 ts = te - delta;
                 load_all = true;
-                setTimeout( 'setData();', realtime_refresh * 1000);
+                RT = setTimeout( 'setData();', realtime_refresh * 1000);
             }
         });
     }
@@ -697,11 +705,12 @@ function makeLink(){
 //{{{
     var path = String(window.location).split('/')
     var url = path[0] + '//' + path[2] + '/' + proxy + '/wf/' + sta + '/' + chan ;
-    url += ( ts ) ? '/'+ts/1000 : '/-'; 
-    url += ( te ) ? '/'+te/1000 : '/-'; 
+    url += '/'+ts/1000; 
+    url += '/'+te/1000; 
     url += '/'+page+'?' ; 
     url += ( filter ) ? 'filter='+filter : 'filter=None'; 
     url += '&calibrate='+calibrate; 
+    url += '&type='+type; 
 
     $("#logpanel").append('<p>makeLink()=>'+url+'</p>'); 
     alert(url);
@@ -903,6 +912,9 @@ function build_dialog_boxes() {
 
                 varSet();
 
+                $('#wforms').empty();
+                $('#load_bar').hide();
+                $('#load_bar').empty();
                 load_all = true;
 
                 $( this ).dialog( "close" );
@@ -954,9 +966,9 @@ function build_dialog_boxes() {
         //{{{
         autoOpen: false,
         //dialogClass: "ui-state-error", 
-        dialogClass: "ui-widget-overlay", 
+        //dialogClass: "ui-widget-overlay", 
         draggable: false, 
-        modal:false,
+        modal:true,
         resizable: false,
         open: function(event, ui) { isPlotting = true; },
         close: function(event, ui) { isPlotting = false; }
@@ -981,10 +993,16 @@ function waitingDialog(title,message) {
 function closeWaitingDialog() { 
     //{{{
 
-    if (activeQueries == 0) {
+    if (activeQueries < 1) {
+        if (CLEAR !== false) {
+            clearTimeout(CLEAR);
+        }
         setPhases();
         $("#loading").dialog('close'); 
         $("#loading").empty(); 
+        activeQueries = 0;
+    } else {
+        CLEAR = setTimeout('closeWaitingDialog();', 2*1000);
     }
 
     //}}}
@@ -1266,6 +1284,9 @@ function shiftPlot(evt) {
         te += delta;
     }
 
+    $('#wforms').empty();
+    $('#load_bar').hide();
+    $('#load_bar').empty();
     load_all = true;
     setData();
 
@@ -1302,6 +1323,9 @@ function handleSelect(evt, pos){
 
     }
 
+    $('#wforms').empty();
+    $('#load_bar').hide();
+    $('#load_bar').empty();
     load_all = true;
     setData();
 
@@ -1332,6 +1356,8 @@ function convertTime(time){
 function setData(resp) {
 //{{{
     waitingDialog("Waveform Explorer:", "Waiting for data from server. Page: " +page);
+    $("#errors p").remove();
+    $('#errors').addClass('ui-helper-hidden');
 
     // If resp defined... 
     // update globals
@@ -1460,6 +1486,7 @@ function plotData(r_data){
     var flot_data = [];
     var temp_flot_ops = flot_ops;
     var calib = 'false';
+    var somedata = false;
     var filter = 'none';
     var conv = 0.0000001;
 
@@ -1479,11 +1506,6 @@ function plotData(r_data){
 
     $('#load_bar').hide();
     $('#load_bar').empty();
-
-    if ( page < last_page ) {
-        $("#load_bar").html( "<p>Page " + page + " of " + last_page + "       <button id=load_next>Load Next</div></p>" );
-        $('#load_bar').show();
-    }
 
     for (var sta in r_data) {
         if ( sta == 'page') continue; 
@@ -1568,7 +1590,7 @@ function plotData(r_data){
                         fillColor:data_color
                 };
 
-                temp_flot_ops.xaxis = {ticks:0,min:null,max:null,labelWidth:0,labelHeight:0};
+                //temp_flot_ops.xaxis = {ticks:0,min:null,max:null,labelWidth:0,labelHeight:0};
                 temp_flot_ops.points  = {show:false};
                 temp_flot_ops.lines = {show:false};
 
@@ -1648,10 +1670,16 @@ function plotData(r_data){
                 $('#'+plt).append( $("<div>").html(name).css(NameCss) );
             }
 
+            somedata = true;
             chan_plot_obj[name] = canvas;
 
 
         }
+    }
+
+    if ( somedata && page < last_page ) {
+        $("#load_bar").html( "<p>Page " + page + " of " + last_page + "       <button id=load_next>Load Next</div></p>" );
+        $('#load_bar').show();
     }
 
     activeQueries -= 1; 
