@@ -369,6 +369,10 @@
             <input type="text" name="end_time" id="end_time" class="pickdate" size="25"/>
         </div>
 
+        <div class="controls" id="event_wrapper">
+            <input type="submit" id="load_events" value="Show Events"/>
+        </div>
+
         <div id="station_panel">
             <h2>Stations:</h2>
             <input type="text" name="station_string" id="station_string" size="50" value=".*" />
@@ -380,11 +384,7 @@
             <input type="text" name="channel_string" id="channel_string" size="50" value=".*" />
             <input type="submit" id="load_chans" class="controls" value="Load"/>
         </div>
-        <div class="controls">
-            $event_controls
-        </div>
 
-        <div class="controls">
         <div class='controls ui-state-highlight ui-corner-all' style="padding: 5px; margin: 5px"> 
             <input type="submit" id="plot" value="Plot"/>
             <input type="submit" id="clear" value="Clear"/>
@@ -413,21 +413,30 @@
         var error      =  $error ;
         var proxy      =  $proxy;
         var realtime   =  $realtime;
+        var events     =  $setupEvents;
 
         if (proxy ) {
             window.proxy = proxy
         }
 
-        if (setup_ui) {
-             setupUI(setup_ui);
+        if (events) {
+             setupEvents();
+        } else {
+            $('#load_events').remove();
         }
 
         if (realtime) {
              setupRT();
+        } else {
+            $('#realtime').remove();
         }
 
         if (error) {
              errorResponse('parsererror',error);
+        }
+
+        if (setup_ui) {
+             setupUI(setup_ui);
         }
 
         if (meta_query) {

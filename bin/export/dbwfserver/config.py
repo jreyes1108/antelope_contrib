@@ -3,7 +3,7 @@ from __main__ import *
 class Config_Server():
     def __init__(self):
 #{{{
-        self.event               = False
+        self.event               = 'false'
         self.pfname              = 'dbwfserver'
         self.style               = 'cupertino'
         self.nickname            = ''
@@ -20,6 +20,7 @@ class Config_Server():
         self.port                = -1
         self.max_traces          = -1
         self.max_points          = -1
+        self.realtime            = 'false'
         self.apply_calib         = False
         self.display_tracebacks  = False
         self.display_arrivals    = True
@@ -30,7 +31,7 @@ class Config_Server():
         self.import_paths        = ()
         self.default_chans       = ()
         self.default_time_window = -1
-        self.filters             = {}
+        self.filters             = ()
         self.run_server          = {}
 
         try:
@@ -41,7 +42,7 @@ class Config_Server():
             sys.exit()
 
         try:
-            opts, pargs = getopt.getopt(sys.argv[1:], 'dp:P:vVen:')
+            opts, pargs = getopt.getopt(sys.argv[1:], 'dp:P:vVern:')
         except getopt.GetoptError:
             self.usage()
             sys.exit(-1)
@@ -53,10 +54,13 @@ class Config_Server():
         for option, value in opts:
 
             if '-e' in option:
-                self.event = True
+                self.event = 'true'
 
             if '-p' in option:
                 self.pfname = str(value)
+
+            if '-r' in option:
+                self.realtime = 'true'
 
             if '-d' in option:
                 self.daemonize = True
@@ -98,7 +102,7 @@ class Config_Server():
         self.display_points      = stock.pfget_boolean( self.pfname, "display_points" )
         self.default_chans       = stock.pfget_tbl( self.pfname, "default_chans" )
         self.default_time_window = stock.pfget_tbl( self.pfname, "default_time_window" )
-        self.filters             = stock.pfget_arr( self.pfname, "filters" )
+        self.filters             = stock.pfget_tbl( self.pfname, "filters" )
         self.import_paths        = stock.pfget_tbl( self.pfname, "import_paths" )
 
 #}}}
@@ -159,7 +163,7 @@ class Config_Server():
 #}}}
     def usage(self):
 
-        print "\n\tUsage: dbwfserver [-devV] [-n nickname] [-p pfname] [-P port] [dbname]\n"
+        print "\n\tUsage: dbwfserver [-drevV] [-n nickname] [-p pfname] [-P port] dbname\n"
 
     def __getattr__(self,attrname):
 #{{{
@@ -191,6 +195,7 @@ class Config_Server():
         if attrname == "default_time_window": return self.time_window
         if attrname == "filters": return self.filters
         if attrname == "run_server": return self.run_server
+        if attrname == "realtime": return self.realtime
 
         raise AttributeError, attrname
 #}}}

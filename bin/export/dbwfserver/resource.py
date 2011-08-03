@@ -34,7 +34,7 @@ def isNumber(test):
 class db_nulls():
 #{{{ Class to store null values for every field in the schema
 
-    def __init__(self,db,debug,tables=[]):
+    def __init__(self,db,tables=[]):
     #{{{ Load class and test databases
 
         """
@@ -42,7 +42,7 @@ class db_nulls():
         """
         self.dbcentral = db
         self.tables    = tables
-        self.debug    = debug
+        self.debug    = config.debug
         self.null_vals = defaultdict(lambda: defaultdict(dict))
 
         """
@@ -157,10 +157,9 @@ class Stations():
     Data structure and functions to query for stations
     """
 
-    def __init__(self, db, config):
+    def __init__(self, db):
     #{{{ Load class and get the data
 
-        self.config = config
         self.first = True
         self.dbcentral = db
         self.stachan_cache = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
@@ -169,7 +168,7 @@ class Stations():
         self.maxtime = -1
         self.mintime = 0
 
-        if self.config.debug: print "Stations(): init() class"
+        if config.debug: print "Stations(): init() class"
 
         self._get_stachan_cache()
 
@@ -202,7 +201,7 @@ class Stations():
         end-user/application display of content using log.msg() or log.msg()
         """
 
-        if self.config.verbose: print "Stations():"
+        if config.verbose: print "Stations():"
 
         for st in self.stachan_cache.keys():
             chans = self.stachan_cache[st].keys()
@@ -218,12 +217,12 @@ class Stations():
 
 
         if station in self.stachan_cache:
-            if self.config.debug: print "Stations(): %s => %s" % (station,self.stachan_cache[station])
+            if config.debug: print "Stations(): %s => %s" % (station,self.stachan_cache[station])
             return self.stachan_cache[station]
 
         else:
             print "Stations(): No value for station:%s" % station
-            if self.config.debug:
+            if config.debug:
                 for sta in self.stachan_cache:
                     for chan in self.stachan_cache[sta]:
                         print '\t%s.%s => %s' % (sta,chan,self.stachan_cache[sta][chan])
@@ -235,11 +234,11 @@ class Stations():
     #{{{ private function to load data
         records = 0
 
-        if self.config.verbose: print "Stations(): update cache"
+        if config.verbose: print "Stations(): update cache"
 
         for dbname in self.dbcentral.list():
 
-            if self.config.debug: print "Station(): dbname: %s" % dbname
+            if config.debug: print "Station(): dbname: %s" % dbname
             dates = {}
 
             try:
@@ -267,7 +266,7 @@ class Stations():
                 except Exception, e:
                     print 'Station(): ERROR (%s=>%s)' % (Exception,e)
 
-            if self.config.debug: 
+            if config.debug: 
                 print 'Stations(): maxtime: %s' % self.maxtime
                 print 'Stations(): mintime: %s' % self.mintime
                 print 'Stations(): dates: %s' % dates.keys()
@@ -329,7 +328,7 @@ class Stations():
 
                 self.stachan_cache[sta][chan]['dates'].extend([[ondate,offdate]])
 
-                if self.config.debug: print "Station(): %s.%s dates: %s" % (sta,chan,self.stachan_cache[sta][chan]['dates'])
+                if config.debug: print "Station(): %s.%s dates: %s" % (sta,chan,self.stachan_cache[sta][chan]['dates'])
 
             try:
                 db.close()
@@ -447,7 +446,7 @@ class Stations():
 
         if not list: list = ['.*']
 
-        if self.config.debug: print "Stations(): convert_sta(%s)" % list
+        if config.debug: print "Stations(): convert_sta(%s)" % list
 
         for test in list:
 
@@ -466,7 +465,7 @@ class Stations():
 
         stations = keys.keys()
 
-        if self.config.debug: print "Stations(): convert_sta(%s) => %s" % (list,stations)
+        if config.debug: print "Stations(): convert_sta(%s) => %s" % (list,stations)
 
         return stations
 
@@ -482,10 +481,9 @@ class Events():
     Data structure and functions to query for events
     """
 
-    def __init__(self, db, config):
+    def __init__(self, db):
     #{{{ Load class and get the data
 
-        self.config = config
         self.first = True
         self.dbcentral = db
         self.event_cache = defaultdict(lambda: defaultdict(dict))
@@ -493,13 +491,13 @@ class Events():
         self.start = 0
         self.end = 0
 
-        if self.config.debug: print "Events(): init() class"
+        if config.debug: print "Events(): init() class"
 
         #
         # Load null class
         #
-        if self.config.debug: print "Events(): self.nulls"
-        self.nulls = db_nulls(db,self.config.debug,['events','event','origin','assoc','arrival']) 
+        if config.debug: print "Events(): self.nulls"
+        self.nulls = db_nulls(db,['events','event','origin','assoc','arrival']) 
 
         self._get_event_cache()
 
@@ -533,7 +531,7 @@ class Events():
         end-user/application display of content using log.msg() or log.msg()
         """
 
-        if self.config.debug:
+        if config.debug:
 
             for orid in self.event_cache:
                 print "\nEvents(): %s(%s)" % (orid,self.event_cache[orid])
@@ -583,7 +581,7 @@ class Events():
         #
         # If running in simple mode we don't have access to the tables we need
         #
-        if self.config.simple:
+        if config.simple:
             return results
 
         orid_time = _isNumber(orid_time)
@@ -639,11 +637,11 @@ class Events():
     def _get_event_cache(self):
     #{{{ private function to load the data from the tables
 
-        if self.config.verbose: print "Events(): update cache"
+        if config.verbose: print "Events(): update cache"
 
         for dbname in self.dbcentral.list():
 
-            if self.config.debug: print "Events(): dbname: %s" % dbname
+            if config.debug: print "Events(): dbname: %s" % dbname
 
             # Get min max for wfdisc table first
             try:
@@ -712,7 +710,7 @@ class Events():
                 print 'Events(): ERROR: No records to work on any table\n\n'
                 continue
 
-            if self.config.debug: 
+            if config.debug: 
                 print "Events(): origin db_pointer: [%s,%s,%s,%s]" % (db['database'],db['table'],db['field'],db['record'])
 
             try:
@@ -805,7 +803,7 @@ class Events():
 
         print "Events(): Done updating cache. (%s)" % len(self.event_cache)
 
-        if self.config.debug:
+        if config.debug:
             print "Events(): %s" % self.event_cache.keys()
 
 #}}}
@@ -816,7 +814,7 @@ class Events():
         Go through station channels to retrieve all
         arrival phases
         """
-        if self.config.debug: print "Events():phases(%s,%s) "%(min,max)
+        if config.debug: print "Events():phases(%s,%s) "%(min,max)
 
         phases = defaultdict(lambda: defaultdict(dict))
 
@@ -825,7 +823,7 @@ class Events():
 
         dbname = self.dbcentral(min)
 
-        if self.config.debug: print "Events():phases(%s,%s) db:(%s)"%(min,max,dbname)
+        if config.debug: print "Events():phases(%s,%s) db:(%s)"%(min,max,dbname)
 
         if not dbname: return phases
 
@@ -882,13 +880,13 @@ class Events():
                 phases[StaChan][ArrTime] = '_' + Phase
 
 
-            if self.config.debug: print "Phases(%s):%s" % (StaChan,Phase)
+            if config.debug: print "Phases(%s):%s" % (StaChan,Phase)
         try:
             db.close()
         except:
             pass
 
-        if self.config.debug:  print "Events: phases(): t1=%s t2=%s [%s]" % (min,max,phases)
+        if config.debug:  print "Events: phases(): t1=%s t2=%s [%s]" % (min,max,phases)
 
         return dict(phases)
     #}}}
@@ -904,38 +902,36 @@ class QueryParser(resource.Resource):
 
     allowedMethods = ("GET")
 
-    def __init__(self,db,config):
+    def __init__(self,db):
     #{{{
 
         print '########################'
         print '\tLoading!'
         print '########################'
 
-        self.config = config
         self.dbname = db
-        self.realtime = 'false'
         self.loading_stations = True
         self.loading_events = True
 
         #
         # Initialize Classes
         #
-        if self.config.debug: print 'QueryParser(): Init DB: Load class resorce.Resource.__init__(self)'
+        if config.debug: print 'QueryParser(): Init DB: Load class resorce.Resource.__init__(self)'
         resource.Resource.__init__(self)
 
 
         #
         # Open db using dbcentral CLASS
         #
-        if self.config.debug: print "QueryParser(): Init DB: Create dbcentral object with database(%s)." % self.dbname
+        if config.debug: print "QueryParser(): Init DB: Create dbcentral object with database(%s)." % self.dbname
         try:
-            self.db = dbcentral.dbcentral(self.dbname,self.config.nickname,self.config.debug)
+            self.db = dbcentral.dbcentral(self.dbname,config.nickname,config.debug)
         except Exception, e:
             print '\n\nERROR: dbcentral(%s)=>(%s)\n\n' % (Exception,e)
             sys.exit()
 
 
-        if self.config.debug: self.db.info()
+        if config.debug: self.db.info()
 
         if not self.db.list(): 
             print '\nQueryParser(): Init DB: ERROR: No databases to use! (%s)\n\n'% self.dbname
@@ -945,30 +941,23 @@ class QueryParser(resource.Resource):
         self.tvals = {
                 "filters": '<option value="None">None</option>',
                 "dbname": self.dbname,
-                "event_controls": '',
-                "application_title": self.config.application_title,
+                "display_arrivals": '',
+                "display_points": '',
+                "dbname": self.dbname,
+                "application_title": config.application_title,
             }
 
-        if self.config.event:
-                self.tvals['event_controls'] = ' \
-                    <p>Get time from event list:</p> \
-                    <input type="submit" id="load_events" value="Show Events"/> '
 
-
-        for filter in self.config.filters:
-            self.tvals['filters'] += '<option value="'+self.config.filters[filter].replace(' ','_')+'">'
+        for filter in config.filters:
+            self.tvals['filters'] += '<option value='+filter.replace(' ','_')+'>'
             self.tvals['filters'] += filter
-            self.tvals['filters'] += '"</option>'
+            self.tvals['filters'] += '</option>'
 
-        if self.config.event and self.config.display_arrivals:
+        if config.event == 'true' and config.display_arrivals:
             self.tvals['display_arrivals'] = 'checked="checked"'
-        else:
-            self.tvals['display_arrivals'] = ''
 
-        if self.config.display_points:
+        if config.display_points:
             self.tvals['display_points'] = 'checked="checked"'
-        else:
-            self.tvals['display_points'] = ''
 
         #
         # We might need to remove 
@@ -981,7 +970,7 @@ class QueryParser(resource.Resource):
             #
             # Test database access. 
             #
-            if self.config.debug: print "QueryParser(): Init(): try dbopen [%s]" % dbname
+            if config.debug: print "QueryParser(): Init(): try dbopen [%s]" % dbname
 
             try:
                 db_temp = datascope.dbopen( dbname , "r" )
@@ -990,13 +979,13 @@ class QueryParser(resource.Resource):
                 remove.append(dbname)
                 continue
 
-            if self.config.debug: 
+            if config.debug: 
                 print "QueryParser(): Init(): Dbptr: [%s,%s,%s,%s]" % (db_temp['database'],db_temp['table'],db_temp['field'],db_temp['record'])
 
             table_list =  ['wfdisc','sitechan']
 
             for tbl in table_list:
-                if self.config.debug: print "QueryParser(): Init(): Check table  %s[%s]." % (dbname,tbl)
+                if config.debug: print "QueryParser(): Init(): Check table  %s[%s]." % (dbname,tbl)
 
                 try:
                     db_temp.lookup( table=tbl )
@@ -1025,7 +1014,7 @@ class QueryParser(resource.Resource):
                     remove.append(dbname)
                     continue
 
-                if self.config.debug: print "QueryParser(): Init():\t%s records=>[%s]" % (tbl,records)
+                if config.debug: print "QueryParser(): Init():\t%s records=>[%s]" % (tbl,records)
 
             try:
                 db_temp.close()
@@ -1052,35 +1041,32 @@ class QueryParser(resource.Resource):
     def _init_in_thread(self):
     #{{{
         print '\nLoading Stations()\n'
-        self.stations = Stations(self.db,self.config)
+        self.stations = Stations(self.db)
         self.loading_stations = False
         print '\nDone loading Stations()\n'
 
-        if self.config.event:
+        if config.event == 'true':
             print '\nLoading Events()\n'
-            self.events = Events(self.db,self.config)
+            self.events = Events(self.db)
             self.loading_events = False
             print '\nDone loading Events()\n'
         else:
             self.loading_events = False
-
-        if self.stations.max_time() > (stock.now() - 3600 ):
-            self.realtime = 'true'
 
         print '\nREADY!\n'
     #}}}
 
     def getChild(self, name, uri): 
     #{{{
-        #if self.config.debug: log.msg("getChild(): name:%s uri:%s" % (name,uri))
+        #if config.debug: log.msg("getChild(): name:%s uri:%s" % (name,uri))
         return self
     #}}}
 
     def render_GET(self, uri):
     #{{{
-        if self.config.debug: log.msg("QueryParser(): render_GET(): uri: %s" % uri)
+        if config.debug: log.msg("QueryParser(): render_GET(): uri: %s" % uri)
 
-        if self.config.debug: 
+        if config.debug: 
             log.msg('')
             log.msg('QueryParser(): render_GET(%s)' % uri)
             log.msg('QueryParser(): render_GET() uri.uri:%s' % uri.uri)
@@ -1100,22 +1086,21 @@ class QueryParser(resource.Resource):
 
 
         if self.loading_stations or self.loading_events:
-            uri.setHeader("content-type", "text/html")
-            uri.setHeader("response-code", 500)
-            html =  "<html><head><title>%s</title></head><body><h1>DBWFSERVER:</h1></br><h3>Server Loading!</h3></br>" % self.config.application_name
-            
+            html =  "<html><head><title>%s</title></head><body><h1>DBWFSERVER:</h1></br><h3>Server Loading!</h3></br>" % config.application_name
             html +=  "<p>Waiting for Stations: %s</p></br>" % self.loading_stations
-
             html +=  "<p>Waiting for Events: %s</p></br>" % self.loading_events
-
             html +=  "</body></html>"
-            return html
+            uri.setHeader("content-type", "text/html")
+            uri.setResponseCode( 500 )
+            uri.write(html)
+            uri.finish()
+            return 
 
         d = defer.Deferred()
         d.addCallback( self.render_uri )
         reactor.callInThread(d.callback, uri)
 
-        if self.config.debug: log.msg("QueryParser(): render_GET() - return server.NOT_DONE_YET")
+        if config.debug: log.msg("QueryParser(): render_GET() - return server.NOT_DONE_YET")
 
         return server.NOT_DONE_YET
 
@@ -1131,17 +1116,17 @@ class QueryParser(resource.Resource):
         response_meta = {}
 
         response_meta.update( { 
-            "type":       'meta-query',
             "error":      'false',
+            "setupEvents":config.event,
             "setupUI":    'false',
-            "realtime":   self.realtime,
+            "realtime":   config.realtime,
             "proxy":      "''",
-            "proxy_url":  self.config.proxy_url,
-            "style":      self.config.style,
+            "proxy_url":  config.proxy_url,
+            "style":      config.style,
             "meta_query": "false"
         } )
 
-        if self.config.proxy_url: response_meta['proxy'] = "'" + self.config.proxy_url + "'"
+        if config.proxy_url: response_meta['proxy'] = "'" + config.proxy_url + "'"
 
         #
         # remove all empty  elements
@@ -1158,6 +1143,25 @@ class QueryParser(resource.Resource):
         # Parse all elements on the list
         query = self._parse_request(path)
 
+        if 'filter' in uri.args:
+            filter = uri.args['filter'][0]
+            query.update( { "filter":filter.replace('_',' ') } )
+        else:
+            query.update( { "filter":'None' } )
+
+
+        if 'calibrate' in uri.args:
+            test = uri.args['calibrate'][0]
+            if test.lower() in ("yes", "true", "t", "1"):
+                query.update( { "calibrate":1 } )
+            else:
+                query.update( { "calibrate":0 } )
+
+        else:
+            uri.args.update( { "calibrate":[config.apply_calib] } )
+            query.update( { "calibrate":config.apply_calib } )
+
+
         log.msg('')
         log.msg('QueryParser(): render_uri() uri.prepath => path(%s)[%s]' % (len(path),path) )
         log.msg('QueryParser(): render_uri() query => [%s]' % query)
@@ -1166,7 +1170,7 @@ class QueryParser(resource.Resource):
         if query['data']:
         #{{{
 
-                if self.config.debug: log.msg('QueryParser(): render_uri() "data" query')
+                if config.debug: log.msg('QueryParser(): render_uri() "data" query')
 
                 if len(path) == 0:
                 #{{{ ERROR: we need one option
@@ -1181,8 +1185,8 @@ class QueryParser(resource.Resource):
                     Called with or without argument.
                     """
 
-                    if self.config.debug: log.msg('QueryParser(): render_uri() query => data => events')
-                    if not self.config.event: 
+                    if config.debug: log.msg('QueryParser(): render_uri() query => data => events')
+                    if not config.event: 
                         return self.uri_results(uri,{})
 
                     elif len(path) == 2:
@@ -1202,7 +1206,7 @@ class QueryParser(resource.Resource):
                     for all wfs in the cluster of dbs.
                     """
 
-                    if self.config.debug: log.msg('QueryParser(): render_uri() query => data => dates')
+                    if config.debug: log.msg('QueryParser(): render_uri() query => data => dates')
 
                     return self.uri_results( uri, self.stations.dates() )
 
@@ -1215,7 +1219,7 @@ class QueryParser(resource.Resource):
                     for all stations in the cluster of dbs.
                     """
 
-                    if self.config.debug: log.msg('QueryParser(): render_uri() query => data => dates')
+                    if config.debug: log.msg('QueryParser(): render_uri() query => data => dates')
 
                     if len(path) == 2: 
                         return self.uri_results( uri, self.stations.stadates(path[1]) )
@@ -1234,7 +1238,7 @@ class QueryParser(resource.Resource):
                     Called with argument return dictionary
                     """
 
-                    if self.config.debug: log.msg('QueryParser(): render_uri() query => data => stations')
+                    if config.debug: log.msg('QueryParser(): render_uri() query => data => stations')
 
                     if len(path) == 2: 
                         return self.uri_results( uri, self.stations(path[1]) )
@@ -1248,7 +1252,7 @@ class QueryParser(resource.Resource):
                     Return channels list as JSON objects. For client ajax calls.
                     """
 
-                    if self.config.debug: log.msg('QueryParser(): render_uri() query => data => channels')
+                    if config.debug: log.msg('QueryParser(): render_uri() query => data => channels')
 
                     if len(path) == 2:
                         stas = self.stations.convert_sta(path[1].split('|')) 
@@ -1263,7 +1267,7 @@ class QueryParser(resource.Resource):
                     Return JSON object for epoch(now).
                     """
 
-                    if self.config.debug: log.msg('QueryParser(): render_uri() query => data => now')
+                    if config.debug: log.msg('QueryParser(): render_uri() query => data => now')
 
                     return self.uri_results( uri, [stock.now()] )
                 #}}}
@@ -1274,9 +1278,9 @@ class QueryParser(resource.Resource):
                     Return list of filters as JSON objects. For client ajax calls.
                     """
 
-                    if self.config.debug: log.msg('QueryParser(): render_uri() query => data => filters')
+                    if config.debug: log.msg('QueryParser(): render_uri() query => data => filters')
 
-                    return self.uri_results( uri, self.config.filters )
+                    return self.uri_results( uri, config.filters )
                 #}}}
 
                 elif path[0] == 'wf':
@@ -1285,7 +1289,7 @@ class QueryParser(resource.Resource):
                     Return JSON object of data. For client ajax calls.
                     """
 
-                    if self.config.debug: print "QueryParser(): render_uri(): get_data(%s))" % query
+                    if config.debug: print "QueryParser(): render_uri(): get_data(%s))" % query
 
                     return self.uri_results( uri, self.get_data(query) )
 
@@ -1296,7 +1300,7 @@ class QueryParser(resource.Resource):
                     """
                     Return coverage tuples as JSON objects. For client ajax calls.
                     """
-                    if self.config.debug: print "QueryParser(): render_uri(): Get coverage" 
+                    if config.debug: print "QueryParser(): render_uri(): Get coverage" 
 
                     query.update( { "coverage": 1 } )
 
@@ -1314,26 +1318,25 @@ class QueryParser(resource.Resource):
         response_meta.update(self.tvals)
 
         if not path: 
-            return  self.uri_results( uri, Template(open(self.config.template).read()).safe_substitute(response_meta) )
+            return  self.uri_results( uri, Template(open(config.template).read()).safe_substitute(response_meta) )
 
         response_meta['meta_query'] = {}
         response_meta['meta_query']['sta'] = query['sta']
         response_meta['meta_query']['chan'] = query['chan']
         response_meta['meta_query']['time_start'] = query['start']
         response_meta['meta_query']['time_end'] = query['end']
-        response_meta['meta_query']['calib'] = query['calib']
-        response_meta['meta_query']['filter'] = query['filter']
         response_meta['meta_query']['page'] = query['page']
+
         if uri.args:
             response_meta['setupUI'] = json.dumps(uri.args)
 
         response_meta['meta_query'] = json.dumps( response_meta['meta_query'] )
 
         if path[0] == 'wf':
-                return  self.uri_results( uri, Template(open(self.config.template).read()).safe_substitute(response_meta) )
+                return  self.uri_results( uri, Template(open(config.template).read()).safe_substitute(response_meta) )
 
         elif path[0] == 'plot':
-                return  self.uri_results( uri, Template(open(self.config.plot_template).read()).safe_substitute(response_meta) )
+                return  self.uri_results( uri, Template(open(config.plot_template).read()).safe_substitute(response_meta) )
 
         return self.uri_results( uri, "Invalid query."  )
 
@@ -1354,27 +1357,20 @@ class QueryParser(resource.Resource):
 
             localhost/wf/sta/chan/time/time
 
-            localhost/wf/sta/chan/time/time/filter
-
             Data-only calls:
             localhost/data/wf
-            localhost/data/meta
             localhost/data/times
             localhost/data/events
             localhost/data/filters
             localhost/data/stations
             localhost/data/coverage
             localhost/data/channels
-            localhost/data/wf/sta/chan/time/time/filter
-            localhost/data/meta/sta/chan/time/time/filter
-            localhost/data/meta/sta/chan/time/time/filter/page
-
-
+            localhost/data/wf/sta/chan/time/time
         """
-        if self.config.debug: log.msg("QueryParser(): _parse_request(): URI: %s" % str(args) ) 
+        if config.debug: log.msg("QueryParser(): _parse_request(): URI: %s" % str(args) ) 
 
         uri = {}
-        time_window = self.config.default_time_window
+        time_window = config.default_time_window
 
         uri.update( { 
             "sta":[],
@@ -1382,15 +1378,15 @@ class QueryParser(resource.Resource):
             "end":0,
             "data":False,
             "start":0,
-            "filter":'None',
-            "calib":False,
+            #"filter":'None',
+            #"calibrate":False,
             "page":1,
             "coverage":0,
             "time_window":False
         } )
 
         if 'data' in args:
-            if self.config.verbose: log.msg("QueryParser() _parse_request(): data query!") 
+            if config.verbose: log.msg("QueryParser() _parse_request(): data query!") 
             uri['data'] = True
             args.remove('data')
 
@@ -1410,27 +1406,30 @@ class QueryParser(resource.Resource):
         if len(args) > 4:
             uri['end'] = args[4]
 
-        # localhost/sta/chan/time/time/filter
+        # localhost/sta/chan/time/time/page
         if len(args) > 5:
-            uri['filter'] = args[5]
+            uri['page'] = args[5]
 
-        # localhost/sta/chan/time/time/filter/calib
-        if len(args) > 6:
-            uri['calib'] = args[6]
+        #   # localhost/sta/chan/time/time/filter
+        #   if len(args) > 5:
+        #       uri['filter'] = args[5]
 
-        # localhost/sta/chan/time/time/filter/calib/page
-        if len(args) > 7:
-            uri['page'] = args[7]
+        #   # localhost/sta/chan/time/time/filter/calibrate
+        #   if len(args) > 6:
+        #       uri['calibrate'] = args[6]
 
+        #   # localhost/sta/chan/time/time/filter/calibrate/page
+        #   if len(args) > 7:
+        #       uri['page'] = args[7]
 
         #
         #Setting the filter
         #
-        if uri['filter']:
-            if uri['filter'] == 'None' or uri['filter'] == 'null' or uri['filter'] == '-':
-                uri['filter'] = 'None'
-            else:
-                uri['filter'] = uri['filter'].replace('_',' ')
+        #if uri['filter']:
+        #    if uri['filter'] == 'None' or uri['filter'] == 'null' or uri['filter'] == '-':
+        #        uri['filter'] = 'None'
+        #    else:
+        #        uri['filter'] = uri['filter'].replace('_',' ')
 
         #
         # Fix start
@@ -1488,24 +1487,29 @@ class QueryParser(resource.Resource):
             if not uri['end']:
                 uri['end'] = uri['start'] + time_window
 
-        if self.config.verbose: 
+        if config.verbose: 
             log.msg("QueryParser(): _parse_request(): [sta:%s chan:%s start:%s end:%s]" % (uri['sta'], uri['chan'], uri['start'], uri['end']) ) 
 
         return uri
         # }}}
 
-    def uri_results(self, uri=None, results=None):
+    def uri_results(self, uri=None, results=False):
     #{{{
         print 'QueryParser(): uri_results(%s,%s)' % (uri,type(results))
 
         if uri: 
-            #print '\n\nTYPE: %s \n\n' % type(results)
-            if type(results).__name__ == 'list' or type(results).__name__ == 'dict':
-                uri.setHeader("content-type", "application/json")
-                uri.write(json.dumps(results))
+
+            if results != False:
+                if type(results).__name__ == 'list' or type(results).__name__ == 'dict':
+                    uri.setHeader("content-type", "application/json")
+                    uri.write(json.dumps(results))
+                else:
+                    uri.setHeader("content-type", "text/html")
+                    uri.write(results)
             else:
                 uri.setHeader("content-type", "text/html")
-                uri.write(results)
+                uri.setResponseCode( 500 )
+                uri.write('Problem with server!')
 
             try:
                 uri.finish()
@@ -1523,10 +1527,10 @@ class QueryParser(resource.Resource):
 
         response_data = ""
 
-        if self.config.debug: 
+        if config.debug: 
             print "QueryParser(): get_data(): Build COMMAND"
 
-        if self.config.debug: 
+        if config.debug: 
             print "QueryParser(): get_data(): Get data for uri:%s.%s" % (query['sta'],query['chan'])
 
         if not query['sta']:
@@ -1544,11 +1548,11 @@ class QueryParser(resource.Resource):
 
         if not start: 
             temp_dic = self.stations(query['sta'][0])
-            if temp_dic: start = temp_dic[query['chan'][0]]['end'] - self.config.default_time_window
+            if temp_dic: start = temp_dic[query['chan'][0]]['end'] - config.default_time_window
 
         #if not start: start = stock.now()
 
-        if not end: end = start + self.config.default_time_window
+        if not end: end = start + config.default_time_window
 
         tempdb = self.db(start)
         if not tempdb:
@@ -1568,17 +1572,17 @@ class QueryParser(resource.Resource):
         else:
             coverage = ""
 
-        if query['calib']:
-            calib = "-c "
+        if query['calibrate']:
+            calibrate = "-c "
         else:
-            calib = ""
+            calibrate = ""
 
         if query['page']:
             page = "-p %s" % query['page']
         else:
             page = ""
 
-        run = "dbwfserver_extract %s %s %s %s %s -n %s -m %s %s %s %s 2>&1" % ( regex, coverage, filter, page, calib, self.config.max_traces, self.config.max_points, tempdb, start, end)
+        run = "dbwfserver_extract %s %s %s %s %s -n %s -m %s %s %s %s 2>&1" % ( regex, coverage, filter, page, calibrate, config.max_traces, config.max_points, tempdb, start, end)
 
         print "*********"
         print "QueryParser(): get_data(): Extraction command: [%s]" % run

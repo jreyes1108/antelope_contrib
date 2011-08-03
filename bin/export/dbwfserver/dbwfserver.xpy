@@ -10,7 +10,6 @@ import platform
 from string import Template
 from collections import defaultdict 
 from time import sleep
-#from multiprocessing import Pool
 from subprocess import Popen, PIPE, STDOUT
 
 
@@ -107,18 +106,14 @@ else:
         print "Problem loading Python's simplejson library. (%s)" % e
         sys.exit()
 
-#   #
-#   # Create pool of workers
-#   #
-#   try:
-#       pool = Pool(4)
-#   except Exception,e:
-#       print "Problem with process pool object on lib 'multiprocessing' class:Pool. (%s)" % e
-#       sys.exit()
-#   
+try:
+    import dbwfserver.dbcentral as dbcentral 
+except Exception,e:
+    print "Problem loading dbwfserver's DBCENTRAL module from contrib code. (%s)" % e
+    sys.exit()
 
 #
-# Import other functions
+#Configure system with command-line flags and pf file values.
 #
 try:
     import dbwfserver.config as configuration
@@ -126,11 +121,9 @@ except Exception,e:
     print "Problem loading dbwfserver's CONFIG module from contrib code. (%s)" % e
     sys.exit()
 
-try:
-    import dbwfserver.dbcentral as dbcentral 
-except Exception,e:
-    print "Problem loading dbwfserver's DBCENTRAL module from contrib code. (%s)" % e
-    sys.exit()
+config = configuration.Config_Server()
+sys.argv = config.configure()
+
 
 try:
     import dbwfserver.resource as resource
@@ -139,16 +132,7 @@ except Exception,e:
     sys.exit()
 
 
-#
-#Configure system with command-line flags and pf file values.
-#
-config = configuration.Config_Server()
-#config = pool.apply(configuration.Config_Server)
-
-sys.argv = config.configure()
-
 if config.verbose: print '\n\tStart Server!\n'
-
 
 try:
     print "RUN REACTOR!"
@@ -156,8 +140,6 @@ try:
 except:
     print "Exiting."
     try:
-        #pool.close()
-        #pool.terminate()
         reactor.stop()
     except:
         pass

@@ -302,13 +302,15 @@ main (int argc, char **argv)
 
             printf ( "\"format\":\"bins\"," ) ; 
             printf ( "\"type\":\"coverage\"," ) ; 
-            printf ( "\"data\":[" ) ; 
+            printf ( "\"data\":[null" ) ; 
 
             // To search from the beginning (including the 
             // first record) set the record number < 0
             dbwf.record = -1;
 
             sprintf( temp, "sta == '%s' && chan == '%s'", sta,chan );
+
+            elog_set( ELOG_DELIVER, 0 ,"/dev/null");
 
             for ( ;; ) {
 
@@ -322,7 +324,7 @@ main (int argc, char **argv)
                     dbwf.record = result ;
                     dbgetv(dbwf,0,"time",&time,"endtime",&endtime,NULL) ; 
 
-                    printf( ",[%0.0f,%0.0f]", time*1000 , endtime*1000 ) ; 
+                    printf( ",[%0.0f,1,%0.0f]", time*1000 , endtime*1000 ) ; 
 
                 } 
                 else { break; }

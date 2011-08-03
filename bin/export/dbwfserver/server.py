@@ -2,11 +2,7 @@ from __main__ import *
 
 for port,db  in config.run_server.items():
 
-    #reverseProxy = proxy.ReverseProxyResource('localhost',int(port),'/test/path/')
-    #root = vhost.NameVirtualHost()
-    #root. addHost( 'localhost', reverseProxy)
-
-    root = resource.QueryParser(db,config)
+    root = resource.QueryParser(db)
 
     root.putChild('static', static.File(config.static_dir))
 
