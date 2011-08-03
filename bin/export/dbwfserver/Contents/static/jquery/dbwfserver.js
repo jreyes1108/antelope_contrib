@@ -6,6 +6,7 @@ var isShiftPressed =  false;
 var activeQueries = 0;
 var isPlotting =  false;
 var realtime =  false;
+var events =  false;
 
 var ts = null;
 var te = null;
@@ -488,8 +489,7 @@ function setupEvents() {
         }); 
     //}}}
     });
-    //$('#load_events').show();
-    //$('#load_events').button('enable');
+    events = true;
 
     // }}}
 }
@@ -1668,6 +1668,7 @@ function plotData(r_data){
 
 function setPhases(){
 //{{{
+    if (! events ) return; 
     if (! show_phases ) return; 
     if (! ts || ! te) return;
 

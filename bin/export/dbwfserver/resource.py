@@ -1186,7 +1186,7 @@ class QueryParser(resource.Resource):
                     """
 
                     if config.debug: log.msg('QueryParser(): render_uri() query => data => events')
-                    if not config.event: 
+                    if config.event != 'true':
                         return self.uri_results(uri,{})
 
                     elif len(path) == 2:
