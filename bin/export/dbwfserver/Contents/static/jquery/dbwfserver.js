@@ -94,7 +94,7 @@ function init(){
     $.ajaxSetup({
         type: 'get',
         dataType: 'json',
-        timeout: 60*1000,
+        timeout: 90*1000,
         error:errorResponse
     });
 
@@ -704,7 +704,7 @@ function openSubnav() {
 function makeLink(){
 //{{{
     var path = String(window.location).split('/')
-    var url = path[0] + '//' + path[2] + '/' + proxy + '/wf/' + sta + '/' + chan ;
+    var url = path[0] + '/' + path[2] + '/' + proxy + '/wf/' + sta + '/' + chan ;
     url += '/'+ts/1000; 
     url += '/'+te/1000; 
     url += '/'+page+'?' ; 
@@ -1215,7 +1215,7 @@ function errorResponse(x,s,e) {
 
     //alert(JSON.stringify(this));
     var path = String(window.location).split('/')
-    var message = path[0] + '//' + path[2] + '/' + proxy ;
+    var message = path[0] + '/' + path[2] ;
     message += this['url'];
     message += " => ";
 
@@ -1598,9 +1598,14 @@ function plotData(r_data){
             // Setup for bins
             } else if( data['format'] == 'bins' ) {
             //{{{
-                temp_flot_ops.bars = {show:true,lineWidth:1};
+                if (data['data'].length > 0) {
+                    var each_bar = $("#"+plt).width()/data['data'].length;
+                } else {
+                    var each_bar = 1;
+                }
+                temp_flot_ops.bars = {align:'center',show:true,barWidth:each_bar,lineWidth:each_bar};
                 temp_flot_ops.points  = {show:false};
-                temp_flot_ops.lines = {show:true,lineWidth:1};
+                temp_flot_ops.lines = {show:true,lineWidth:each_bar};
 
             } else if( data['format'] == 'lines' ) {
 
@@ -1680,6 +1685,9 @@ function plotData(r_data){
     if ( somedata && page < last_page ) {
         $("#load_bar").html( "<p>Page " + page + " of " + last_page + "       <button id=load_next>Load Next</div></p>" );
         $('#load_bar').show();
+    } else {
+        $("#load_bar").empty();
+        $('#load_bar').hide();
     }
 
     activeQueries -= 1; 
