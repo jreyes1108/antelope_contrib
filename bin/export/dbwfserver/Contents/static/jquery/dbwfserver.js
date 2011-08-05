@@ -1598,14 +1598,9 @@ function plotData(r_data){
             // Setup for bins
             } else if( data['format'] == 'bins' ) {
             //{{{
-                if (data['data'].length > 0) {
-                    var each_bar = $("#"+plt).width()/data['data'].length;
-                } else {
-                    var each_bar = 1;
-                }
-                temp_flot_ops.bars = {align:'center',show:true,barWidth:each_bar,lineWidth:each_bar};
+                temp_flot_ops.bars = {align:'center',show:true,barWidth:2,lineWidth:2};
                 temp_flot_ops.points  = {show:false};
-                temp_flot_ops.lines = {show:true,lineWidth:each_bar};
+                temp_flot_ops.lines = {show:true,lineWidth:2};
 
             } else if( data['format'] == 'lines' ) {
 
