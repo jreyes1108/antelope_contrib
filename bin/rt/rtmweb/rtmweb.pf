@@ -1,1 +1,9 @@
+port                    8000
+
 restart_sleep_time_sec  2
+
+password                rtm
+
+application_title       -TEST- Antelope Realtime System
+
+email                   reyes@ucsd.edu
